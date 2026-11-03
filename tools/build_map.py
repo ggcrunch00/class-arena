@@ -225,16 +225,23 @@ if __name__ == "__main__":
         static = [o for o in bpy.data.objects if o.type == 'MESH' and not o.hide_render]
         parts = {k: [o for o in tree(r) if o.type == 'MESH' and not o.hide_render] for k, r in structs.items()}
         part_set = set(o for v in parts.values() for o in v)
-        keep = [join([o for o in static if o not in part_set], "field")]
+        # 건물(본성·탑·폐허)만 하나씩 합치고, 나머지(타일·나무·바위)는 그대로 둠
+        # → tools/compress_glb.mjs 가 같은 모형을 한 번만 저장하고 여러 번 그리게(인스턴싱) 바꿈
+        keep = []
         for k, objs in parts.items():
             keep.append(join(objs, k))
+        part_roots = set(structs.values())
         for o in list(bpy.data.objects):
-            if o not in keep:
+            if o in keep:
+                continue
+            if o.hide_render or o.name.startswith("SRC_") or o in part_set or o in part_roots or o.type in ('CAMERA', 'LIGHT'):
                 bpy.data.objects.remove(o, do_unlink=True)
-        bpy.ops.export_scene.gltf(filepath=ROOT + "/game/models/field_" + LAYOUT + ".glb", export_format='GLB', export_animations=False,
+        static = [o for o in bpy.data.objects if o.type == 'MESH' and o not in keep]
+        keep += static
+        bpy.ops.export_scene.gltf(filepath=ROOT + "/game/models/field_" + LAYOUT + ".raw.glb", export_format='GLB', export_animations=False,
                                   export_cameras=False, export_lights=False)
         meta = {"lanes": {k: [list(p) for p in v] for k, v in LANES.items()},
                 "towers": {k: {str(s): list(p) for s, p in v.items()} for k, v in towers().items()},
                 "bases": {str(s): list(p) for s, p in BASE.items()}, "bounds": [BX, BY], "river": [list(p) for p in RIVER]}
         json.dump(meta, open(ROOT + "/game/src/play/map_" + LAYOUT + ".json", "w"), indent=1)
-        print("MAP", LAYOUT, os.path.getsize(ROOT + "/game/models/field_" + LAYOUT + ".glb") // 1024, "KB", sum(len(o.data.vertices) for o in keep), "verts")
+        print("MAP", LAYOUT, os.path.getsize(ROOT + "/game/models/field_" + LAYOUT + ".raw.glb") // 1024, "KB (압축 전)")

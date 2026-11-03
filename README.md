@@ -39,7 +39,9 @@ for u in knight mage skel_warrior skel_mage; do ./venv/bin/python tools/bake_uni
 python3 tools/pack_units.py                 # 프레임 모으기 → game/assets/*.webp, data.js
 ./venv/bin/python tools/export_glb.py       # 병사 모형 → game/models/*.glb (전장은 비교판용 한 갈래)
 ./venv/bin/python tools/build_map.py preview  # 3갈래 지도 미리보기
-./venv/bin/python tools/build_map.py glb      # 3갈래 지도 → game/models/field.glb + game/src/play/map.json
+./venv/bin/python tools/build_map.py glb diag # 3갈래 지도(diag 또는 wide) → game/models/field_<지도>.raw.glb + game/src/play/map_<지도>.json
+node tools/compress_glb.mjs game/models/field_diag.raw.glb game/models/field_diag.glb   # 같은 모형 한 번만 저장(인스턴싱)·양자화
+node tools/compress_glb.mjs <병사>.glb game/models/<병사>.glb   # 병사도 양자화·동작 키프레임 정리
 python3 tools/make_model_js.py              # .glb → .js
 ./venv/bin/python tools/bake_portraits.py    # 출전 버튼 얼굴 그림
 npm run build                               # A안 + 연습 대전 묶기
