@@ -63,11 +63,46 @@ def export_world():
           sum(len(o.data.vertices) for o in keep), "verts")
 
 
+def merge_unit(rig):
+    """병사 조각(몸통·팔·투구·무기…)을 한 덩어리로 합쳐 그리기 횟수를 줄인다.
+    뼈에 붙어 있던 조각(투구·무기)은 그 뼈를 100% 따라가는 피부로 바꾼 뒤 합친다."""
+    bpy.context.view_layer.update()
+    rig.data.pose_position = 'REST'
+    bpy.context.view_layer.update()
+    parts = [o for o in bpy.data.objects if o.type == 'MESH' and o.parent is rig]
+    for o in parts:
+        if o.parent_type == 'BONE':
+            bone = o.parent_bone
+            mw = o.matrix_world.copy()
+            o.parent = None
+            o.matrix_world = mw
+            o.parent = rig; o.parent_type = 'OBJECT'
+            o.matrix_parent_inverse = rig.matrix_world.inverted()
+            for vg in list(o.vertex_groups):
+                o.vertex_groups.remove(vg)
+            vg = o.vertex_groups.new(name=bone)
+            vg.add(list(range(len(o.data.vertices))), 1.0, 'REPLACE')
+            if not any(m.type == 'ARMATURE' for m in o.modifiers):
+                m = o.modifiers.new("Armature", 'ARMATURE'); m.object = rig
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in parts:
+        o.select_set(True)
+    body = [o for o in parts if o.name.endswith("_Body")]
+    bpy.context.view_layer.objects.active = body[0] if body else parts[0]
+    bpy.ops.object.join()
+    rig.data.pose_position = 'POSE'
+    merged = bpy.context.view_layer.objects.active
+    merged.name = "Body"
+    return merged, len(parts)
+
+
 def export_unit(key):
     reset()
     rig = build_unit(key)
     rig.rotation_euler = (0, 0, 0)
     rig.scale = (1, 1, 1)
+    merged, n = merge_unit(rig)
+    print("MERGED", key, n, "parts ->", len(merged.material_slots), "materials")
     want = set(UNITS[key]["anims"].values())
     for a in list(bpy.data.actions):
         if a.name not in want:
@@ -82,6 +117,8 @@ def export_unit(key):
 
 
 if __name__ == "__main__":
-    export_world()
+    import sys as _s
+    if "units" not in _s.argv:
+        export_world()
     for k in UNITS:
         export_unit(k)
