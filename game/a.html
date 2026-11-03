@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>성문 대전 · A안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Dodum&display=swap">
+<link rel="stylesheet" href="css/hud.css">
+</head>
+<body>
+<div id="stage"></div>
+<div id="overlay"></div>
+<div id="hud">
+  <div class="team" id="blue"><div class="top"><span class="name">기사단</span><span class="score">정답 <b class="r">0</b> · 오답 <b class="w">0</b></span></div><div class="hp"><i></i><span>100%</span></div><div class="feed"></div></div>
+  <div class="mid">VS</div>
+  <div class="team" id="red"><div class="top"><span class="name">해골 군단</span><span class="score">정답 <b class="r">0</b> · 오답 <b class="w">0</b></span></div><div class="hp"><i></i><span>100%</span></div><div class="feed"></div></div>
+</div>
+<div id="victory" hidden><b></b><small>잠시 뒤 새 판이 시작돼요</small></div>
+<div id="tag"><span id="mode">A안</span><span id="fps">-- fps</span><a href="index.html">비교 화면</a></div>
+<div id="loading">전장을 펼치는 중 <b>0%</b></div>
+<script src="js/sim.js"></script>
+<script src="js/hud.js"></script>
+<script src="models/field.js"></script>
+<script src="models/knight.js"></script>
+<script src="models/mage.js"></script>
+<script src="models/skel_warrior.js"></script>
+<script src="models/skel_mage.js"></script>
+<script src="js/a_bundle.js"></script>
+</body>
+</html>

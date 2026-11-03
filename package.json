@@ -1,0 +1,18 @@
+{
+  "name": "class-arena",
+  "version": "0.1.0",
+  "private": true,
+  "description": "문제를 맞히면 병사가 출전하는 교실 대전 게임(그래픽 시험 단계)",
+  "scripts": {
+    "build:a": "esbuild game/src/a_main.js --bundle --format=iife --minify --target=es2020 --outfile=game/js/a_bundle.js",
+    "serve": "python3 tools/serve_csp.py 8130",
+    "balance": "node tests/balance.js 80"
+  },
+  "dependencies": {
+    "pixi.js": "8.22.0",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10"
+  }
+}

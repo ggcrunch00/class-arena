@@ -1,0 +1,15 @@
+# 받아 오는 것·만들어지는 것(저장소에 넣지 않음)
+node_modules
+venv
+assets_src
+tmp_frames/
+*.log
+bake_done.txt
+preview_world.png
+# 교사용 문서·게시글은 구글 드라이브에(역사타워레이스 노트 0장)
+다음할일_*.md
+인디스쿨_업로드/
+.claude/
+# 굽는 중간 결과(게임은 .webp, .js만 씀)
+game/assets/*.png
+game/models/*.glb
