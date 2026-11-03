@@ -2,7 +2,7 @@
 // 화면 파일(html)과 게임 코드는 "인터넷 먼저", 큰 모형·그림은 "저장본 먼저 + 뒤에서 새것 받기".
 // GitHub Pages 같은 배포 주소에서만 켜짐(main.js 에서 등록).
 const CACHE = "class-arena-v1";
-const CORE = ["./", "./play.html", "./css/play.css", "./js/play_bundle.js", "./manifest.webmanifest", "./icons/icon-192.png"];
+const CORE = ["./", "./play.html", "./guide.html", "./css/play.css", "./js/play_bundle.js", "./manifest.webmanifest", "./icons/icon-192.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));

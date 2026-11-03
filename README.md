@@ -13,6 +13,14 @@
 
 `game/index.html`은 두 안을 고르는 첫 화면입니다.
 
+## 배포(GitHub Pages)
+
+`main`에 푸시하면 `.github/workflows/pages.yml`이 `game/` 폴더를 올립니다. 첫 화면은 게임(`play.html`), 그래픽 비교판은 `compare.html`.
+처음 한 번: 저장소 **Settings → Pages → Build and deployment → Source: GitHub Actions**. 켜기 전에는 배포를 조용히 건너뜁니다.
+배포 주소에서는 서비스 워커(`game/sw.js`)가 게임 파일을 기기에 저장해 두 번째부터 빠르고 인터넷 없이도 열립니다. 모형을 크게 바꾸면 `sw.js`의 `CACHE` 이름 숫자를 올려 주세요.
+
+선생님용 안내: `game/guide.html`
+
 ## 폴더
 
 | 위치 | 내용 |
