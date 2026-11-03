@@ -9,7 +9,7 @@ import { View3D } from "./view3d.js";
 import { Quality } from "./quality.js";
 import { Sound } from "./sound.js";
 import { Music } from "./music.js";
-import { TOPICS, FORMATS, checkAnswer, questionLine } from "./questions.js";
+import { TOPICS, FORMATS, checkAnswer, questionLine, setSeed } from "./questions.js";
 import { Seat } from "./seat.js";
 
 const $ = (s) => document.querySelector(s);
@@ -55,7 +55,14 @@ const settings = {
   topic: remember("classArena.topic") || "gugu", topic2: remember("classArena.topic2") || "gugu",
   ai: remember("classArena.ai") || "recruit", format: remember("classArena.format") || "input",
 };
-if (!["cpu", "duo"].includes(settings.mode)) settings.mode = "cpu";
+if (!["cpu", "duo", "daily"].includes(settings.mode)) settings.mode = "cpu";
+// 오늘의 도전: 날짜로 주제·문제 순서가 정해짐(모두 같음), 상대는 기사, 형식은 직접 입력
+function today() {
+  const d = new Date(), key = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  const days = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+  const topics = Object.keys(TOPICS);
+  return { key, label: `${d.getMonth() + 1}월 ${d.getDate()}일`, topic: topics[days % topics.length] };
+}
 if (!FORMATS[settings.format]) settings.format = "input";
 if (!TOPICS[settings.topic]) settings.topic = "gugu";
 if (!TOPICS[settings.topic2]) settings.topic2 = "gugu";
@@ -155,14 +162,16 @@ function newGame() {
   document.body.classList.remove("menu");
   layout();
   view.clear();
-  const duo = settings.mode === "duo";
+  const duo = settings.mode === "duo", daily = settings.mode === "daily" ? today() : null;
   if ((seats.length === 2) !== duo) makeSeats(duo ? "duo" : "cpu");
   const battle = new Battle(durations);
-  G = { battle, duo, ai: duo ? null : new ComputerPlayer(battle, CPU, settings.ai), endT: -1 };
-  seats[0].start(battle, settings.topic, settings.format);
+  G = { battle, duo, daily, ai: duo ? null : new ComputerPlayer(battle, CPU, daily ? "knight" : settings.ai), endT: -1 };
+  setSeed(daily ? daily.key : null);
+  seats[0].start(battle, daily ? daily.topic : settings.topic, daily ? "input" : settings.format);
   if (duo) seats[1].start(battle, settings.topic2, settings.format);
   $("#blueSub").textContent = duo ? "왼쪽" : "나";
-  $("#redSub").textContent = duo ? "오른쪽" : "컴퓨터 · " + AI_LEVELS[settings.ai].name;
+  $("#redSub").textContent = duo ? "오른쪽" : "컴퓨터 · " + AI_LEVELS[daily ? "knight" : settings.ai].name;
+  if (daily) setTimeout(() => banner(`오늘의 도전 · ${daily.label} · ${TOPICS[daily.topic].name}`, 2.2), 300);
   $("#banner").hidden = true;
   for (const s of ["#titleScreen", "#startScreen", "#resultScreen", "#pauseScreen", "#setScreen"]) $(s).hidden = true;
   quality.reset();
@@ -334,7 +343,8 @@ function shareText() {
     return `성문 대전 · 둘이서 · ${w ? (w < 0 ? "기사단" : "해골 군단") + " 승리" : "무승부"} · ${tm}\n기사단: ${line(seats[0])}\n해골 군단: ${line(seats[1])}`;
   }
   const res = b.winner === PLAYER ? "승리" : b.winner === CPU ? "패배" : "무승부";
-  return `성문 대전 · ${res} ${"★".repeat(G.stars)}${"☆".repeat(3 - G.stars)} · 컴퓨터 ${AI_LEVELS[settings.ai].name} · ${tm}\n${line(seats[0])}`;
+  const head = G.daily ? `성문 대전 · 오늘의 도전 ${G.daily.label}` : "성문 대전";
+  return `${head} · ${res} ${"★".repeat(G.stars)}${"☆".repeat(3 - G.stars)} · 컴퓨터 ${G.daily ? "기사" : AI_LEVELS[settings.ai].name} · ${tm}\n${line(seats[0])}`;
 }
 function copyShare() {
   const txt = $("#shareText").textContent;
@@ -442,9 +452,12 @@ function buildStart() {
   drawStart();
 }
 function drawStart() {
-  const duo = settings.mode === "duo";
+  const duo = settings.mode === "duo", daily = settings.mode === "daily";
   document.querySelectorAll("#modes .mode[data-m]").forEach((b) => b.classList.toggle("on", b.dataset.m === settings.mode));
-  $("#topic2Pick").hidden = !duo; $("#aiPick").hidden = duo;
+  $("#topic2Pick").hidden = !duo; $("#aiPick").hidden = duo || daily;
+  for (const id of ["#topicOpts", "#fmtOpts"]) $(id).closest(".pick").hidden = daily;
+  $("#dailyNote").hidden = !daily;
+  if (daily) { const t = today(); $("#dailyNote").textContent = `오늘(${t.label})의 도전: ${TOPICS[t.topic].name} · 직접 입력 · 컴퓨터 기사. 반 친구들 모두 같은 문제가 같은 순서로 나와요. 끝나고 기록을 복사해 비교해 보세요!`; }
   $("#topicLabel").textContent = duo ? "왼쪽(기사단) 문제 주제" : "문제 주제";
   document.querySelectorAll("#topicOpts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.topic));
   document.querySelectorAll("#topic2Opts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.topic2));
@@ -463,6 +476,7 @@ function showStart() {
 }
 function drawLastSet() {
   const duo = settings.mode === "duo";
+  if (settings.mode === "daily") { const t = today(); $("#lastSet").textContent = `오늘의 도전 · ${t.label} · ${TOPICS[t.topic].name} · ${MAPS[MAP_KEY].name} 지도`; return; }
   $("#lastSet").textContent = (duo ? "둘이서 대전 · " + TOPICS[settings.topic].name + " / " + TOPICS[settings.topic2].name
     : "연습 대전 · " + TOPICS[settings.topic].name + " · 컴퓨터 " + AI_LEVELS[settings.ai].name) + " · " + FORMATS[settings.format].name + " · " + MAPS[MAP_KEY].name + " 지도";
 }
