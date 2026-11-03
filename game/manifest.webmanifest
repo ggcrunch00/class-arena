@@ -1,0 +1,16 @@
+{
+  "name": "성문 대전 · 교실 대전 게임",
+  "short_name": "성문 대전",
+  "description": "문제를 맞혀 골드를 벌고, 3갈래 길로 병사를 보내 상대 본성을 무너뜨리는 교실 대전 게임",
+  "lang": "ko",
+  "start_url": "./play.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0d1712",
+  "theme_color": "#0d1712",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

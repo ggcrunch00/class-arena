@@ -105,6 +105,11 @@ async function boot() {
   showStart();
   requestAnimationFrame(frame);
   if (["localhost", "127.0.0.1"].includes(location.hostname)) exposeTestHook();
+  // 배포 주소(https)에서만 기기에 저장(두 번째부터 빠르게). 미리보기 페이지에서는 막혀 있어 건너뜀
+  try {
+    if ("serviceWorker" in navigator && location.protocol === "https:" && !/claude\.ai|claudeusercontent/.test(location.hostname))
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+  } catch { /* 지원 안 하는 브라우저 */ }
 }
 
 function makeSeats(m) {
