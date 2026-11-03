@@ -220,6 +220,7 @@ const seatOf = (side) => seats.find((x) => x.side === side);
 
 let hitstop = 0, dangerT = 0, dangerSaid = -99;
 function confetti(n = 90) {
+  n = Math.round(n * quality.preset.fx); // 느린 기기에선 적게
   const cols = ["#ffd36b", "#7fd0ff", "#ff8f80", "#8fe388", "#fff3d6", "#c9a0ff"];
   for (let i = 0; i < n; i++) {
     const c = document.createElement("i"); c.className = "confetti";
