@@ -1,5 +1,6 @@
 # GitHub Pages 자동 배포: main에 푸시하면 game/ 폴더를 올림(첫 화면 = 게임)
-# 처음 한 번: 저장소 Settings → Pages → Source 를 "GitHub Actions"로. 무료 계정은 저장소가 공개(Public)여야 함.
+# 처음 한 번: 저장소 Settings → Pages → Build and deployment → Source 를 "GitHub Actions"로(무료 계정은 공개 저장소만).
+# Pages가 아직 안 켜져 있으면 실패 대신 조용히 건너뜀. 켠 뒤엔 Actions 탭에서 "Run workflow"로 바로 배포할 수 있음.
 name: Pages
 on:
   push:
@@ -14,15 +15,22 @@ concurrency:
   cancel-in-progress: true
 jobs:
   deploy:
-    # 저장소가 비공개인 동안(무료 계정은 Pages를 못 씀)에는 실패 대신 건너뜀
-    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Pages가 켜져 있는지 확인
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${{ github.repository }}/pages" >/dev/null 2>&1; then echo "on=true" >> "$GITHUB_OUTPUT";
+          else echo "on=false" >> "$GITHUB_OUTPUT"; echo "::notice::Pages가 아직 꺼져 있어 배포를 건너뜁니다(Settings → Pages → Source: GitHub Actions)"; fi
       - uses: actions/checkout@v4
+        if: steps.check.outputs.on == 'true'
       - name: 올릴 파일 모으기
+        if: steps.check.outputs.on == 'true'
         run: |
           mkdir _site
           cp -r game/. _site/
@@ -31,8 +39,11 @@ jobs:
           cp _site/play.html _site/index.html
           sed -i 's#href="index.html"#href="compare.html"#g' _site/a.html _site/b.html
       - uses: actions/configure-pages@v5
+        if: steps.check.outputs.on == 'true'
       - uses: actions/upload-pages-artifact@v3
+        if: steps.check.outputs.on == 'true'
         with:
           path: _site
       - id: deployment
+        if: steps.check.outputs.on == 'true'
         uses: actions/deploy-pages@v4
