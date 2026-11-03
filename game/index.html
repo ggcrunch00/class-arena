@@ -47,7 +47,8 @@ dd { margin: 0; min-width: 0; }
 .fbody { display: grid; gap: 10px; align-content: center; padding: 18px 20px; }
 .ftitle { font-family: var(--display); font-size: clamp(26px, 3.4vw, 34px); line-height: 1.1; }
 .fdesc { color: var(--muted); font-size: 15px; }
-.feature .go { justify-self: start; }
+.golinks { display: flex; flex-wrap: wrap; gap: 10px; }
+.feature .go.alt { background: #e9dcc0; box-shadow: 0 3px 0 #8d7a52; }
 .feature:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 h2.sub { font-family: var(--display); font-weight: 400; font-size: 22px; margin: 0; color: var(--muted); }
 @media (max-width: 720px) { .feature { grid-template-columns: 1fr; } }
@@ -66,15 +67,15 @@ footer a { color: var(--gold); }
     <p class="lead">문제를 맞히면 병사가 출전해 상대 성을 무너뜨리는 대전 게임의 <b>그림만</b> 먼저 만들었습니다. 지금은 컴퓨터가 양쪽 학생 대신 정답을 냅니다. <b>같은 무료 3D 모형</b>을 두 가지 방법으로 그렸으니, 눈으로 보고 태블릿에서 부드러운지 비교해 주세요. 게임 이름은 임시입니다.</p>
   </header>
 
-  <a class="feature" href="play.html">
-    <img src="thumbs/play.webp" alt="연습 대전 화면: 위는 전장, 아래는 문제와 출전 버튼">
+  <div class="feature">
+    <img src="thumbs/play.webp" alt="연습 대전 화면: 위는 3갈래 전장, 아래는 문제와 출전 버튼">
     <span class="fbody">
-      <span class="eyebrow">새로 · 1단계 시험판 · 3갈래 지도</span>
+      <span class="eyebrow">새로 · 1단계 시험판 · 3갈래 지도 2가지</span>
       <span class="ftitle">연습 대전 해 보기</span>
-      <span class="fdesc">롤처럼 대각선 지도에 윗길·가운뎃길·아랫길 3갈래, 길마다 탑이 한쪽에 하나씩 있습니다. 계산 문제를 풀어 골드를 벌고, 보낼 길을 고른 뒤 병사 4종(상성)을 출전시켜 컴퓨터(신병·기사·장군)의 본성을 무너뜨리세요. 설정에서 화질을 직접 고르거나 자동으로 둘 수 있습니다.</span>
-      <span class="go">연습 대전 열기</span>
+      <span class="fdesc">윗길·가운뎃길·아랫길 3갈래, 길마다 탑이 한쪽에 하나씩 있습니다. 계산 문제를 풀어 골드를 벌고, 보낼 길을 고른 뒤 병사 4종(상성)을 출전시켜 컴퓨터(신병·기사·장군)의 본성을 무너뜨리세요. 지도는 두 가지로 비교해 보실 수 있습니다(시작 화면에서도 바꿀 수 있음).</span>
+      <span class="golinks"><a class="go" href="play.html#diag">대각선 지도</a><a class="go alt" href="play.html#wide">펼친 3갈래</a></span>
     </span>
-  </a>
+  </div>
 
   <h2 class="sub">그래픽 비교(11-03)</h2>
   <section class="pair">

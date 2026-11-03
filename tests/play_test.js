@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
   page.on('console', (m) => { if (['error', 'warning'].includes(m.type())) logs.push(m.type() + ': ' + m.text()); });
   page.on('pageerror', (e) => logs.push('PAGEERROR: ' + e.message));
   page.on('requestfailed', (r) => logs.push('REQFAIL: ' + r.url()));
-  await page.goto('http://127.0.0.1:8130/play.html');
+  await page.goto('http://127.0.0.1:8130/' + (process.env.PAGE || 'play.html'));
   await page.waitForFunction(() => window.__arena, null, { timeout: 120000 });
   await page.waitForTimeout(1500);
   await page.screenshot({ path: out + '/p1_start.png' });

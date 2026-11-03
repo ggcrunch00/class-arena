@@ -1,6 +1,7 @@
 # 3갈래 대각선 지도 짓기 (롤처럼 본성이 왼쪽 앞·오른쪽 뒤 모서리, 윗길·가운뎃길·아랫길, 가운데 강, 길 사이 숲)
-#   python tools/build_map.py preview   → 미리보기 그림(preview_map.png)
-#   python tools/build_map.py glb       → game/models/field.glb + game/src/play/map.json
+#   python tools/build_map.py preview [diag|wide]  → 미리보기 그림(preview_map_<지도>.png)
+#   python tools/build_map.py glb [diag|wide]      → game/models/field_<지도>.glb + game/src/play/map_<지도>.json
+#   diag = 롤처럼 대각선(본성이 왼쪽 앞·오른쪽 뒤 모서리), wide = 펼친 3갈래(본성이 왼쪽·오른쪽 가운데, 옆으로 긴 화면에 맞춤)
 import sys, os, math, random, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy, bmesh, mathutils
@@ -8,18 +9,32 @@ from scene_common import *
 
 S = 3.0                       # 육각 타일 확대 배율
 HW, RS = 2.0 * S, 1.725 * S   # 타일 가로, 줄 간격
-BX, BY = 21.0, 12.0           # 섬(풀밭) 반폭·반깊이
-BASE = {-1: (-18.0, -9.5), 1: (18.0, 9.5)}
 ROAD_W = 1.6                  # 길 반폭
 TOWER_AT = 0.36               # 탑 위치: 자기 본성에서 길 길이의 36%
+LAYOUT = sys.argv[2] if len(sys.argv) > 2 else "diag"
 
-# 길: 파란 본성 → 빨간 본성 방향의 꺾은선
-LANES = {
-    "top": [BASE[-1], (-18.6, -5.0), (-18.6, 7.2), (-16.2, 9.9), (14.0, 10.1), BASE[1]],
-    "mid": [BASE[-1], BASE[1]],
-    "bot": [BASE[-1], (-14.0, -10.1), (16.2, -9.9), (18.6, -7.2), (18.6, 5.0), BASE[1]],
-}
-RIVER = [(-23.0, 13.2), (23.0, -13.2)]  # 강: 반대 대각선
+if LAYOUT == "wide":
+    # 펼친 3갈래: 본성 왼쪽·오른쪽 가운데, 윗길(뒤)·아랫길(앞)이 바깥으로 휘어 돎
+    BX, BY = 17.5, 9.6
+    BASE = {-1: (-15.5, 0.0), 1: (15.5, 0.0)}
+    LANES = {
+        "top": [BASE[-1], (-14.2, 4.6), (-11.0, 7.4), (11.0, 7.4), (14.2, 4.6), BASE[1]],
+        "mid": [BASE[-1], BASE[1]],
+        "bot": [BASE[-1], (-14.2, -4.6), (-11.0, -7.4), (11.0, -7.4), (14.2, -4.6), BASE[1]],
+    }
+    RIVER = [(-2.5, 11.5), (2.5, -11.5)]   # 강: 가운데를 세로로
+    LOW_JUNGLE = True                      # 길 사이는 낮은 덤불만(뒤쪽 길 병사가 가리지 않게)
+else:
+    # 대각선: 롤처럼 본성이 왼쪽 앞·오른쪽 뒤 모서리
+    BX, BY = 21.0, 12.0
+    BASE = {-1: (-18.0, -9.5), 1: (18.0, 9.5)}
+    LANES = {
+        "top": [BASE[-1], (-18.6, -5.0), (-18.6, 7.2), (-16.2, 9.9), (14.0, 10.1), BASE[1]],
+        "mid": [BASE[-1], BASE[1]],
+        "bot": [BASE[-1], (-14.0, -10.1), (16.2, -9.9), (18.6, -7.2), (18.6, 5.0), BASE[1]],
+    }
+    RIVER = [(-23.0, 13.2), (23.0, -13.2)]  # 강: 반대 대각선
+    LOW_JUNGLE = False
 
 
 def seg_dist(p, a, b):
@@ -114,8 +129,8 @@ def mat(name, col, rough=0.9, alpha=1.0):
 
 
 def build_ground():
-    for j in range(-5, 6):
-        for i in range(-6, 6):
+    for j in range(-6, 7):
+        for i in range(-7, 7):
             x, y = hexpos(i, j)
             inside = abs(x) <= BX + 1 and abs(y) <= BY + 1.5
             if inside:
@@ -136,14 +151,20 @@ def build_jungle():
     big = ["trees_A_large.gltf", "trees_B_large.gltf", "trees_A_medium.gltf", "trees_B_medium.gltf"]
     small = ["tree_single_A.gltf", "tree_single_B.gltf", "trees_A_small.gltf", "trees_B_small.gltf"]
     rocks = ["rock_single_A.gltf", "rock_single_B.gltf", "rock_single_C.gltf", "rock_single_D.gltf"]
-    for k in range(900):
+    for k in range(900 if not LOW_JUNGLE else 1400):
         p = (rnd.uniform(-BX, BX), rnd.uniform(-BY, BY))
         dl = min(poly_dist(p, pts) for pts in LANES.values())
         dr = seg_dist(p, *RIVER)
         db = min(math.dist(p, b) for b in BASE.values())
-        if dl < ROAD_W + 1.8 or dr < 2.4 or db < 5:
+        if dl < ROAD_W + (0.7 if LOW_JUNGLE else 1.8) or dr < 2.4 or db < 5:
             continue
         r = rnd.random()
+        if LOW_JUNGLE:   # 낮은 덤불·바위만
+            if r < 0.30:
+                place(N + rnd.choice(small), (*p, 0), rnd.uniform(0, 6.28), S * rnd.uniform(0.3, 0.45))
+            elif r < 0.40:
+                place(N + rnd.choice(rocks), (*p, 0), rnd.uniform(0, 6.28), S * rnd.uniform(0.3, 0.55))
+            continue
         if r < 0.08 and dl > 4.5:
             place(N + rnd.choice(big), (*p, 0), rnd.uniform(0, 6.28), S * rnd.uniform(0.6, 0.75))
         elif r < 0.22:
@@ -184,7 +205,7 @@ def tree(root):
 
 
 if __name__ == "__main__":
-    mode = sys.argv[-1]
+    mode = sys.argv[1]
     sc = reset()
     lights()
     build_ground(); build_jungle()
@@ -194,10 +215,10 @@ if __name__ == "__main__":
             if k.startswith("ruin"):
                 for o in tree(r): o.hide_render = True
         e = math.radians(ELEV)
-        camera((0, 1.5, 0), 1600, 760, 47)
+        camera((0, 1.5 if LAYOUT == "diag" else 1.0, 0), 1600, 760, 47 if LAYOUT == "diag" else 39)
         sc.cycles.samples = 16
         sc.render.film_transparent = False
-        sc.render.filepath = ROOT + "/preview_map.png"
+        sc.render.filepath = ROOT + "/preview_map_" + LAYOUT + ".png"
         bpy.ops.render.render(write_still=True)
     elif mode == "glb":
         from export_glb import join
@@ -210,10 +231,10 @@ if __name__ == "__main__":
         for o in list(bpy.data.objects):
             if o not in keep:
                 bpy.data.objects.remove(o, do_unlink=True)
-        bpy.ops.export_scene.gltf(filepath=ROOT + "/game/models/field.glb", export_format='GLB', export_animations=False,
+        bpy.ops.export_scene.gltf(filepath=ROOT + "/game/models/field_" + LAYOUT + ".glb", export_format='GLB', export_animations=False,
                                   export_cameras=False, export_lights=False)
         meta = {"lanes": {k: [list(p) for p in v] for k, v in LANES.items()},
                 "towers": {k: {str(s): list(p) for s, p in v.items()} for k, v in towers().items()},
                 "bases": {str(s): list(p) for s, p in BASE.items()}, "bounds": [BX, BY], "river": [list(p) for p in RIVER]}
-        json.dump(meta, open(ROOT + "/game/src/play/map.json", "w"), indent=1)
-        print("MAP", os.path.getsize(ROOT + "/game/models/field.glb") // 1024, "KB", sum(len(o.data.vertices) for o in keep), "verts")
+        json.dump(meta, open(ROOT + "/game/src/play/map_" + LAYOUT + ".json", "w"), indent=1)
+        print("MAP", LAYOUT, os.path.getsize(ROOT + "/game/models/field_" + LAYOUT + ".glb") // 1024, "KB", sum(len(o.data.vertices) for o in keep), "verts")

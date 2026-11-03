@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { Battle } from "../game/src/play/battle.js";
 import { ComputerPlayer } from "../game/src/play/ai.js";
 import { AI_LEVELS } from "../game/src/play/config.js";
+import { useMap } from "../game/src/play/lanes.js";
+const MAPK = process.argv[3] || "diag"; useMap(MAPK); console.log("지도:", MAPK);
 const dur = JSON.parse(readFileSync(new URL("./durations.json", import.meta.url)));
 const N = +process.argv[2] || 150;
 // 학생 모습: 곱셈구구를 문제당 평균 4초, 정답률 85%, 보통 난이도(어려움 섞임)

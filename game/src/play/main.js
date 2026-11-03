@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { ROLES, ROLE_INFO, SIDES, AI_LEVELS, QUALITY, QUALITY_ORDER, MINE, CANNON, GOLD, BASE } from "./config.js";
-import { LANE_NAMES, LANE_LABEL } from "./lanes.js";
+import { LANE_NAMES, LANE_LABEL, MAPS, useMap } from "./lanes.js";
 import { Battle } from "./battle.js";
 import { ComputerPlayer } from "./ai.js";
 import { View3D } from "./view3d.js";
@@ -11,6 +11,8 @@ import { Sound } from "./sound.js";
 import { TOPICS, makeQuestion, checkAnswer } from "./questions.js";
 
 const $ = (s) => document.querySelector(s);
+// 지도는 주소 끝 #diag 또는 #wide 로 고름(시작 화면에서 바꾸면 다시 불러옴)
+const MAP_KEY = useMap((location.hash || "").replace("#", "") || remember("classArena.map") || "diag");
 const MODELS = ["field", ...Object.values(SIDES[-1].models), ...Object.values(SIDES[1].models)];
 const PLAYER = -1, CPU = 1;
 
@@ -48,9 +50,14 @@ const settings = { topic: remember("classArena.topic") || "gugu", ai: remember("
 if (!TOPICS[settings.topic]) settings.topic = "gugu";
 if (!AI_LEVELS[settings.ai]) settings.ai = "recruit";
 
+function loadScript(src) {
+  return new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => no(new Error(src + " 를 불러오지 못했어요")); document.head.appendChild(s); });
+}
 async function boot() {
   models = {};
   let n = 0;
+  await loadScript(`models/field_${MAP_KEY}.js`);
+  window.GLB.field = window.GLB["field_" + MAP_KEY];
   for (const m of MODELS) { models[m] = await parseGLB(m); $("#loading b").textContent = Math.round(++n / MODELS.length * 100) + "%"; }
   await fontsReady();
   durations = {};
@@ -336,6 +343,17 @@ function buildStart() {
     b.innerHTML = `<span>${t.name}</span><small>${t.hint}</small>`;
     b.addEventListener("click", () => { settings.topic = k; remember("classArena.topic", k); drawStart(); });
     topicBox.appendChild(b);
+  }
+  const mapBox = $("#mapOpts"), mapDesc = { diag: "롤처럼 모서리에서 모서리로", wide: "옆으로 넓게, 병사가 크게" };
+  for (const [k, m] of Object.entries(MAPS)) {
+    const b = document.createElement("button"); b.className = "opt" + (k === MAP_KEY ? " on" : ""); b.dataset.k = k;
+    b.innerHTML = `<span>${m.name}</span><small>${mapDesc[k]}</small>`;
+    b.addEventListener("click", () => {
+      if (k === MAP_KEY) return;
+      remember("classArena.map", k);
+      location.hash = k; location.reload();
+    });
+    mapBox.appendChild(b);
   }
   const aiBox = $("#aiOpts"), desc = { recruit: "천천히 풀어요", knight: "가끔 상성을 노려요", general: "빠르고 영리해요" };
   for (const [k, a] of Object.entries(AI_LEVELS)) {

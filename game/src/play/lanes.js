@@ -1,6 +1,9 @@
 // 3갈래 길 모양(블렌더 tools/build_map.py 가 만든 map.json)을 게임에서 쓰기 좋게 바꿈.
 // 길 위 위치는 s(파란 본성에서부터 걸어간 거리, m)로 나타냄. 파란 병사는 s가 늘어나는 쪽, 빨간 병사는 줄어드는 쪽으로 감.
-import MAP from "./map.json" with { type: "json" };
+import MAP_DIAG from "./map_diag.json" with { type: "json" };
+import MAP_WIDE from "./map_wide.json" with { type: "json" };
+
+export const MAPS = { diag: { name: "대각선", data: MAP_DIAG }, wide: { name: "펼친 3갈래", data: MAP_WIDE } };
 
 export const LANE_NAMES = ["top", "mid", "bot"];
 export const LANE_LABEL = { top: "윗길", mid: "가운뎃길", bot: "아랫길" };
@@ -35,10 +38,21 @@ class Lane {
   }
 }
 
+// 아래 값들은 useMap()으로 채움(게임 시작 전에 한 번 부름)
 export const LANES = {};
-for (const n of LANE_NAMES) LANES[n] = new Lane(n, MAP.lanes[n]);
-export const BASES = { [-1]: MAP.bases["-1"], [1]: MAP.bases["1"] };
+export const BASES = {};
 export const TOWERS = {};
-for (const n of LANE_NAMES) TOWERS[n] = { [-1]: MAP.towers[n]["-1"], [1]: MAP.towers[n]["1"] };
-export const BOUNDS = MAP.bounds;
-export { MAP };
+export const BOUNDS = [0, 0];
+export let MAP_KEY = "diag";
+
+export function useMap(key) {
+  if (!MAPS[key]) key = "diag";
+  MAP_KEY = key;
+  const M = MAPS[key].data;
+  for (const n of LANE_NAMES) LANES[n] = new Lane(n, M.lanes[n]);
+  BASES[-1] = M.bases["-1"]; BASES[1] = M.bases["1"];
+  for (const n of LANE_NAMES) TOWERS[n] = { [-1]: M.towers[n]["-1"], [1]: M.towers[n]["1"] };
+  BOUNDS[0] = M.bounds[0]; BOUNDS[1] = M.bounds[1];
+  return key;
+}
+useMap("diag");

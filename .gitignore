@@ -17,3 +17,4 @@ preview_units.png
 game/assets/portraits/*.png
 preview_map.png
 __pycache__/
+preview_map_*.png

@@ -72,7 +72,10 @@
       <button class="mode" disabled>대전<small>준비 중</small></button>
     </div>
     <div class="pick"><h3>문제 주제</h3><div class="opts" id="topicOpts"></div></div>
-    <div class="pick"><h3>컴퓨터 상대</h3><div class="opts" id="aiOpts"></div></div>
+    <div class="pickrow">
+      <div class="pick"><h3>컴퓨터 상대</h3><div class="opts" id="aiOpts"></div></div>
+      <div class="pick"><h3>지도 <small class="note">바꾸면 다시 불러와요</small></h3><div class="opts" id="mapOpts"></div></div>
+    </div>
     <div class="how">
       <div class="ring" id="ring" aria-label="병사 상성: 방패병은 돌격병에, 돌격병은 궁수에, 궁수는 마법사에, 마법사는 방패병에 강함"></div>
       <ol>
@@ -117,7 +120,6 @@
 <div id="rotate" hidden><b>가로로 돌려 주세요</b><small>태블릿·크롬북 가로 화면에 맞춘 게임이에요</small></div>
 <div id="loading">전장을 펼치는 중 <b>0%</b></div>
 
-<script src="models/field.js"></script>
 <script src="models/knight.js"></script>
 <script src="models/barbarian.js"></script>
 <script src="models/rogue.js"></script>
