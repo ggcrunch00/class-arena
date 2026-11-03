@@ -8,6 +8,7 @@ import { ComputerPlayer } from "./ai.js";
 import { View3D } from "./view3d.js";
 import { Quality } from "./quality.js";
 import { Sound } from "./sound.js";
+import { Music } from "./music.js";
 import { TOPICS, FORMATS, checkAnswer, questionLine } from "./questions.js";
 import { Seat } from "./seat.js";
 
@@ -145,6 +146,7 @@ function tickDemo(dt) {
 
 function newGame() {
   demo = null;
+  Music.intense(false); Music.duck(false); Music.start();
   document.body.classList.remove("menu");
   layout();
   view.clear();
@@ -224,7 +226,7 @@ function onEvents(evts) {
       if (!isDuo()) dangerT = 2.5;
       if (G.battle.time - dangerSaid > 8) { dangerSaid = G.battle.time; seatOf(e.struct.side).say("본성이 공격받고 있어요! 막아야 해요"); }
     }
-    if (e.type === "overtime") { banner("총력전! 골드 2배"); Sound.play("horn"); }
+    if (e.type === "overtime") { banner("총력전! 골드 2배"); Sound.play("horn"); Music.intense(true); }
     else if (e.type === "mine" && !seatOf(e.side)) toast("상대가 금광을 강화했어요");
     else if (e.type === "cannon" && !seatOf(e.side)) toast("상대의 성 대포!");
     else if (e.type === "structDown" && e.struct.kind === "tower") {
@@ -278,6 +280,7 @@ function reviewList(seat, box, scoreEl) {
 
 function showResult() {
   mode = "result";
+  Music.intense(false); Music.duck(true);
   const b = G.battle, w = b.winner;
   if (G.duo) {
     $("#resTitle").textContent = w ? `${sideName(w)} 승리!` : "무승부";
@@ -418,7 +421,7 @@ function buildStart() {
   }
   $("#startBtn").addEventListener("click", () => { Sound.unlock(); newGame(); });
   $("#quickBtn").addEventListener("click", () => { Sound.unlock(); newGame(); });
-  $("#prepBtn").addEventListener("click", () => { Sound.unlock(); $("#titleScreen").hidden = true; $("#startScreen").hidden = false; drawStart(); });
+  $("#prepBtn").addEventListener("click", () => { Sound.unlock(); Music.start(); $("#titleScreen").hidden = true; $("#startScreen").hidden = false; drawStart(); });
   $("#backBtn").addEventListener("click", () => { $("#startScreen").hidden = true; drawLastSet(); $("#titleScreen").hidden = false; });
   $("#setBtn0").addEventListener("click", () => openSettings("#titleScreen"));
   $("#againBtn").addEventListener("click", () => { Sound.unlock(); newGame(); });
@@ -458,8 +461,8 @@ function drawLastSet() {
   $("#lastSet").textContent = (duo ? "둘이서 대전 · " + TOPICS[settings.topic].name + " / " + TOPICS[settings.topic2].name
     : "연습 대전 · " + TOPICS[settings.topic].name + " · 컴퓨터 " + AI_LEVELS[settings.ai].name) + " · " + FORMATS[settings.format].name + " · " + MAPS[MAP_KEY].name + " 지도";
 }
-function pause() { if (mode !== "play") return; mode = "pause"; $("#pauseScreen").hidden = false; }
-function resume() { mode = "play"; $("#pauseScreen").hidden = true; }
+function pause() { if (mode !== "play") return; mode = "pause"; $("#pauseScreen").hidden = false; Music.duck(true); }
+function resume() { mode = "play"; $("#pauseScreen").hidden = true; Music.duck(false); }
 
 let setBack = null;
 function buildSettings() {
@@ -469,6 +472,8 @@ function buildSettings() {
   $("#fps").hidden = !quality.showFps;
   $("#soundToggle").checked = Sound.on;
   $("#soundToggle").addEventListener("change", (e) => Sound.set(e.target.checked));
+  $("#musicToggle").checked = Music.on;
+  $("#musicToggle").addEventListener("change", (e) => { Music.set(e.target.checked); if (e.target.checked) { Sound.unlock(); Music.start(); } });
   $("#setClose").addEventListener("click", () => { $("#setScreen").hidden = true; if (setBack) $(setBack).hidden = false; });
 }
 function drawQualOpts() {

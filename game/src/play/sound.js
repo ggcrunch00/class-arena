@@ -7,6 +7,7 @@ const last = {};
 
 export const Sound = {
   get on() { return on; },
+  get ctx() { return ctx; },
   set(v) { on = v; try { localStorage.setItem(KEY, v ? "1" : "0"); } catch { /* 무시 */ } },
   unlock() {
     if (ctx) { if (ctx.state === "suspended") ctx.resume(); return; }
