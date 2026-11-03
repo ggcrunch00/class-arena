@@ -43,6 +43,7 @@
       <button>1</button><button>2</button><button>3</button><button>4</button><button>5</button><button>6</button>
       <button>7</button><button>8</button><button>9</button><button>0</button><button data-k="back" aria-label="지우기">지우기</button><button data-k="ok" class="ok">확인</button>
     </div>
+    <div class="choices" id="choices" hidden></div>
     <div class="lock" id="lock" hidden><b id="lockMsg"></b><small id="lockSub"></small><i class="lockbar"><i id="lockBar"></i></i></div>
   </section>
   <section id="army" aria-label="출전">
@@ -71,7 +72,10 @@
       <button class="mode" disabled>협동 작전<small>준비 중</small></button>
       <button class="mode" disabled>대전<small>준비 중</small></button>
     </div>
-    <div class="pick"><h3>문제 주제</h3><div class="opts" id="topicOpts"></div></div>
+    <div class="pickrow">
+      <div class="pick"><h3>문제 주제</h3><div class="opts" id="topicOpts"></div></div>
+      <div class="pick"><h3>문제 형식</h3><div class="opts" id="fmtOpts"></div></div>
+    </div>
     <div class="pickrow">
       <div class="pick"><h3>컴퓨터 상대</h3><div class="opts" id="aiOpts"></div></div>
       <div class="pick"><h3>지도 <small class="note">바꾸면 다시 불러와요</small></h3><div class="opts" id="mapOpts"></div></div>

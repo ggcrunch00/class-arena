@@ -114,6 +114,20 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .keypad button:active { transform: translateY(2px); box-shadow: 0 1px 0 #111a15; }
 .keypad [data-k="back"] { font-family: var(--body); font-size: 14px; }
 .keypad .ok { background: var(--gold); color: var(--night); box-shadow: 0 3px 0 #7d6431; }
+.choices { display: grid; gap: 8px; min-height: 0; }
+.choices.n3 { grid-template-columns: repeat(3, 1fr); } .choices.n4 { grid-template-columns: repeat(2, 1fr); } .choices.ox { grid-template-columns: 1fr 1fr; }
+.choices button { position: relative; border-radius: 10px; background: #2a3830; box-shadow: 0 3px 0 #111a15; display: grid; place-items: center; min-height: 44px; }
+.choices button b { font-family: var(--display); font-weight: 400; font-size: clamp(22px, 3.4vw, 34px); }
+.choices button i { position: absolute; left: 8px; top: 6px; font-style: normal; font-size: 12px; color: var(--muted); }
+.choices.ox button { grid-template-rows: 1fr auto; padding: 4px 0 6px; }
+.choices.ox button small { font-size: 12px; color: var(--muted); }
+.choices.ox button:first-child b { color: #7fd0ff; font-size: clamp(34px, 5vw, 52px); } .choices.ox button:last-child b { color: #ff8f80; font-size: clamp(34px, 5vw, 52px); }
+.choices button:active { transform: translateY(2px); box-shadow: 0 1px 0 #111a15; }
+.choices button.good { background: #2f5a35; } .choices button.bad { background: #6a2f2a; }
+#quiz:has(.choices:not([hidden])) .qline { min-height: 0; }
+.rev .mini { display: flex; gap: 4px; flex-wrap: wrap; }
+.rev .mini button { min-width: 2.4em; padding: 3px 8px; border-radius: 6px; background: #2a3830; font-size: 14px; }
+.rev .mini button.good { background: #2f5a35; } .rev .mini button.bad { background: #6a2f2a; }
 .lock { position: absolute; inset: 0; border-radius: 12px; background: rgba(12,16,14,.92); display: grid; place-content: center; text-align: center; gap: 6px; padding: 10px; }
 .lock b { font-family: var(--display); font-weight: 400; font-size: clamp(22px, 3.4vw, 34px); }
 .lock.wrong b { color: var(--no); } .lock small { color: var(--muted); font-size: 14px; }

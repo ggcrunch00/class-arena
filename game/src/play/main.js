@@ -8,7 +8,7 @@ import { ComputerPlayer } from "./ai.js";
 import { View3D } from "./view3d.js";
 import { Quality } from "./quality.js";
 import { Sound } from "./sound.js";
-import { TOPICS, makeQuestion, checkAnswer } from "./questions.js";
+import { TOPICS, FORMATS, makeQuestion, checkAnswer, answerText, questionLine } from "./questions.js";
 
 const $ = (s) => document.querySelector(s);
 // 지도는 주소 끝 #diag 또는 #wide 로 고름(시작 화면에서 바꾸면 다시 불러옴)
@@ -46,7 +46,8 @@ function remember(k, v) { try { if (v === undefined) return localStorage.getItem
 let models, view, quality, durations, idle;
 let mode = "menu";           // menu | play | pause | result
 let G = null;                 // 한 판의 상태
-const settings = { topic: remember("classArena.topic") || "gugu", ai: remember("classArena.ai") || "recruit" };
+const settings = { topic: remember("classArena.topic") || "gugu", ai: remember("classArena.ai") || "recruit", format: remember("classArena.format") || "input" };
+if (!FORMATS[settings.format]) settings.format = "input";
 if (!TOPICS[settings.topic]) settings.topic = "gugu";
 if (!AI_LEVELS[settings.ai]) settings.ai = "recruit";
 
@@ -117,13 +118,35 @@ function setDiff(d, msg) {
 }
 
 function nextQuestion() {
-  G.q = makeQuestion(settings.topic, G.diff);
+  G.q = makeQuestion(settings.topic, G.diff, settings.format);
   G.input = "";
-  const qt = G.q.text.includes("□") ? G.q.text : G.q.text + " =";
+  const qt = questionLine(G.q);
   $("#qText").textContent = qt;
   $("#qText").className = qt.length > 16 ? "long" : qt.length > 11 ? "mid" : "";
   $("#qPrompt").textContent = G.q.prompt || "";
+  // 형식에 따라 숫자판 / 보기 단추 / O·X 단추
+  const isNum = G.q.type === "number";
+  $("#keypad").hidden = !isNum; $("#ansBox").hidden = !isNum;
+  const box = $("#choices");
+  box.hidden = isNum; box.innerHTML = "";
+  box.className = "choices " + (G.q.type === "ox" ? "ox" : "n" + (G.q.options || []).length);
+  const opts = G.q.type === "ox" ? ["O", "X"] : G.q.options || [];
+  opts.forEach((o, i) => {
+    const b = document.createElement("button");
+    b.innerHTML = G.q.type === "ox" ? `<b>${o}</b><small>${o === "O" ? "맞아요" : "틀려요"}</small>` : `<i>${i + 1}</i><b></b>`;
+    if (G.q.type !== "ox") b.querySelector("b").textContent = o;
+    b.dataset.v = o;
+    b.addEventListener("click", () => pick(o, b));
+    box.appendChild(b);
+  });
   drawAnswer();
+}
+function pick(v, el) {
+  if (mode !== "play" || !G || G.lock || G.battle.state !== "play") return;
+  G.input = v;
+  const right = checkAnswer(G.q, v);
+  if (el) el.classList.add(right ? "good" : "bad");
+  submit();
 }
 function drawAnswer(cls) {
   $("#ansText").textContent = G.input;
@@ -157,7 +180,7 @@ function submit() {
     drawAnswer("bad");
     G.wrongs.push({ q: G.q, given: G.input, kind: "wrong" });
     G.runWrong++; G.runRight = 0;
-    lockFor(GOLD.wrongLock, "wrong", "아쉬워요! 정답은 " + G.q.answer, () => {
+    lockFor(GOLD.wrongLock, "wrong", "아쉬워요! 정답은 " + answerText(G.q), () => {
       if (G.runWrong >= 2 && G.diff > 0) setDiff(G.diff - 1, "조금 쉬운 문제로 바꿨어요");
       else nextQuestion();
     });
@@ -169,7 +192,7 @@ function skip() {
   G.battle.answer(PLAYER, "skip");
   Sound.play("skip");
   G.wrongs.push({ q: G.q, given: "", kind: "skip" });
-  lockFor(GOLD.skipLock, "skip", "넘겼어요 · 정답은 " + G.q.answer, nextQuestion);
+  lockFor(GOLD.skipLock, "skip", "넘겼어요 · 정답은 " + answerText(G.q), nextQuestion);
 }
 
 function lockFor(sec, kind, msg, then) {
@@ -213,6 +236,13 @@ function buildCards() {
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") { if (mode === "play") pause(); else if (mode === "pause") resume(); return; }
     if (mode !== "play" || e.target.tagName === "INPUT") return;
+    if (G && G.q && G.q.type !== "number") {
+      const btns = [...document.querySelectorAll("#choices button")];
+      const k = e.key.toUpperCase();
+      const i = G.q.type === "ox" ? (k === "O" || k === "1" ? 0 : k === "X" || k === "2" ? 1 : -1) : Number(e.key) - 1;
+      if (btns[i]) pick(btns[i].dataset.v, btns[i]);
+      return;
+    }
     if (/^[0-9]$/.test(e.key)) press(e.key);
     else if (e.key === "Backspace") press("back");
     else if (e.key === "Enter") press("ok");
@@ -318,17 +348,25 @@ function showResult() {
   list.forEach((x, i) => {
     const row = document.createElement("label");
     row.className = "rev";
-    const label = x.q.text.includes("□") ? x.q.text : x.q.text + " =";
-    row.innerHTML = `<span></span><input id="rev${i}" inputmode="numeric" autocomplete="off"><span class="mine-ans"></span>`;
+    const label = questionLine(x.q);
+    const done = () => { row.classList.add("done"); fixed++; score(); Sound.play("right"); row.querySelector(".mine-ans").textContent = "다시 맞혔어요"; };
+    if (x.q.type === "number") {
+      row.innerHTML = `<span></span><input id="rev${i}" inputmode="numeric" autocomplete="off"><span class="mine-ans"></span>`;
+      const inp = row.querySelector("input");
+      inp.addEventListener("input", () => { if (!row.classList.contains("done") && checkAnswer(x.q, inp.value)) { inp.disabled = true; done(); } });
+    } else {
+      row.innerHTML = `<span></span><span class="mini"></span><span class="mine-ans"></span>`;
+      for (const o of x.q.type === "ox" ? ["O", "X"] : x.q.options) {
+        const b = document.createElement("button"); b.type = "button"; b.textContent = o;
+        b.addEventListener("click", () => {
+          if (row.classList.contains("done")) return;
+          if (checkAnswer(x.q, o)) { b.classList.add("good"); done(); } else { b.classList.add("bad"); Sound.play("wrong"); }
+        });
+        row.querySelector(".mini").appendChild(b);
+      }
+    }
     row.firstChild.textContent = label;
     row.querySelector(".mine-ans").textContent = x.kind === "skip" ? "넘긴 문제" : "내 답 " + x.given;
-    const inp = row.querySelector("input");
-    inp.addEventListener("input", () => {
-      if (!row.classList.contains("done") && checkAnswer(x.q, inp.value)) {
-        row.classList.add("done"); inp.disabled = true; fixed++; score(); Sound.play("right");
-        row.querySelector(".mine-ans").textContent = "다시 맞혔어요";
-      }
-    });
     box.appendChild(row);
   });
   score();
@@ -343,6 +381,13 @@ function buildStart() {
     b.innerHTML = `<span>${t.name}</span><small>${t.hint}</small>`;
     b.addEventListener("click", () => { settings.topic = k; remember("classArena.topic", k); drawStart(); });
     topicBox.appendChild(b);
+  }
+  const fmtBox = $("#fmtOpts");
+  for (const [k, f] of Object.entries(FORMATS)) {
+    const b = document.createElement("button"); b.className = "opt"; b.dataset.k = k;
+    b.innerHTML = `<span>${f.name}</span><small>${f.hint}</small>`;
+    b.addEventListener("click", () => { settings.format = k; remember("classArena.format", k); drawStart(); });
+    fmtBox.appendChild(b);
   }
   const mapBox = $("#mapOpts"), mapDesc = { diag: "롤처럼 모서리에서 모서리로", wide: "옆으로 넓게, 병사가 크게" };
   for (const [k, m] of Object.entries(MAPS)) {
@@ -388,6 +433,7 @@ function buildStart() {
 function drawStart() {
   document.querySelectorAll("#topicOpts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.topic));
   document.querySelectorAll("#aiOpts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.ai));
+  document.querySelectorAll("#fmtOpts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.format));
 }
 function showStart() {
   mode = "menu"; G = null; view.clear();
@@ -451,7 +497,7 @@ function frame(now) {
 function exposeTestHook() {
   window.__arena = {
     get battle() { return G && G.battle; }, get mode() { return mode; }, get q() { return G && G.q; }, quality, view,
-    start: (topic, ai) => { if (topic) settings.topic = topic; if (ai) settings.ai = ai; newGame(); },
+    start: (topic, ai, format) => { if (topic) settings.topic = topic; if (ai) settings.ai = ai; if (format) settings.format = format; newGame(); },
     answerRight() { if (!G || G.lock) return false; G.input = String(G.q.answer); submit(); return true; },
     answerWrong() { if (!G || G.lock) return false; G.input = String(G.q.answer + 1); submit(); return true; },
     deploy: (r, l) => { if (l) setLane(l); deploy(r, cards[r]); },

@@ -52,10 +52,17 @@ function num(text, answer, prompt = "") {
   return { type: "number", text, answer, prompt };
 }
 
+// 문제 형식: 숫자 직접 입력 / 섞어서 / 고르기만(객관식·OX)
+export const FORMATS = {
+  input: { name: "직접 입력", hint: "숫자판으로 답 쓰기(골드 많이)" },
+  mix: { name: "섞어서", hint: "입력·객관식·OX 섞기" },
+  pick: { name: "고르기만", hint: "객관식·OX(처음 하는 학생)" },
+};
+
 let seq = 0;
 // 같은 문제가 바로 다시 나오지 않게 최근 12개는 피함
 const recent = [];
-export function makeQuestion(topicKey, diff) {
+export function makeQuestion(topicKey, diff, format = "input") {
   const t = TOPICS[topicKey];
   let q;
   for (let i = 0; i < 20; i++) {
@@ -64,10 +71,53 @@ export function makeQuestion(topicKey, diff) {
   }
   recent.push(q.text);
   if (recent.length > 12) recent.shift();
+  const r = Math.random();
+  if (format === "pick") q = r < 0.65 ? toChoice(q, diff) : toOX(q);
+  else if (format === "mix") q = r < 0.5 ? q : r < 0.8 ? toChoice(q, diff) : toOX(q);
   return { ...q, id: ++seq, topic: topicKey, diff };
 }
 
+// 그럴듯한 오답(정답 가까운 수, 자리 바꾸기, 10 차이 등)
+function nearMisses(ans) {
+  const c = new Set([ans + 1, ans - 1, ans + 2, ans - 2, ans + 10, ans - 10]);
+  const sw = String(ans).split("").reverse().join("");
+  if (sw.length > 1 && sw[0] !== "0") c.add(Number(sw));
+  for (const k of [3, 4, 6, 7, 8, 9]) { c.add(ans + k); c.add(ans - k); }
+  return [...c].filter((v) => v >= 0 && v !== ans && Number.isInteger(v));
+}
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+// 숫자 문제 → 객관식(쉬움 3지선다, 보통·어려움 4지선다)
+function toChoice(q, diff) {
+  const n = diff === 0 ? 3 : 4;
+  const near = shuffle(nearMisses(q.answer));
+  // 가까운 것 우선(±1, ±2, 10 차이가 앞에 오도록 조금 섞음)
+  const pickFrom = near.sort((a, b) => Math.abs(a - q.answer) - Math.abs(b - q.answer) + (Math.random() - 0.5) * 6);
+  const opts = shuffle([q.answer, ...pickFrom.slice(0, n - 1)]);
+  return { type: "choice", text: q.text, prompt: q.prompt || "알맞은 답을 고르세요", options: opts.map(String), answer: String(q.answer), base: q };
+}
+
+// 숫자 문제 → OX(식이 맞으면 O)
+function toOX(q) {
+  const right = Math.random() < 0.5;
+  const shown = right ? q.answer : shuffle(nearMisses(q.answer))[0];
+  const stmt = q.text.includes("□") ? q.text.replace("□", shown) : `${q.text} = ${shown}`;
+  return { type: "ox", text: stmt, prompt: "맞으면 O, 틀리면 X", answer: right ? "O" : "X", base: q };
+}
+
 export function checkAnswer(q, input) {
+  if (q.type === "choice" || q.type === "ox") return String(input) === String(q.answer);
   const v = Number(String(input).trim());
   return input !== "" && Number.isFinite(v) && v === q.answer;
+}
+
+// 틀렸을 때 보여 줄 바른 답
+export function answerText(q) {
+  if (q.type === "ox") return q.answer === "O" ? "O(맞는 식)" : `X · 바른 답은 ${q.base ? q.base.answer : ""}`;
+  return String(q.answer);
+}
+// 문제 줄에 보일 글자
+export function questionLine(q) {
+  if (q.type === "ox" || q.text.includes("□")) return q.text;
+  return q.text + " =";
 }
