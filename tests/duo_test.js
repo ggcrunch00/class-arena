@@ -9,6 +9,7 @@ const { chromium } = require('playwright');
   page.on('console', (m) => { if (m.type() === 'error') logs.push(m.text()); });
   await page.goto('http://127.0.0.1:8130/play.html#wide');
   await page.waitForFunction(() => window.__arena, null, { timeout: 120000 });
+  await page.click('#prepBtn');
   await page.click('#modes [data-m="duo"]');
   await page.waitForTimeout(300);
   await page.screenshot({ path: out + '/d0_start.png' });

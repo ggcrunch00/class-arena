@@ -2,11 +2,13 @@
 import * as THREE from "three";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { ELEV, UNIT_SCALE, SIDES, ROLE_INFO, TOWER, BASE } from "./config.js";
-import { LANES, LANE_NAMES, BOUNDS, BASES } from "./lanes.js";
+import { LANES, LANE_NAMES, BOUNDS, BASES, RIVER } from "./lanes.js";
 import { Sound } from "./sound.js";
 
 // 블렌더 좌표(x 오른쪽, y 뒤쪽, z 위) → three 좌표
 const V = (x, y, z) => new THREE.Vector3(x, z, -y);
+const backOut = (k) => { const c = 1.70158; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+const smooth = (k) => k * k * (3 - 2 * k);
 
 function radialTex(stops, size = 64) {
   const c = document.createElement("canvas"); c.width = c.height = size;
@@ -66,7 +68,7 @@ export class View3D {
           bar = document.createElement("div"); bar.className = "tbar " + (side < 0 ? "b" : "r"); bar.innerHTML = "<i></i>";
           overlay.appendChild(bar);
         }
-        this.nodes[name] = { body, ruin, mats, base: body.position.clone(), shake: 0, flash: 0, bar };
+        this.nodes[name] = { body, ruin, mats, base: body.position.clone(), scale: body.scale.clone(), shake: 0, flash: 0, bar };
       }
     }
     this.laneMarks = this.makeLaneMarks();
@@ -90,6 +92,18 @@ export class View3D {
     this.blobMat = new THREE.MeshBasicMaterial({ map: this.T_BLOB, transparent: true, depthWrite: false });
 
     this.parts = [];
+    this.rings = [];
+    this.ringTex = (() => {  // 출전 마법진(빛나는 고리 + 안쪽 무늬)
+      const c = document.createElement("canvas"); c.width = c.height = 128;
+      const g = c.getContext("2d");
+      g.strokeStyle = "rgba(255,255,255,0.95)"; g.lineWidth = 6; g.beginPath(); g.arc(64, 64, 56, 0, 6.2832); g.stroke();
+      g.lineWidth = 2.5; g.beginPath(); g.arc(64, 64, 44, 0, 6.2832); g.stroke();
+      for (let i = 0; i < 6; i++) { const a = i / 6 * 6.2832; g.beginPath(); g.moveTo(64 + Math.cos(a) * 44, 64 + Math.sin(a) * 44); g.lineTo(64 + Math.cos(a + 2.094) * 44, 64 + Math.sin(a + 2.094) * 44); g.stroke(); }
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
+    this.ringGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+    this.glintT = 0;
+    this.focus = null;
     this.views = new Map();
     this.projViews = new Map();
     this.shake = 0;
@@ -221,7 +235,7 @@ export class View3D {
     this.scene.add(blob);
     const bar = document.createElement("div"); bar.className = "bar " + (u.side < 0 ? "b" : "r"); bar.innerHTML = "<i></i>";
     this.overlay.appendChild(bar);
-    v = { obj, mixer, actions, mats, anim: null, bar, blob };
+    v = { obj, mixer, actions, mats, anim: null, bar, blob, pop: 0 };
     this.views.set(u.id, v);
     return v;
   }
@@ -245,7 +259,10 @@ export class View3D {
     this.projViews.clear();
     for (const q of this.parts) { this.scene.remove(q.s); q.s.material.dispose(); }
     this.parts = [];
-    for (const n of Object.values(this.nodes)) { n.body.visible = true; n.ruin.visible = false; n.flash = 0; }
+    for (const n of Object.values(this.nodes)) { n.body.visible = true; n.ruin.visible = false; n.flash = 0; n.body.scale.copy(n.scale); }
+    for (const r of this.rings) { this.scene.remove(r.m); r.m.material.dispose(); }
+    this.rings = [];
+    this.focus = null; this.cam.zoom = 1; this.cam.updateProjectionMatrix();
     this.overlay.querySelectorAll(".float").forEach((d) => d.remove());
   }
 
@@ -281,6 +298,7 @@ export class View3D {
     for (const e of events) {
       if (e.type === "spawn") {
         const p = V(e.unit.x, e.unit.y, 0.3);
+        this.ring(e.unit.x, e.unit.y, SIDES[e.unit.side].color);
         if (e.unit.side > 0) this.burst(p, 14, { tex: this.T_SMOKE, tint: 0x9dff8a, add: true, speed: 1.4, up: 0.6, life: 0.9, s0: 0.9, s1: 1.8, a0: 0.5 });
         else this.burst(p, 10, { tex: this.T_SMOKE, tint: 0xe8dcc8, speed: 1.8, up: 0.4, life: 0.7, s0: 0.7, s1: 1.5, a0: 0.6 });
         Sound.play("deploy");
@@ -296,7 +314,7 @@ export class View3D {
         const p = V(e.x, e.y, e.z);
         this.burst(p, 12, { tint: 0xffd27a, add: true, speed: 5.5, life: 0.35, s0: 0.5, s1: 0.06 });
         this.text(V(e.x, e.y, e.z + 0.5), e.dmg, "", "#ffffff");
-        this.shake = Math.max(this.shake, 0.05);
+        this.shake = Math.max(this.shake, 0.015);
         Sound.play("castle");
       } else if (e.type === "structDown") {
         const st = e.struct, c = this.structNode(st), big = st.kind === "base";
@@ -308,6 +326,8 @@ export class View3D {
         Sound.play("cannon");
       } else if (e.type === "launch") {
         this.projViews.set(e.proj.id, this.makeProjectile(e.proj));
+        if (e.proj.from && e.proj.from.role === null) // 탑·본성이 쏠 때 불빛
+          this.burst(V(e.proj.sx, e.proj.sy, e.proj.sz), 5, { tint: 0xffd890, add: true, speed: 2, life: 0.25, s0: 0.7, s1: 0.1 });
         if (e.proj.kind === "orb") Sound.play("magic");
         else if (e.proj.kind === "arrow") Sound.play("arrow");
       } else if (e.type === "cannon") {
@@ -330,13 +350,41 @@ export class View3D {
     }
   }
 
+  ring(x, y, color) {
+    const m = new THREE.Mesh(this.ringGeo, new THREE.MeshBasicMaterial({ map: this.ringTex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    m.position.copy(V(x, y, 0.3)); m.renderOrder = 4;
+    this.scene.add(m); this.rings.push({ m, t: 0 });
+  }
+  // 끝날 때 무너진 본성 쪽으로 천천히 다가가기
+  focusOn(x, y, z) { this.focus = { x, y, z, t: 0 }; }
+
   // ---------- 매 프레임 ----------
   update(dt, b) {
+    for (let i = this.rings.length - 1; i >= 0; i--) {
+      const r = this.rings[i]; r.t += dt;
+      const k = r.t / 0.7;
+      if (k >= 1) { this.scene.remove(r.m); r.m.material.dispose(); this.rings.splice(i, 1); continue; }
+      r.m.scale.setScalar(0.8 + 2.4 * Math.sqrt(k)); r.m.rotation.y += dt * 2; r.m.material.opacity = 1 - k;
+    }
+    // 강물 반짝임
+    this.glintT -= dt;
+    if (RIVER.length > 1 && this.glintT <= 0 && this.fxScale > 0.3) {
+      this.glintT = 0.12 / this.fxScale;
+      const [a, c] = RIVER, t = Math.random();
+      const px = a[0] + (c[0] - a[0]) * t + (Math.random() - 0.5) * 2.4, py = a[1] + (c[1] - a[1]) * t + (Math.random() - 0.5) * 2.4;
+      if (Math.abs(px) < BOUNDS[0] && Math.abs(py) < BOUNDS[1]) this.puff({ p: V(px, py, 0.15), tint: 0xdff6ff, add: true, life: 0.7, s0: 0.05, s1: 0.45, a0: 0.8 });
+    }
     for (const u of b.units) {
       const v = this.unitView(u);
       this.play(v, u.anim);
       v.mixer.update(dt);
       v.obj.position.copy(V(u.x, u.y, 0));
+      // 출전할 때 통통 튀며 나타남(찌그러졌다 펴지기)
+      if (v.pop < 0.4) {
+        v.pop += dt;
+        const k = Math.min(1, v.pop / 0.4), sq = Math.sin(k * Math.PI) * 0.18, s0 = UNIT_SCALE * Math.max(0.05, backOut(k));
+        v.obj.scale.set(s0 * (1 + sq), s0 * (1 - sq), s0 * (1 + sq));
+      }
       // 가는 방향(공격할 땐 상대 쪽)으로 부드럽게 돌기
       const want = Math.atan2(u.fx, -u.fy);
       let d = want - v.obj.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
@@ -391,6 +439,8 @@ export class View3D {
     for (const c of Object.values(this.nodes)) {
       c.shake = Math.max(0, c.shake - dt); c.flash = Math.max(0, c.flash - dt * 8);
       c.body.position.x = c.base.x + (c.shake > 0 ? (Math.random() - 0.5) * 0.12 : 0);
+      const sq = c.shake > 0 ? Math.sin(c.shake / 0.18 * Math.PI) * 0.05 : 0;  // 맞으면 살짝 찌그러짐
+      c.body.scale.set(c.scale.x * (1 + sq), c.scale.y * (1 - sq), c.scale.z * (1 + sq));
       for (const m of c.mats) m.emissive.setScalar(c.flash * 0.15);
     }
     // 탑 체력 막대
@@ -410,7 +460,15 @@ export class View3D {
       if (m.position.x > 30) { m.position.x = -30; m.position.z = -(-6 + Math.random() * 22); }
     }
     this.shake = Math.max(0, this.shake - dt * 0.5);
-    this.cam.position.copy(this.camBase).add(new THREE.Vector3((Math.random() - 0.5) * this.shake * 2, (Math.random() - 0.5) * this.shake * 2, 0));
+    const base = this.camBase.clone();
+    if (this.focus) {
+      const f = this.focus; f.t += dt;
+      const k = smooth(Math.min(1, f.t / 2.2)) * 0.55;
+      const u = f.y * Math.sin(ELEV) + f.z * Math.cos(ELEV);
+      base.addScaledVector(new THREE.Vector3(1, 0, 0), f.x * k).addScaledVector(this.cam.up, u * k);
+      this.cam.zoom = 1 + k * 0.7; this.cam.updateProjectionMatrix();
+    }
+    this.cam.position.copy(base).add(new THREE.Vector3((Math.random() - 0.5) * this.shake * 2, (Math.random() - 0.5) * this.shake * 2, 0));
   }
 
   render() {

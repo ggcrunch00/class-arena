@@ -195,6 +195,33 @@ body { word-break: keep-all; }
 .credits { font-size: 13px; color: var(--muted); } .credits summary { cursor: pointer; color: var(--ink); }
 .credits p { margin: 6px 0 0; }
 
+/* 손맛: 날아가는 동전, 통통 튀는 골드·연속 정답, 출전 가능 카드 반짝 */
+.flycoin { position: fixed; z-index: 30; width: 20px; height: 20px; pointer-events: none; }
+.gold.bump { animation: bump .22s ease-out; }
+.streak.bump { animation: bump .3s cubic-bezier(.2,1.8,.4,1); display: inline-block; }
+@keyframes bump { 40% { transform: scale(1.25, .85); } 70% { transform: scale(.95, 1.08); } }
+.card.shine::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, rgba(255,240,190,.75) 48%, transparent 66%); background-size: 250% 100%; animation: shine .7s ease-out forwards; }
+@keyframes shine { from { background-position: 120% 0; } to { background-position: -30% 0; } }
+.go:active, .lanes button:active, .mine:active, .cannon:active { transform: scale(.94); }
+
+/* 결과: 별, 기록, 색종이 */
+.stars { display: flex; gap: 10px; justify-content: center; }
+.stars i { display: block; width: 54px; height: 54px; background: rgba(255,255,255,.12);
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+.stars i.on { background: linear-gradient(#fff3b0, #ffd36b 50%, #d99a1a); animation: star .45s cubic-bezier(.2,1.8,.4,1); }
+@keyframes star { from { transform: scale(0) rotate(-30deg); } }
+#resultScreen h2 { text-align: center; }
+#resultScreen #resWhy { text-align: center; }
+.share { display: grid; gap: 6px; background: rgba(0,0,0,.25); border-radius: 10px; padding: 8px 12px; }
+.share pre { margin: 0; font-family: var(--body); font-size: 13px; white-space: pre-wrap; color: var(--ink); user-select: text; -webkit-user-select: text; }
+.shareact { display: flex; gap: 8px; } .shareact .ghost { margin-left: 0; }
+.confetti { position: fixed; top: -20px; width: 10px; height: 16px; z-index: 25; pointer-events: none; border-radius: 2px;
+  animation: fall 3s cubic-bezier(.3,.2,.6,1) forwards; }
+@keyframes fall { to { transform: translate(var(--dx), 110vh) rotate(720deg); } }
+#cardView { position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,.8); display: grid; place-content: center; justify-items: center; gap: 10px; padding: 16px; }
+#cardView img { max-width: min(80vw, 70vh); max-height: 70vh; border-radius: 10px; } #cardView small { color: var(--ink); }
+
 /* 처음 하는 학생 안내 말풍선 */
 .tip { position: absolute; z-index: 3; background: #ffd36b; color: #2b1d05; font-weight: 700; font-size: 13px; padding: 5px 11px; border-radius: 999px;
   box-shadow: 0 3px 10px rgba(0,0,0,.4); white-space: nowrap; pointer-events: none; animation: tipb 1s ease-in-out infinite alternate; }

@@ -202,8 +202,28 @@ function banner(msg, sec = 1.8) { const b = $("#banner"); b.textContent = msg; b
 const sideName = (s) => (s < 0 ? "기사단" : "해골 군단");
 const seatOf = (side) => seats.find((x) => x.side === side);
 
+let hitstop = 0, dangerT = 0, dangerSaid = -99;
+function confetti(n = 90) {
+  const cols = ["#ffd36b", "#7fd0ff", "#ff8f80", "#8fe388", "#fff3d6", "#c9a0ff"];
+  for (let i = 0; i < n; i++) {
+    const c = document.createElement("i"); c.className = "confetti";
+    c.style.left = Math.random() * 100 + "vw"; c.style.background = cols[i % cols.length];
+    c.style.setProperty("--dx", (Math.random() - 0.5) * 30 + "vw");
+    c.style.animationDuration = 2.2 + Math.random() * 1.8 + "s"; c.style.animationDelay = Math.random() * 0.6 + "s";
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 5000);
+  }
+}
 function onEvents(evts) {
   for (const e of evts) {
+    // 큰 사건엔 아주 짧게 멈칫(히트스톱)
+    if (e.type === "structDown") hitstop = Math.max(hitstop, e.struct.kind === "base" ? 0.25 : 0.12);
+    if (e.type === "land" && e.proj.kind === "ball") hitstop = Math.max(hitstop, 0.07);
+    // 내 본성이 맞으면 붉은 경고
+    if (e.type === "structHit" && e.struct.kind === "base" && seatOf(e.struct.side)) {
+      if (!isDuo()) dangerT = 2.5;
+      if (G.battle.time - dangerSaid > 8) { dangerSaid = G.battle.time; seatOf(e.struct.side).say("본성이 공격받고 있어요! 막아야 해요"); }
+    }
     if (e.type === "overtime") { banner("총력전! 골드 2배"); Sound.play("horn"); }
     else if (e.type === "mine" && !seatOf(e.side)) toast("상대가 금광을 강화했어요");
     else if (e.type === "cannon" && !seatOf(e.side)) toast("상대의 성 대포!");
@@ -216,6 +236,9 @@ function onEvents(evts) {
     else if (e.type === "end") {
       G.endT = 0;
       const w = e.winner;
+      const fallen = w ? G.battle.sides[-w].base : null;
+      if (fallen && fallen.hp <= 0) view.focusOn(fallen.x, fallen.y, 2.5);
+      if (isDuo() ? w : w === PLAYER) setTimeout(() => confetti(), 400);
       if (isDuo()) { banner(w ? `${sideName(w)} 승리!` : "무승부", 2.6); Sound.play("win"); }
       else { banner(w === PLAYER ? "승리!" : w === CPU ? "패배…" : "무승부", 2.6); Sound.play(w === PLAYER ? "win" : "lose"); }
     }
@@ -280,7 +303,65 @@ function showResult() {
     reviewList(seat, col.querySelector(".revList"), col.querySelector(".revScore"));
   }
   res.classList.toggle("two", G.duo);
+  // 별 3개(혼자 하기): 이기기 / 정답률 80% 이상 / 본성 체력 절반 이상
+  const S0 = b.sides[PLAYER], tried0 = S0.stats.right + S0.stats.wrong, acc0 = tried0 ? S0.stats.right / tried0 : 0;
+  const stars = G.duo ? 0 : (w === PLAYER ? 1 : 0) + (acc0 >= 0.8 && tried0 >= 5 ? 1 : 0) + (S0.base.hp / S0.base.max >= 0.5 ? 1 : 0);
+  const starBox = $("#stars"); starBox.hidden = G.duo;
+  [...starBox.children].forEach((st, i) => { st.className = ""; if (i < stars) setTimeout(() => { st.className = "on"; Sound.play("coin"); }, 500 + i * 350); });
+  G.stars = stars;
+  $("#shareText").textContent = shareText();
   $("#resultScreen").hidden = false;
+}
+
+// 기록(워들처럼: 별 + 맞힘■ 틀림□ 줄, 문제 내용은 안 나옴)
+function shareText() {
+  const b = G.battle, t = Math.round(b.time), tm = Math.floor(t / 60) + "분 " + (t % 60) + "초";
+  const line = (seat) => {
+    const S = b.sides[seat.side];
+    const sq = seat.log.slice(-30).map((v) => (v ? "■" : "□")).join("");
+    return `${TOPICS[seat.topic].name} · 정답 ${S.stats.right}/${S.stats.right + S.stats.wrong} · 최고 ${S.bestStreak}연속\n${sq}`;
+  };
+  if (G.duo) {
+    const w = b.winner;
+    return `성문 대전 · 둘이서 · ${w ? (w < 0 ? "기사단" : "해골 군단") + " 승리" : "무승부"} · ${tm}\n기사단: ${line(seats[0])}\n해골 군단: ${line(seats[1])}`;
+  }
+  const res = b.winner === PLAYER ? "승리" : b.winner === CPU ? "패배" : "무승부";
+  return `성문 대전 · ${res} ${"★".repeat(G.stars)}${"☆".repeat(3 - G.stars)} · 컴퓨터 ${AI_LEVELS[settings.ai].name} · ${tm}\n${line(seats[0])}`;
+}
+function copyShare() {
+  const txt = $("#shareText").textContent;
+  const done = () => toast("기록을 복사했어요. 패들렛·클래스룸에 붙여 넣어 자랑해요!");
+  try {
+    navigator.clipboard.writeText(txt).then(done, () => selectShare());
+  } catch { selectShare(); }
+}
+function selectShare() { const r = document.createRange(); r.selectNodeContents($("#shareText")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("글자를 길게 눌러 복사해요"); }
+// 기록 카드 그림(1080×1080)
+function saveCard() {
+  const c = document.createElement("canvas"); c.width = c.height = 1080;
+  const g = c.getContext("2d");
+  const gr = g.createLinearGradient(0, 0, 0, 1080); gr.addColorStop(0, "#1f3a2b"); gr.addColorStop(1, "#0d1712");
+  g.fillStyle = gr; g.fillRect(0, 0, 1080, 1080);
+  g.strokeStyle = "#c9a45c"; g.lineWidth = 10; g.strokeRect(30, 30, 1020, 1020);
+  g.textAlign = "center"; g.fillStyle = "#fff3d6"; g.font = "120px 'Black Han Sans', sans-serif"; g.fillText("성문 대전", 540, 200);
+  const lines = $("#shareText").textContent.split("\n");
+  g.fillStyle = "#ffd36b"; g.font = "52px 'Black Han Sans', sans-serif"; g.fillText(lines[0].replace("성문 대전 · ", ""), 540, 320);
+  g.fillStyle = "#f6efe0"; g.font = "40px 'Gowun Dodum', sans-serif";
+  let y = 430;
+  for (const ln of lines.slice(1)) {
+    if (/^[■□]+$/.test(ln)) { // 맞힘·틀림 칸을 색 네모로
+      const n = ln.length, size = Math.min(52, 900 / n), x0 = 540 - (n * size) / 2;
+      [...ln].forEach((ch, i) => { g.fillStyle = ch === "■" ? "#8fe388" : "#ff8f7a"; g.fillRect(x0 + i * size + 3, y - size + 6, size - 6, size - 6); });
+      g.fillStyle = "#f6efe0"; y += size + 40;
+    } else { g.fillText(ln, 540, y); y += 70; }
+  }
+  g.fillStyle = "#aeb5a6"; g.font = "30px 'Gowun Dodum', sans-serif";
+  g.fillText(new Date().toLocaleDateString("ko-KR"), 540, 1000);
+  const url = c.toDataURL("image/png");
+  const a = document.createElement("a"); a.href = url; a.download = "성문대전_기록.png";
+  document.body.appendChild(a); a.click(); a.remove();
+  // 저장이 막힌 화면(미리보기 등)에서는 그림을 보여 주고 길게 눌러 저장하게
+  const box = $("#cardView"); box.hidden = false; box.querySelector("img").src = url;
 }
 
 // ---------- 시작·설정·멈춤 ----------
@@ -341,6 +422,9 @@ function buildStart() {
   $("#backBtn").addEventListener("click", () => { $("#startScreen").hidden = true; drawLastSet(); $("#titleScreen").hidden = false; });
   $("#setBtn0").addEventListener("click", () => openSettings("#titleScreen"));
   $("#againBtn").addEventListener("click", () => { Sound.unlock(); newGame(); });
+  $("#copyBtn").addEventListener("click", copyShare);
+  $("#cardBtn").addEventListener("click", saveCard);
+  $("#cardView").addEventListener("click", () => { $("#cardView").hidden = true; });
   $("#homeBtn").addEventListener("click", showStart);
   $("#pauseBtn").addEventListener("click", pause);
   $("#resumeBtn").addEventListener("click", resume);
@@ -409,9 +493,13 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.05); last = now;
   quality.tick(dt, mode === "play");
   const playing = mode === "play" || mode === "result";
+  let simDt = dt;
+  if (hitstop > 0) { hitstop -= dt; simDt = 0; }
+  if (dangerT > 0) dangerT -= dt;
+  $("#vignette").classList.toggle("danger", dangerT > 0 && mode === "play");
   if (G && playing) {
-    G.battle.update(dt);
-    if (mode === "play") { if (G.ai) G.ai.update(dt); for (const st of seats) st.tick(dt); }
+    G.battle.update(simDt);
+    if (mode === "play") { if (G.ai) G.ai.update(simDt); for (const st of seats) st.tick(dt); }
     const evts = G.battle.events; G.battle.events = [];
     view.handle(evts, G.battle);
     onEvents(evts);
@@ -419,7 +507,7 @@ function frame(now) {
     if (G.endT >= 0 && mode === "play") { G.endT += dt; if (G.endT > 2.8) showResult(); }
   }
   if (mode === "menu") tickDemo(dt);
-  view.update(mode === "pause" ? 0 : dt, G ? G.battle : demo ? demo.b : idle);
+  view.update(mode === "pause" ? 0 : simDt, G ? G.battle : demo ? demo.b : idle);
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $("#toast").hidden = true; }
   if (mode !== "play") for (const st of seats) if (st.toastT > 0) st.tick(0);
   if (quality.showFps && now - fpsShown > 500) { fpsShown = now; $("#fps").textContent = Math.round(quality.fps) + " fps · " + QUALITY[quality.level].name; }

@@ -43,6 +43,7 @@ export const LANES = {};
 export const BASES = {};
 export const TOWERS = {};
 export const BOUNDS = [0, 0];
+export const RIVER = [];
 export let MAP_KEY = "diag";
 
 export function useMap(key) {
@@ -53,6 +54,7 @@ export function useMap(key) {
   BASES[-1] = M.bases["-1"]; BASES[1] = M.bases["1"];
   for (const n of LANE_NAMES) TOWERS[n] = { [-1]: M.towers[n]["-1"], [1]: M.towers[n]["1"] };
   BOUNDS[0] = M.bounds[0]; BOUNDS[1] = M.bounds[1];
+  RIVER.length = 0; for (const p of M.river) RIVER.push(p);
   return key;
 }
 useMap("diag");

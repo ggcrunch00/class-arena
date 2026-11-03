@@ -81,6 +81,8 @@ export class Seat {
   start(battle, topic, format) {
     this.b = battle; this.topic = topic; this.format = format;
     this.lock = null; this.wrongs = []; this.runRight = 0; this.runWrong = 0;
+    this.log = [];            // 맞힘(1)·틀림(0) 순서(기록 카드의 ■□ 줄)
+    this.shownGold = battle.sides[this.side].gold; this.wasReady = {};
     this.$(".chip").textContent = TOPICS[topic].name;
     this.$(".lock").hidden = true;
     this.setLane(this.lane);
@@ -178,6 +180,11 @@ export class Seat {
       const g = b.answer(side, "right", this.q.type, this.diff);
       Sound.play("right"); Sound.play("coin");
       this.goldPop("+" + g);
+      this.log.push(1);
+      this.flyCoins(g);
+      const st = b.sides[side].streak;
+      if (st === 3 || st === 10 || st === 20) this.say(`${st}연속 정답! 골드 +20%`);
+      if (st === 5) this.say("5연속! 성 대포 충전 — 눌러서 발사!");
       this.drawAnswer("good");
       this.runRight++; this.runWrong = 0;
       if (this.tipStep === 1 && b.sides[side].gold >= 60) { this.tipStep = 2; this.showTips(); }
@@ -186,6 +193,7 @@ export class Seat {
     } else {
       b.answer(side, "wrong");
       Sound.play("wrong");
+      this.log.push(0);
       this.drawAnswer("bad");
       this.wrongs.push({ q: this.q, given: this.input, kind: "wrong" });
       this.runWrong++; this.runRight = 0;
@@ -231,14 +239,40 @@ export class Seat {
 
   say(msg) { const t = this.$(".stoast"); t.textContent = msg; t.hidden = false; t.style.animation = "none"; void t.offsetWidth; t.style.animation = ""; this.toastT = 2.4; }
   goldPop(t) { const p = this.$(".pop"); p.textContent = t; p.classList.remove("go"); void p.offsetWidth; p.classList.add("go"); }
+  // 동전이 답 칸에서 골드 칸으로 날아감(최대 8개, 도착하면 골드 칸이 통통)
+  flyCoins(g) {
+    const from = (this.q && this.q.type === "number" ? this.$(".ans") : this.$(".choices")).getBoundingClientRect();
+    const to = this.$(".gold .coin").getBoundingClientRect();
+    const n = Math.min(8, Math.max(3, Math.round(g / 4)));
+    for (let i = 0; i < n; i++) {
+      const c = document.createElement("i"); c.className = "coin flycoin";
+      const x0 = from.left + from.width * (0.3 + Math.random() * 0.4), y0 = from.top + from.height * 0.5;
+      const x1 = to.left + to.width / 2, y1 = to.top + to.height / 2;
+      const mx = (x0 + x1) / 2 + (Math.random() - 0.5) * 80, my = Math.min(y0, y1) - 60 - Math.random() * 50;
+      c.style.left = x0 + "px"; c.style.top = y0 + "px";
+      document.body.appendChild(c);
+      const a = c.animate([
+        { transform: "translate(-50%, -50%) scale(.6)", offset: 0 },
+        { transform: `translate(calc(${mx - x0}px - 50%), calc(${my - y0}px - 50%)) scale(1.15)`, offset: 0.45 },
+        { transform: `translate(calc(${x1 - x0}px - 50%), calc(${y1 - y0}px - 50%)) scale(.7)`, offset: 1 },
+      ], { duration: 520 + i * 45, easing: "cubic-bezier(.3,.1,.3,1)", delay: i * 35 });
+      a.onfinish = () => { c.remove(); const gEl = this.$(".gold"); gEl.classList.remove("bump"); void gEl.offsetWidth; gEl.classList.add("bump"); };
+    }
+  }
 
   update() {
     const b = this.b, S = b.sides[this.side];
-    this.$(".goldN").textContent = S.gold;
+    // 골드 숫자는 바로 바뀌지 않고 차오르듯(동전이 도착하는 동안)
+    const gap = S.gold - this.shownGold;
+    this.shownGold = Math.abs(gap) < 1 ? S.gold : this.shownGold + gap * (gap > 0 ? 0.12 : 0.35);
+    this.$(".goldN").textContent = Math.round(this.shownGold);
     for (const role of ROLES) {
       const c = this.cards[role], R = ROLE_INFO[role];
+      const ready = !b.canDeploy(this.side, role);
       c.classList.toggle("poor", S.gold < R.cost);
-      c.classList.toggle("ready", !b.canDeploy(this.side, role));
+      c.classList.toggle("ready", ready);
+      if (ready && !this.wasReady[role]) { c.classList.remove("shine"); void c.offsetWidth; c.classList.add("shine"); }
+      this.wasReady[role] = ready;
       c.querySelector(".cd").style.setProperty("--p", (S.cooldown[role] / R.cooldown * 100).toFixed(1) + "%");
     }
     const mc = b.mineCost(this.side);
@@ -250,6 +284,9 @@ export class Seat {
     const ready = S.cannon >= CANNON.charge && !!b.cannonTarget(this.side);
     const cb = this.$(".cannon"); cb.disabled = !ready; cb.classList.toggle("ready", ready);
     const st = this.$(".streak");
-    st.hidden = S.streak < 2; st.textContent = S.streak + "연속!";
+    if (st.dataset.n !== String(S.streak)) {
+      st.dataset.n = S.streak; st.hidden = S.streak < 2; st.textContent = S.streak + "연속!";
+      if (S.streak >= 2) { st.classList.remove("bump"); void st.offsetWidth; st.classList.add("bump"); }
+    }
   }
 }
