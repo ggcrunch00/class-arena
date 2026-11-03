@@ -24,60 +24,26 @@
   <div id="toast" hidden></div>
 </div>
 
-<!-- 아래 조작판 -->
-<div id="panel">
-  <section id="quiz" aria-label="문제">
-    <div class="qhead">
-      <span class="chip" id="topicChip">곱셈구구</span>
-      <div class="seg" id="diffSeg" role="radiogroup" aria-label="난이도">
-        <button data-d="0" role="radio">쉬움</button><button data-d="1" role="radio">보통</button><button data-d="2" role="radio">어려움</button>
-      </div>
-      <span class="streak" id="streak" hidden></span>
-      <button class="ghost" id="skipBtn">넘기기</button>
-    </div>
-    <div class="qline">
-      <div class="qtext"><small id="qPrompt"></small><b id="qText">7 × 8</b></div>
-      <div class="ans" id="ansBox" aria-live="polite"><span id="ansText"></span><i class="caret"></i></div>
-    </div>
-    <div class="keypad" id="keypad">
-      <button>1</button><button>2</button><button>3</button><button>4</button><button>5</button><button>6</button>
-      <button>7</button><button>8</button><button>9</button><button>0</button><button data-k="back" aria-label="지우기">지우기</button><button data-k="ok" class="ok">확인</button>
-    </div>
-    <div class="choices" id="choices" hidden></div>
-    <div class="lock" id="lock" hidden><b id="lockMsg"></b><small id="lockSub"></small><i class="lockbar"><i id="lockBar"></i></i></div>
-  </section>
-  <section id="army" aria-label="출전">
-    <div class="ahead">
-      <div class="gold"><i class="coin"></i><b id="gold">60</b><span class="pop" id="goldPop"></span></div>
-      <button class="mine" id="mineBtn"><span>금광 <b id="mineLv">Lv1</b></span><small id="mineCost">120골드로 강화</small></button>
-      <button class="cannon" id="cannonBtn" disabled><span>성 대포</span><span class="pips" id="pips"><i></i><i></i><i></i><i></i><i></i></span></button>
-    </div>
-    <div class="lanes" id="lanes" role="radiogroup" aria-label="보낼 길">
-      <span class="lab">보낼 길</span>
-      <button data-lane="top" role="radio"><svg viewBox="0 0 24 16"><path d="M3 14 V3 H21" /></svg>윗길</button>
-      <button data-lane="mid" role="radio"><svg viewBox="0 0 24 16"><path d="M3 14 L21 2" /></svg>가운뎃길</button>
-      <button data-lane="bot" role="radio"><svg viewBox="0 0 24 16"><path d="M3 14 H21 V3" /></svg>아랫길</button>
-    </div>
-    <div class="cards" id="cards"></div>
-  </section>
-</div>
+<!-- 아래 조작판(자리마다 seat.js 가 채움) -->
+<div id="panel" class="one"></div>
 
 <!-- 시작 화면 -->
 <div class="screen" id="startScreen" hidden>
   <div class="sheet">
     <header class="title"><small>교실 대전 게임 · 시험판</small><h1>성문 대전</h1></header>
-    <div class="modes">
-      <button class="mode on">연습 대전<small>컴퓨터와 겨루기</small></button>
+    <div class="modes" id="modes">
+      <button class="mode" data-m="cpu">연습 대전<small>컴퓨터와 겨루기</small></button>
+      <button class="mode" data-m="duo">둘이서 대전<small>태블릿 하나로 나란히</small></button>
       <button class="mode" disabled>원정<small>준비 중</small></button>
       <button class="mode" disabled>협동 작전<small>준비 중</small></button>
-      <button class="mode" disabled>대전<small>준비 중</small></button>
     </div>
     <div class="pickrow">
-      <div class="pick"><h3>문제 주제</h3><div class="opts" id="topicOpts"></div></div>
+      <div class="pick"><h3 id="topicLabel">문제 주제</h3><div class="opts" id="topicOpts"></div></div>
+      <div class="pick" id="topic2Pick" hidden><h3>오른쪽(해골 군단) 문제 주제</h3><div class="opts" id="topic2Opts"></div></div>
       <div class="pick"><h3>문제 형식</h3><div class="opts" id="fmtOpts"></div></div>
     </div>
     <div class="pickrow">
-      <div class="pick"><h3>컴퓨터 상대</h3><div class="opts" id="aiOpts"></div></div>
+      <div class="pick" id="aiPick"><h3>컴퓨터 상대</h3><div class="opts" id="aiOpts"></div></div>
       <div class="pick"><h3>지도 <small class="note">바꾸면 다시 불러와요</small></h3><div class="opts" id="mapOpts"></div></div>
     </div>
     <div class="how">
@@ -114,8 +80,7 @@
 <!-- 결과 -->
 <div class="screen" id="resultScreen" hidden>
   <div class="sheet"><h2 id="resTitle">승리!</h2><p class="note" id="resWhy"></p>
-    <div class="stats" id="resStats"></div>
-    <div class="review"><h3>틀린 문제 다시 풀기 <small id="revScore"></small></h3><div id="revList"></div></div>
+    <div id="resBody"></div>
     <div class="actions"><button class="ghost" id="homeBtn">처음 화면</button><button class="go" id="againBtn">다시 하기</button></div>
   </div>
 </div>

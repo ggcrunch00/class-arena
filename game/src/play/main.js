@@ -1,14 +1,15 @@
 // 「성문 대전」 연습 대전: 화면 조립, 문제 풀기, 출전 버튼, 시작·설정·결과 화면, 매 프레임 흐름.
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { ROLES, ROLE_INFO, SIDES, AI_LEVELS, QUALITY, QUALITY_ORDER, MINE, CANNON, GOLD, BASE } from "./config.js";
-import { LANE_NAMES, LANE_LABEL, MAPS, useMap } from "./lanes.js";
+import { ROLES, ROLE_INFO, SIDES, AI_LEVELS, QUALITY, QUALITY_ORDER, BASE } from "./config.js";
+import { LANE_LABEL, MAPS, useMap } from "./lanes.js";
 import { Battle } from "./battle.js";
 import { ComputerPlayer } from "./ai.js";
 import { View3D } from "./view3d.js";
 import { Quality } from "./quality.js";
 import { Sound } from "./sound.js";
-import { TOPICS, FORMATS, makeQuestion, checkAnswer, answerText, questionLine } from "./questions.js";
+import { TOPICS, FORMATS, checkAnswer, questionLine } from "./questions.js";
+import { Seat } from "./seat.js";
 
 const $ = (s) => document.querySelector(s);
 // 지도는 주소 끝 #diag 또는 #wide 로 고름(시작 화면에서 바꾸면 다시 불러옴)
@@ -46,10 +47,18 @@ function remember(k, v) { try { if (v === undefined) return localStorage.getItem
 let models, view, quality, durations, idle;
 let mode = "menu";           // menu | play | pause | result
 let G = null;                 // 한 판의 상태
-const settings = { topic: remember("classArena.topic") || "gugu", ai: remember("classArena.ai") || "recruit", format: remember("classArena.format") || "input" };
+let seats = [];               // 조작판 자리(혼자 1개, 둘이서 2개)
+const settings = {
+  mode: remember("classArena.mode") || "cpu",               // cpu: 연습 대전, duo: 둘이서(한 기기)
+  topic: remember("classArena.topic") || "gugu", topic2: remember("classArena.topic2") || "gugu",
+  ai: remember("classArena.ai") || "recruit", format: remember("classArena.format") || "input",
+};
+if (!["cpu", "duo"].includes(settings.mode)) settings.mode = "cpu";
 if (!FORMATS[settings.format]) settings.format = "input";
 if (!TOPICS[settings.topic]) settings.topic = "gugu";
+if (!TOPICS[settings.topic2]) settings.topic2 = "gugu";
 if (!AI_LEVELS[settings.ai]) settings.ai = "recruit";
+const isDuo = () => G && G.duo;
 
 function loadScript(src) {
   return new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => no(new Error(src + " 를 불러오지 못했어요")); document.head.appendChild(s); });
@@ -74,7 +83,8 @@ async function boot() {
     drawQualOpts();
   });
   idle = new Battle(durations);
-  buildCards(); buildStart(); buildSettings();
+  makeSeats("cpu");
+  buildStart(); buildSettings(); buildKeys();
   window.addEventListener("resize", () => setTimeout(layout, 60));
   layout();
   started = true;
@@ -82,6 +92,17 @@ async function boot() {
   showStart();
   requestAnimationFrame(frame);
   if (["localhost", "127.0.0.1"].includes(location.hostname)) exposeTestHook();
+}
+
+function makeSeats(m) {
+  for (const s of seats) s.destroy();
+  const panel = $("#panel");
+  panel.className = m === "duo" ? "two" : "one";
+  document.body.classList.toggle("duo", m === "duo");
+  const ctx = { view, isPlaying: () => mode === "play", toast };
+  seats = m === "duo" ? [new Seat(panel, -1, ctx), new Seat(panel, 1, ctx)] : [new Seat(panel, -1, ctx)];
+  view.setLane(null, 1);
+  setTimeout(layout, 0);
 }
 
 function layout() {
@@ -94,199 +115,36 @@ function layout() {
 // ---------- 한 판 ----------
 function newGame() {
   view.clear();
+  const duo = settings.mode === "duo";
+  if ((seats.length === 2) !== duo) makeSeats(duo ? "duo" : "cpu");
   const battle = new Battle(durations);
-  G = {
-    battle, ai: new ComputerPlayer(battle, CPU, settings.ai), diff: 0, q: null, input: "",
-    lock: null, wrongs: [], runRight: 0, runWrong: 0, endT: -1,
-  };
-  $("#topicChip").textContent = TOPICS[settings.topic].name;
-  $("#redSub").textContent = "컴퓨터 · " + AI_LEVELS[settings.ai].name;
+  G = { battle, duo, ai: duo ? null : new ComputerPlayer(battle, CPU, settings.ai), endT: -1 };
+  seats[0].start(battle, settings.topic, settings.format);
+  if (duo) seats[1].start(battle, settings.topic2, settings.format);
+  $("#blueSub").textContent = duo ? "왼쪽" : "나";
+  $("#redSub").textContent = duo ? "오른쪽" : "컴퓨터 · " + AI_LEVELS[settings.ai].name;
   $("#banner").hidden = true;
   for (const s of ["#startScreen", "#resultScreen", "#pauseScreen", "#setScreen"]) $(s).hidden = true;
   quality.reset();
-  setLane(lane);
-  setDiff(0);
   mode = "play";
   updateHud(true);
 }
 
-function setDiff(d, msg) {
-  G.diff = d; G.runRight = 0; G.runWrong = 0;
-  document.querySelectorAll("#diffSeg button").forEach((b) => { const on = +b.dataset.d === d; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
-  if (msg) toast(msg);
-  nextQuestion();
-}
-
-function nextQuestion() {
-  G.q = makeQuestion(settings.topic, G.diff, settings.format);
-  G.input = "";
-  const qt = questionLine(G.q);
-  $("#qText").textContent = qt;
-  $("#qText").className = qt.length > 16 ? "long" : qt.length > 11 ? "mid" : "";
-  $("#qPrompt").textContent = G.q.prompt || "";
-  // 형식에 따라 숫자판 / 보기 단추 / O·X 단추
-  const isNum = G.q.type === "number";
-  $("#keypad").hidden = !isNum; $("#ansBox").hidden = !isNum;
-  const box = $("#choices");
-  box.hidden = isNum; box.innerHTML = "";
-  box.className = "choices " + (G.q.type === "ox" ? "ox" : "n" + (G.q.options || []).length);
-  const opts = G.q.type === "ox" ? ["O", "X"] : G.q.options || [];
-  opts.forEach((o, i) => {
-    const b = document.createElement("button");
-    b.innerHTML = G.q.type === "ox" ? `<b>${o}</b><small>${o === "O" ? "맞아요" : "틀려요"}</small>` : `<i>${i + 1}</i><b></b>`;
-    if (G.q.type !== "ox") b.querySelector("b").textContent = o;
-    b.dataset.v = o;
-    b.addEventListener("click", () => pick(o, b));
-    box.appendChild(b);
-  });
-  drawAnswer();
-}
-function pick(v, el) {
-  if (mode !== "play" || !G || G.lock || G.battle.state !== "play") return;
-  G.input = v;
-  const right = checkAnswer(G.q, v);
-  if (el) el.classList.add(right ? "good" : "bad");
-  submit();
-}
-function drawAnswer(cls) {
-  $("#ansText").textContent = G.input;
-  const box = $("#ansBox");
-  box.classList.remove("good", "bad"); void box.offsetWidth;
-  if (cls) box.classList.add(cls);
-}
-
-function press(k) {
-  if (mode !== "play" || !G || G.lock || G.battle.state !== "play") return;
-  if (k === "back") G.input = G.input.slice(0, -1);
-  else if (k === "ok") return submit();
-  else if (G.input.length < 6) G.input += k;
-  drawAnswer();
-}
-
-function submit() {
-  if (!G.input || G.battle.state !== "play") return;
-  const b = G.battle;
-  if (checkAnswer(G.q, G.input)) {
-    const g = b.answer(PLAYER, "right", G.q.type, G.diff);
-    Sound.play("right"); Sound.play("coin");
-    goldPop("+" + g);
-    drawAnswer("good");
-    G.runRight++; G.runWrong = 0;
-    if (G.runRight >= 5 && G.diff < 2) setDiff(G.diff + 1, "잘하고 있어요! 한 단계 어려운 문제예요(골드 ↑)");
-    else nextQuestion();
-  } else {
-    b.answer(PLAYER, "wrong");
-    Sound.play("wrong");
-    drawAnswer("bad");
-    G.wrongs.push({ q: G.q, given: G.input, kind: "wrong" });
-    G.runWrong++; G.runRight = 0;
-    lockFor(GOLD.wrongLock, "wrong", "아쉬워요! 정답은 " + answerText(G.q), () => {
-      if (G.runWrong >= 2 && G.diff > 0) setDiff(G.diff - 1, "조금 쉬운 문제로 바꿨어요");
-      else nextQuestion();
-    });
-  }
-}
-
-function skip() {
-  if (mode !== "play" || G.lock || G.battle.state !== "play") return;
-  G.battle.answer(PLAYER, "skip");
-  Sound.play("skip");
-  G.wrongs.push({ q: G.q, given: "", kind: "skip" });
-  lockFor(GOLD.skipLock, "skip", "넘겼어요 · 정답은 " + answerText(G.q), nextQuestion);
-}
-
-function lockFor(sec, kind, msg, then) {
-  G.lock = { t: sec, total: sec, then };
-  const l = $("#lock"); l.hidden = false; l.className = "lock " + kind;
-  $("#lockMsg").textContent = msg;
-  $("#lockSub").textContent = kind === "wrong" ? "잠깐 쉬었다가 다음 문제" : "다음 문제를 준비해요";
-}
-function tickLock(dt) {
-  if (!G.lock) return;
-  G.lock.t -= dt;
-  $("#lockBar").style.width = Math.max(0, G.lock.t / G.lock.total * 100) + "%";
-  if (G.lock.t <= 0) { const f = G.lock.then; G.lock = null; $("#lock").hidden = true; f(); }
-}
-
-// ---------- 출전 버튼 ----------
-const cards = {};
-function buildCards() {
-  const box = $("#cards");
-  for (const role of ROLES) {
-    const R = ROLE_INFO[role], model = SIDES[PLAYER].models[role];
-    const b = document.createElement("button");
-    b.className = "card";
-    b.setAttribute("aria-label", `${R.name} 출전, ${R.cost}골드, ${ROLE_INFO[R.beats].name}에 강함`);
-    b.innerHTML = `<img src="assets/portraits/${model}.webp" alt=""><span class="meta"><span class="nm">${R.name}</span>` +
-      `<span class="beat">▶ ${ROLE_INFO[R.beats].name}에 강함</span></span><span class="cost"><i class="coin"></i>${R.cost}</span><i class="cd"></i>`;
-    b.addEventListener("click", () => deploy(role, b));
-    box.appendChild(b);
-    cards[role] = b;
-  }
-  document.querySelectorAll("#lanes button").forEach((b) => b.addEventListener("click", () => setLane(b.dataset.lane)));
-  setLane("mid");
-  $("#mineBtn").addEventListener("click", () => {
-    if (mode !== "play") return;
-    if (G.battle.upgradeMine(PLAYER)) { Sound.play("mine"); toast(`금광 Lv${G.battle.sides[PLAYER].mine}! 문제당 골드 +${Math.round(MINE.bonus * 100)}%`); }
-  });
-  $("#cannonBtn").addEventListener("click", () => { if (mode === "play" && G.battle.fireCannon(PLAYER)) toast("성 대포 발사!"); });
-  $("#skipBtn").addEventListener("click", skip);
-  $("#keypad").addEventListener("click", (e) => { const t = e.target.closest("button"); if (t) press(t.dataset.k || t.textContent); });
-  document.querySelectorAll("#diffSeg button").forEach((b) => b.addEventListener("click", () => { if (mode === "play" && !G.lock) setDiff(+b.dataset.d); }));
+function buildKeys() {
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") { if (mode === "play") pause(); else if (mode === "pause") resume(); return; }
-    if (mode !== "play" || e.target.tagName === "INPUT") return;
-    if (G && G.q && G.q.type !== "number") {
-      const btns = [...document.querySelectorAll("#choices button")];
-      const k = e.key.toUpperCase();
-      const i = G.q.type === "ox" ? (k === "O" || k === "1" ? 0 : k === "X" || k === "2" ? 1 : -1) : Number(e.key) - 1;
-      if (btns[i]) pick(btns[i].dataset.v, btns[i]);
-      return;
-    }
-    if (/^[0-9]$/.test(e.key)) press(e.key);
-    else if (e.key === "Backspace") press("back");
-    else if (e.key === "Enter") press("ok");
-    else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-      const i = LANE_NAMES.indexOf(lane) + (e.key === "ArrowUp" ? -1 : 1);
-      setLane(LANE_NAMES[Math.max(0, Math.min(2, i))]); e.preventDefault();
-    }
+    if (mode !== "play" || e.target.tagName === "INPUT" || isDuo()) return; // 둘이서는 키보드를 나눠 쓸 수 없어 끔
+    const s = seats[0];
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") { s.moveLane(e.key === "ArrowUp" ? -1 : 1); e.preventDefault(); return; }
+    s.key(e);
   });
-}
-let lane = "mid";
-function setLane(n) {
-  lane = n;
-  document.querySelectorAll("#lanes button").forEach((b) => { const on = b.dataset.lane === n; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
-  if (view) view.setLane(n);
-}
-function deploy(role, el) {
-  if (mode !== "play") return;
-  const why = G.battle.canDeploy(PLAYER, role);
-  if (why === "끝남") return;
-  if (why) { toast(why === "골드 부족" ? "골드가 모자라요. 문제를 더 풀어요!" : why === "대기" ? "아직 준비 중이에요" : why); el.animate([{ transform: "translateX(-4px)" }, { transform: "translateX(4px)" }, { transform: "none" }], 200); return; }
-  G.battle.deploy(PLAYER, role, lane);
 }
 
 // ---------- 화면 위 정보 ----------
 let lastHp = { [-1]: -1, [1]: -1 };
 function updateHud(force) {
-  const b = G.battle, S = b.sides[PLAYER];
-  $("#gold").textContent = S.gold;
-  for (const role of ROLES) {
-    const c = cards[role], R = ROLE_INFO[role];
-    c.classList.toggle("poor", S.gold < R.cost);
-    c.classList.toggle("ready", !b.canDeploy(PLAYER, role));
-    c.querySelector(".cd").style.setProperty("--p", (S.cooldown[role] / R.cooldown * 100).toFixed(1) + "%");
-  }
-  const mc = b.mineCost(PLAYER);
-  $("#mineLv").textContent = "Lv" + S.mine;
-  $("#mineCost").textContent = mc ? `${mc}골드로 강화` : "최고 단계";
-  $("#mineBtn").disabled = !mc || S.gold < mc;
-  const pips = $("#pips").children;
-  for (let i = 0; i < pips.length; i++) pips[i].classList.toggle("on", i < S.cannon);
-  const ready = S.cannon >= CANNON.charge && !!b.cannonTarget(PLAYER);
-  $("#cannonBtn").disabled = !ready; $("#cannonBtn").classList.toggle("ready", ready);
-  const st = $("#streak");
-  st.hidden = S.streak < 2; st.textContent = S.streak + "연속!";
+  const b = G.battle;
+  for (const s of seats) s.update();
   for (const s of [-1, 1]) {
     const hp = b.sides[s].base.hp;
     const towersLeft = Object.values(b.sides[s].towers).filter((t) => t.alive).length;
@@ -305,53 +163,43 @@ function updateHud(force) {
   $("#clock").classList.toggle("ot", b.overtime);
   $("#clockSub").textContent = b.overtime ? "총력전 · 골드 2배" : "남은 시간";
 }
-function goldPop(t) { const p = $("#goldPop"); p.textContent = t; p.classList.remove("go"); void p.offsetWidth; p.classList.add("go"); }
 let toastT = 0;
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; t.style.animation = "none"; void t.offsetWidth; t.style.animation = ""; toastT = 2.6; }
 function banner(msg, sec = 1.8) { const b = $("#banner"); b.textContent = msg; b.hidden = false; b.style.animation = "none"; void b.offsetWidth; b.style.animation = ""; setTimeout(() => { b.hidden = true; }, sec * 1000); }
+const sideName = (s) => (s < 0 ? "기사단" : "해골 군단");
+const seatOf = (side) => seats.find((x) => x.side === side);
 
 function onEvents(evts) {
   for (const e of evts) {
     if (e.type === "overtime") { banner("총력전! 골드 2배"); Sound.play("horn"); }
-    else if (e.type === "mine" && e.side === CPU) toast("상대가 금광을 강화했어요");
-    else if (e.type === "cannon" && e.side === CPU) toast("상대의 성 대포!");
+    else if (e.type === "mine" && !seatOf(e.side)) toast("상대가 금광을 강화했어요");
+    else if (e.type === "cannon" && !seatOf(e.side)) toast("상대의 성 대포!");
     else if (e.type === "structDown" && e.struct.kind === "tower") {
       const n = LANE_LABEL[e.struct.lane];
-      if (e.struct.side === CPU) banner(`${n} 탑을 무너뜨렸어요!`, 1.6); else toast(`우리 ${n} 탑이 무너졌어요! 막아야 해요`);
+      if (isDuo()) banner(`${sideName(e.struct.side)} ${n} 탑 무너짐!`, 1.6);
+      else if (e.struct.side === CPU) banner(`${n} 탑을 무너뜨렸어요!`, 1.6);
+      else toast(`우리 ${n} 탑이 무너졌어요! 막아야 해요`);
     }
     else if (e.type === "end") {
       G.endT = 0;
       const w = e.winner;
-      banner(w === PLAYER ? "승리!" : w === CPU ? "패배…" : "무승부", 2.6);
-      Sound.play(w === PLAYER ? "win" : "lose");
+      if (isDuo()) { banner(w ? `${sideName(w)} 승리!` : "무승부", 2.6); Sound.play("win"); }
+      else { banner(w === PLAYER ? "승리!" : w === CPU ? "패배…" : "무승부", 2.6); Sound.play(w === PLAYER ? "win" : "lose"); }
     }
   }
 }
 
 // ---------- 결과 ----------
-function showResult() {
-  mode = "result";
-  const b = G.battle, S = b.sides[PLAYER], w = b.winner;
-  $("#resTitle").textContent = w === PLAYER ? "승리!" : w === CPU ? "아쉬운 패배" : "무승부";
-  $("#resWhy").textContent = b.endWhy === "base"
-    ? (w === PLAYER ? "해골 군단의 본성을 무너뜨렸어요!" : "우리 본성이 무너졌어요. 약한 길을 막고 상성을 노려 다시 도전해요!")
-    : (w ? "시간이 끝나서 본성과 탑이 더 튼튼한 쪽이 이겼어요." : "시간이 끝났고 양쪽이 비슷했어요.");
-  const tried = S.stats.right + S.stats.wrong;
-  const stat = (k, v) => `<div class="stat"><small>${k}</small><b>${v}</b></div>`;
-  $("#resStats").innerHTML = stat("맞힌 문제", S.stats.right) + stat("정답률", tried ? Math.round(S.stats.right / tried * 100) + "%" : "-") +
-    stat("최고 연속", S.bestStreak) + stat("번 골드", S.stats.goldEarned) + stat("출전한 병사", S.stats.deployed);
-  // 틀린·넘긴 문제 다시 풀기(같은 문제는 한 번만)
-  const seen = new Set(), list = G.wrongs.filter((x) => !seen.has(x.q.text) && seen.add(x.q.text)).slice(0, 12);
-  const box = $("#revList"); box.innerHTML = "";
+function reviewList(seat, box, scoreEl) {
+  const seen = new Set(), list = seat.wrongs.filter((x) => !seen.has(x.q.text) && seen.add(x.q.text)).slice(0, 12);
   let fixed = 0;
-  const score = () => { $("#revScore").textContent = list.length ? `${fixed}/${list.length} 다시 맞힘` : "틀린 문제가 없어요!"; };
+  const score = () => { scoreEl.textContent = list.length ? `${fixed}/${list.length} 다시 맞힘` : "틀린 문제가 없어요!"; };
   list.forEach((x, i) => {
     const row = document.createElement("label");
     row.className = "rev";
-    const label = questionLine(x.q);
     const done = () => { row.classList.add("done"); fixed++; score(); Sound.play("right"); row.querySelector(".mine-ans").textContent = "다시 맞혔어요"; };
     if (x.q.type === "number") {
-      row.innerHTML = `<span></span><input id="rev${i}" inputmode="numeric" autocomplete="off"><span class="mine-ans"></span>`;
+      row.innerHTML = `<span></span><input id="rev${seat.side}_${i}" inputmode="numeric" autocomplete="off"><span class="mine-ans"></span>`;
       const inp = row.querySelector("input");
       inp.addEventListener("input", () => { if (!row.classList.contains("done") && checkAnswer(x.q, inp.value)) { inp.disabled = true; done(); } });
     } else {
@@ -365,22 +213,56 @@ function showResult() {
         row.querySelector(".mini").appendChild(b);
       }
     }
-    row.firstChild.textContent = label;
+    row.firstChild.textContent = questionLine(x.q);
     row.querySelector(".mine-ans").textContent = x.kind === "skip" ? "넘긴 문제" : "내 답 " + x.given;
     box.appendChild(row);
   });
   score();
+}
+
+function showResult() {
+  mode = "result";
+  const b = G.battle, w = b.winner;
+  if (G.duo) {
+    $("#resTitle").textContent = w ? `${sideName(w)} 승리!` : "무승부";
+    $("#resWhy").textContent = b.endWhy === "base" ? `${sideName(-w)}의 본성이 무너졌어요.` : "시간이 끝나서 본성과 탑이 더 튼튼한 쪽이 이겼어요.";
+  } else {
+    $("#resTitle").textContent = w === PLAYER ? "승리!" : w === CPU ? "아쉬운 패배" : "무승부";
+    $("#resWhy").textContent = b.endWhy === "base"
+      ? (w === PLAYER ? "해골 군단의 본성을 무너뜨렸어요!" : "우리 본성이 무너졌어요. 약한 길을 막고 상성을 노려 다시 도전해요!")
+      : (w ? "시간이 끝나서 본성과 탑이 더 튼튼한 쪽이 이겼어요." : "시간이 끝났고 양쪽이 비슷했어요.");
+  }
+  const stat = (k, v) => `<div class="stat"><small>${k}</small><b>${v}</b></div>`;
+  const statsOf = (side) => {
+    const S = b.sides[side], tried = S.stats.right + S.stats.wrong;
+    return stat("맞힌 문제", S.stats.right) + stat("정답률", tried ? Math.round(S.stats.right / tried * 100) + "%" : "-") +
+      stat("최고 연속", S.bestStreak) + stat("번 골드", S.stats.goldEarned) + stat("출전한 병사", S.stats.deployed);
+  };
+  const res = $("#resBody"); res.innerHTML = "";
+  for (const seat of seats) {
+    const col = document.createElement("div"); col.className = "rescol " + (seat.side < 0 ? "blue" : "red");
+    col.innerHTML = (G.duo ? `<h3 class="who">${sideName(seat.side)} · ${seat.side < 0 ? "왼쪽" : "오른쪽"} (${TOPICS[seat.topic].name})</h3>` : "") +
+      `<div class="stats">${statsOf(seat.side)}</div><div class="review"><h3>틀린 문제 다시 풀기 <small class="revScore"></small></h3><div class="revList"></div></div>`;
+    res.appendChild(col);
+    reviewList(seat, col.querySelector(".revList"), col.querySelector(".revScore"));
+  }
+  res.classList.toggle("two", G.duo);
   $("#resultScreen").hidden = false;
 }
 
 // ---------- 시작·설정·멈춤 ----------
 function buildStart() {
-  const topicBox = $("#topicOpts");
-  for (const [k, t] of Object.entries(TOPICS)) {
-    const b = document.createElement("button"); b.className = "opt"; b.dataset.k = k;
-    b.innerHTML = `<span>${t.name}</span><small>${t.hint}</small>`;
-    b.addEventListener("click", () => { settings.topic = k; remember("classArena.topic", k); drawStart(); });
-    topicBox.appendChild(b);
+  document.querySelectorAll("#modes .mode[data-m]").forEach((b) => b.addEventListener("click", () => {
+    settings.mode = b.dataset.m; remember("classArena.mode", settings.mode); drawStart();
+  }));
+  for (const [boxId, key] of [["#topicOpts", "topic"], ["#topic2Opts", "topic2"]]) {
+    const topicBox = $(boxId);
+    for (const [k, t] of Object.entries(TOPICS)) {
+      const b = document.createElement("button"); b.className = "opt"; b.dataset.k = k;
+      b.innerHTML = `<span>${t.name}</span><small>${t.hint}</small>`;
+      b.addEventListener("click", () => { settings[key] = k; remember("classArena." + key, k); drawStart(); });
+      topicBox.appendChild(b);
+    }
   }
   const fmtBox = $("#fmtOpts");
   for (const [k, f] of Object.entries(FORMATS)) {
@@ -431,14 +313,19 @@ function buildStart() {
   drawStart();
 }
 function drawStart() {
+  const duo = settings.mode === "duo";
+  document.querySelectorAll("#modes .mode[data-m]").forEach((b) => b.classList.toggle("on", b.dataset.m === settings.mode));
+  $("#topic2Pick").hidden = !duo; $("#aiPick").hidden = duo;
+  $("#topicLabel").textContent = duo ? "왼쪽(기사단) 문제 주제" : "문제 주제";
   document.querySelectorAll("#topicOpts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.topic));
+  document.querySelectorAll("#topic2Opts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.topic2));
   document.querySelectorAll("#aiOpts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.ai));
   document.querySelectorAll("#fmtOpts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.format));
 }
 function showStart() {
   mode = "menu"; G = null; view.clear();
   for (const s of ["#resultScreen", "#pauseScreen", "#setScreen"]) $(s).hidden = true;
-  $("#lock").hidden = true;
+  for (const st of seats) { st.lock = null; st.$(".lock").hidden = true; }
   $("#startScreen").hidden = false;
 }
 function pause() { if (mode !== "play") return; mode = "pause"; $("#pauseScreen").hidden = false; }
@@ -478,7 +365,7 @@ function frame(now) {
   const playing = mode === "play" || mode === "result";
   if (G && playing) {
     G.battle.update(dt);
-    if (mode === "play") { G.ai.update(dt); tickLock(dt); }
+    if (mode === "play") { if (G.ai) G.ai.update(dt); for (const st of seats) st.tick(dt); }
     const evts = G.battle.events; G.battle.events = [];
     view.handle(evts, G.battle);
     onEvents(evts);
@@ -487,6 +374,7 @@ function frame(now) {
   }
   view.update(mode === "pause" ? 0 : dt, G ? G.battle : idle);
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $("#toast").hidden = true; }
+  if (mode !== "play") for (const st of seats) if (st.toastT > 0) st.tick(0);
   if (quality.showFps && now - fpsShown > 500) { fpsShown = now; $("#fps").textContent = Math.round(quality.fps) + " fps · " + QUALITY[quality.level].name; }
   const cap = quality.preset.cap;
   if (cap) { renderAcc += dt; if (renderAcc < 1 / cap - 0.004) return; renderAcc = 0; }
@@ -496,11 +384,11 @@ function frame(now) {
 // 로컬 점검용(배포 주소에서는 꺼짐)
 function exposeTestHook() {
   window.__arena = {
-    get battle() { return G && G.battle; }, get mode() { return mode; }, get q() { return G && G.q; }, quality, view,
-    start: (topic, ai, format) => { if (topic) settings.topic = topic; if (ai) settings.ai = ai; if (format) settings.format = format; newGame(); },
-    answerRight() { if (!G || G.lock) return false; G.input = String(G.q.answer); submit(); return true; },
-    answerWrong() { if (!G || G.lock) return false; G.input = String(G.q.answer + 1); submit(); return true; },
-    deploy: (r, l) => { if (l) setLane(l); deploy(r, cards[r]); },
+    get battle() { return G && G.battle; }, get mode() { return mode; }, get q() { return seats[0] && seats[0].q; }, quality, view, get seats() { return seats; },
+    start: (topic, ai, format, m) => { if (topic) settings.topic = topic; if (ai) settings.ai = ai; if (format) settings.format = format; settings.mode = m || "cpu"; newGame(); },
+    answerRight(i = 0) { const s = seats[i]; if (!G || s.lock) return false; s.input = String(s.q.answer); s.submit(); return true; },
+    answerWrong(i = 0) { const s = seats[i]; if (!G || s.lock) return false; s.input = String(s.q.answer + 1); s.submit(); return true; },
+    deploy: (r, l, i = 0) => { const s = seats[i]; if (l) s.setLane(l); s.deploy(r, s.cards[r]); },
   };
 }
 

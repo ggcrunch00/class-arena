@@ -69,12 +69,15 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .bar.b i { background: #5fc3ff; } .bar.r i { background: #ff6a5a; }
 
 /* ---------- 조작판 ---------- */
-#panel { position: fixed; left: 0; right: 0; bottom: 0; height: var(--panel-h); z-index: 3; display: grid; grid-template-columns: 1.15fr 1fr; gap: 10px;
+#panel { position: fixed; left: 0; right: 0; bottom: 0; height: var(--panel-h); z-index: 3; display: grid; gap: 10px;
   padding: 10px max(10px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
   background: linear-gradient(var(--panel-2), var(--panel)); border-top: 2px solid var(--line); }
-#quiz, #army { position: relative; min-width: 0; display: grid; gap: 8px; background: rgba(0,0,0,.18); border-radius: 12px; padding: 8px 10px; }
-#quiz { grid-template-rows: auto auto 1fr; }
-#army { grid-template-rows: auto auto 1fr; }
+#panel { grid-template-rows: minmax(0, 1fr); }
+.seat { display: grid; grid-template-columns: 1.15fr 1fr; grid-template-rows: minmax(0, 1fr); gap: 10px; min-width: 0; min-height: 0; }
+#panel.two { grid-template-columns: 1fr 1fr; }
+.quiz, .army { position: relative; min-width: 0; display: grid; gap: 8px; background: rgba(0,0,0,.18); border-radius: 12px; padding: 8px 10px; }
+.quiz { grid-template-rows: auto auto minmax(0, 1fr); min-height: 0; }
+.army { grid-template-rows: auto auto minmax(0, 1fr); min-height: 0; }
 .lanes { display: flex; align-items: center; gap: 6px; }
 .lanes .lab { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .lanes button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 5px 6px; border-radius: 8px; background: #233029;
@@ -109,12 +112,12 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 @keyframes blink { 50% { opacity: 0; } }
 .ans.good { border-color: var(--ok); } .ans.bad { border-color: var(--no); animation: shake .3s; }
 @keyframes shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-.keypad { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; min-height: 0; }
+.keypad { display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 6px; min-height: 0; }
 .keypad button { border-radius: 9px; background: #2a3830; box-shadow: 0 3px 0 #111a15; font-family: var(--display); font-size: clamp(18px, 2.6vw, 26px); min-height: 38px; }
 .keypad button:active { transform: translateY(2px); box-shadow: 0 1px 0 #111a15; }
 .keypad [data-k="back"] { font-family: var(--body); font-size: 14px; }
 .keypad .ok { background: var(--gold); color: var(--night); box-shadow: 0 3px 0 #7d6431; }
-.choices { display: grid; gap: 8px; min-height: 0; }
+.choices { display: grid; gap: 8px; min-height: 0; grid-auto-rows: minmax(0, 1fr); }
 .choices.n3 { grid-template-columns: repeat(3, 1fr); } .choices.n4 { grid-template-columns: repeat(2, 1fr); } .choices.ox { grid-template-columns: 1fr 1fr; }
 .choices button { position: relative; border-radius: 10px; background: #2a3830; box-shadow: 0 3px 0 #111a15; display: grid; place-items: center; min-height: 44px; }
 .choices button b { font-family: var(--display); font-weight: 400; font-size: clamp(22px, 3.4vw, 34px); }
@@ -124,7 +127,7 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .choices.ox button:first-child b { color: #7fd0ff; font-size: clamp(34px, 5vw, 52px); } .choices.ox button:last-child b { color: #ff8f80; font-size: clamp(34px, 5vw, 52px); }
 .choices button:active { transform: translateY(2px); box-shadow: 0 1px 0 #111a15; }
 .choices button.good { background: #2f5a35; } .choices button.bad { background: #6a2f2a; }
-#quiz:has(.choices:not([hidden])) .qline { min-height: 0; }
+
 .rev .mini { display: flex; gap: 4px; flex-wrap: wrap; }
 .rev .mini button { min-width: 2.4em; padding: 3px 8px; border-radius: 6px; background: #2a3830; font-size: 14px; }
 .rev .mini button.good { background: #2f5a35; } .rev .mini button.bad { background: #6a2f2a; }
@@ -148,9 +151,9 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 @keyframes glow { to { box-shadow: 0 3px 0 #4b1c0c, 0 0 24px rgba(255,140,60,.9); } }
 .pips { display: flex; gap: 3px; margin-top: 2px; } .pips i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.18); }
 .pips i.on { background: #ffb347; }
-.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; min-height: 0; }
+.cards { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 7px; min-height: 0; }
 .card { position: relative; display: grid; grid-template-rows: 1fr auto; border-radius: 10px; background: #233029; border: 2px solid rgba(255,255,255,.08); overflow: hidden; min-height: 0; text-align: center; }
-.card img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; min-height: 0; background: radial-gradient(#3b5246, #1b2620); }
+.card img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; min-height: 0; display: block; background: radial-gradient(#3b5246, #1b2620); }
 .card .meta { padding: 3px 4px 5px; display: grid; gap: 1px; background: rgba(0,0,0,.35); }
 .card .nm { font-family: var(--display); font-size: clamp(13px, 1.7vw, 17px); }
 .card .beat { font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -162,6 +165,54 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .card.ready { border-color: var(--gold); }
 .card:active { transform: scale(.97); }
 .card .key { position: absolute; top: 4px; right: 5px; font-size: 11px; color: var(--muted); }
+
+/* 자리 안 알림 */
+.stoast { position: absolute; left: 50%; top: -10px; transform: translate(-50%, -100%); background: rgba(10,14,20,.9); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 12px; font-size: 13px; white-space: nowrap; z-index: 2; animation: up .25s ease-out; pointer-events: none; }
+
+/* ---------- 둘이서(한 기기): 자리 두 개를 나란히, 조금 작게 ---------- */
+body.duo { --panel-h: clamp(250px, 45vh, 360px); }
+#panel.two .seat { grid-template-columns: 1.2fr 1fr; gap: 6px; padding: 6px; border-radius: 12px; }
+#panel.two .seat.blue { background: rgba(79,179,255,.08); box-shadow: inset 0 0 0 2px rgba(79,179,255,.35); }
+#panel.two .seat.red { background: rgba(255,98,83,.08); box-shadow: inset 0 0 0 2px rgba(255,98,83,.35); }
+#panel.two .quiz, #panel.two .army { padding: 6px; gap: 6px; }
+#panel.two .qhead { gap: 4px; }
+#panel.two .seg button { padding: 3px 6px; font-size: 11px; }
+#panel.two .chip { font-size: 11px; padding: 2px 7px; }
+#panel.two .ghost { font-size: 11px; padding: 3px 8px; }
+#panel.two .streak { font-size: 12px; }
+#panel.two .qtext b { font-size: clamp(20px, 2.8vw, 30px); }
+#panel.two .qtext b.mid { font-size: clamp(17px, 2.3vw, 25px); }
+#panel.two .qtext b.long { font-size: clamp(14px, 1.8vw, 20px); }
+#panel.two .ans { height: 38px; font-size: 24px; min-width: 3.4em; padding: 0 8px; }
+#panel.two .keypad { gap: 4px; }
+#panel.two .keypad button { font-size: clamp(15px, 2vw, 20px); min-height: 32px; border-radius: 7px; }
+#panel.two .keypad button { white-space: nowrap; padding: 0; }
+#panel.two .keypad [data-k="back"] { font-size: 10px; letter-spacing: -.04em; }
+#panel.two .keypad .ok { font-size: 14px; }
+#panel.two .choices button b { font-size: clamp(18px, 2.4vw, 26px); }
+#panel.two .ahead { flex-wrap: wrap; gap: 4px; }
+#panel.two .gold { font-size: 20px; min-width: 3.4em; }
+#panel.two .coin { width: 17px; height: 17px; }
+#panel.two .mine, #panel.two .cannon { padding: 3px 7px; font-size: 11px; }
+#panel.two .mine small { display: none; }
+#panel.two .lanes .lab { display: none; }
+#panel.two .lanes button { font-size: 11px; padding: 3px 2px; gap: 2px; }
+#panel.two .lanes button svg { width: 16px; height: 11px; }
+#panel.two .cards { grid-template-columns: repeat(2, 1fr); gap: 4px; }
+#panel.two .card { grid-template-rows: 1fr auto; }
+#panel.two .card .beat { display: none; }
+#panel.two .card .nm { font-size: 12px; }
+#panel.two .card .cost { font-size: 12px; padding: 0 5px 0 2px; }
+#panel.two .seat.red .lanes button.on { border-color: #ff9c8a; background: #3a2420; color: #ffc9c0; }
+#panel.two .seat.red .lanes button.on svg { stroke: #ff9c8a; }
+#resBody { display: grid; gap: 12px; }
+#resBody.two { grid-template-columns: 1fr 1fr; }
+.rescol { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.rescol .who { font-size: 15px; } .rescol.blue .who { color: #9dd6ff; } .rescol.red .who { color: #ffb0a6; }
+#resBody.two .stats { grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); }
+#resBody.two .stat b { font-size: 20px; }
+.revList { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; max-height: 30vh; overflow-y: auto; }
 
 /* ---------- 덮는 화면 ---------- */
 .screen { position: fixed; inset: 0; z-index: 10; background: rgba(6,10,8,.72); display: grid; place-items: center; padding: 16px; overflow-y: auto; }
@@ -201,7 +252,6 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .stat small { display: block; font-size: 12px; color: var(--muted); }
 .stat b { font-family: var(--display); font-weight: 400; font-size: 24px; font-variant-numeric: tabular-nums; }
 .review h3 small { color: var(--muted); font-weight: 400; }
-#revList { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; max-height: 32vh; overflow-y: auto; }
 .rev { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,.25); border-radius: 8px; padding: 6px 10px; font-size: 16px; }
 .rev input { width: 4.5em; font: inherit; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: #0b100d; color: var(--ink); }
 .rev.done { color: var(--ok); } .rev .mine-ans { color: var(--muted); font-size: 12px; margin-left: auto; }

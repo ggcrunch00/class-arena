@@ -139,27 +139,31 @@ export class View3D {
     this.mPerPx = k;
   }
 
-  // 고른 길 표시: 파란 본성에서 나가는 길 앞부분을 금빛으로
+  // 고른 길 표시: 자기 본성에서 나가는 길 앞부분을 빛나게(기사단 금빛, 해골 군단 분홍빛)
   makeLaneMarks() {
-    const marks = {};
-    const mat = new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.6, depthWrite: false });
-    for (const n of LANE_NAMES) {
-      const L = LANES[n], pos = [], idx = [];
-      const steps = 24, s0 = 2.0, s1 = 13.0, w = 1.35;
-      for (let i = 0; i <= steps; i++) {
-        const p = L.at(s0 + (s1 - s0) * i / steps), ww = w * (i > steps - 5 ? (steps - i) / 5 : 1);
-        const a = V(p.x - p.dy * ww, p.y + p.dx * ww, 0.25), b = V(p.x + p.dy * ww, p.y - p.dx * ww, 0.25);
-        pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
-        if (i) { const j = i * 2; idx.push(j - 2, j - 1, j, j - 1, j + 1, j); }
+    const marks = { [-1]: {}, [1]: {} };
+    this.laneMats = [];
+    for (const side of [-1, 1]) {
+      const mat = new THREE.MeshBasicMaterial({ color: side < 0 ? 0xffd36b : 0xff9c8a, transparent: true, opacity: 0.6, depthWrite: false });
+      this.laneMats.push(mat);
+      for (const n of LANE_NAMES) {
+        const L = LANES[n], pos = [], idx = [];
+        const steps = 24, w = 1.35;
+        for (let i = 0; i <= steps; i++) {
+          const d = 2.0 + 11.0 * i / steps, sAt = side < 0 ? d : L.length - d;
+          const p = L.at(sAt), ww = w * (i > steps - 5 ? (steps - i) / 5 : 1);
+          const a = V(p.x - p.dy * ww, p.y + p.dx * ww, 0.25), b = V(p.x + p.dy * ww, p.y - p.dx * ww, 0.25);
+          pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+          if (i) { const j = i * 2; idx.push(j - 2, j - 1, j, j - 1, j + 1, j); }
+        }
+        const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+        const m = new THREE.Mesh(g, mat); m.renderOrder = 3; m.visible = false; mat.side = THREE.DoubleSide;
+        this.scene.add(m); marks[side][n] = m;
       }
-      const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
-      const m = new THREE.Mesh(g, mat); m.renderOrder = 3; m.visible = false;
-      this.scene.add(m); marks[n] = m;
     }
-    this.laneMat = mat;
     return marks;
   }
-  setLane(n) { for (const k in this.laneMarks) this.laneMarks[k].visible = k === n; }
+  setLane(n, side = -1) { for (const k in this.laneMarks[side]) this.laneMarks[side][k].visible = k === n; }
 
   structNode(st) { return this.nodes[(st.kind === "base" ? "base_" : "tower_") + (st.side < 0 ? "blue" : "red") + (st.kind === "tower" ? "_" + st.lane : "")]; }
 
@@ -400,7 +404,7 @@ export class View3D {
       c.bar.style.transform = `translate(${s.x}px, ${s.y}px)`;
       c.bar.firstChild.style.width = (st.hp / st.max * 100) + "%";
     }
-    if (this.laneMat) this.laneMat.opacity = 0.55 + Math.sin(performance.now() / 300) * 0.2;
+    for (const m of this.laneMats || []) m.opacity = 0.55 + Math.sin(performance.now() / 300) * 0.2;
     for (const m of this.clouds) {
       m.position.x += m.speed * dt;
       if (m.position.x > 30) { m.position.x = -30; m.position.z = -(-6 + Math.random() * 22); }
