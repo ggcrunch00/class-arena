@@ -19,6 +19,7 @@ const TPL = `
     <button>7</button><button>8</button><button>9</button><button>0</button><button data-k="back" aria-label="지우기">지우기</button><button data-k="ok" class="ok">확인</button>
   </div>
   <div class="choices" hidden></div>
+  <span class="tip tip1" hidden>① 문제를 풀어 골드를 모아요</span>
   <div class="lock" hidden><b class="lockMsg"></b><small class="lockSub"></small><i class="lockbar"><i class="lockBar"></i></i></div>
 </section>
 <section class="army" aria-label="출전">
@@ -35,6 +36,8 @@ const TPL = `
   </div>
   <div class="cards"></div>
   <div class="stoast" hidden></div>
+  <span class="tip tip2" hidden>② 보낼 길을 골라요</span>
+  <span class="tip tip3" hidden>③ 병사를 눌러 출전!</span>
 </section>`;
 
 export class Seat {
@@ -82,7 +85,17 @@ export class Seat {
     this.$(".lock").hidden = true;
     this.setLane(this.lane);
     this.setDiff(0);
+    // 처음 하는 학생에게 단계별 안내(첫 출전을 하면 사라지고 기기에 기억)
+    let seen = false; try { seen = localStorage.getItem("classArena.tips") === "1"; } catch { /* 안내 보여 줌 */ }
+    this.tipStep = seen ? 9 : 1;
+    this.showTips();
     this.update(true);
+  }
+  showTips() {
+    const st = this.tipStep;
+    this.$(".tip1").hidden = st !== 1;
+    this.$(".tip2").hidden = st !== 2;
+    this.$(".tip3").hidden = st !== 2;
   }
   destroy() { this.el.remove(); }
 
@@ -167,6 +180,7 @@ export class Seat {
       this.goldPop("+" + g);
       this.drawAnswer("good");
       this.runRight++; this.runWrong = 0;
+      if (this.tipStep === 1 && b.sides[side].gold >= 60) { this.tipStep = 2; this.showTips(); }
       if (this.runRight >= 5 && this.diff < 2) this.setDiff(this.diff + 1, "잘하고 있어요! 한 단계 어려운 문제(골드 ↑)");
       else this.next();
     } else {
@@ -212,6 +226,7 @@ export class Seat {
       return;
     }
     this.b.deploy(this.side, role, this.lane);
+    if (this.tipStep < 9) { this.tipStep = 9; this.showTips(); try { localStorage.setItem("classArena.tips", "1"); } catch { /* 무시 */ } }
   }
 
   say(msg) { const t = this.$(".stoast"); t.textContent = msg; t.hidden = false; t.style.animation = "none"; void t.offsetWidth; t.style.animation = ""; this.toastT = 2.4; }

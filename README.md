@@ -1,7 +1,7 @@
 # class-arena (가칭 「성문 대전」)
 
 학생이 문제를 맞히면 병사가 출전해 상대 성을 무너뜨리는 교실 대전 게임입니다.
-- **1단계 연습 대전** `game/play.html`: 롤처럼 대각선 지도에 3갈래 길(길마다 탑 한쪽 1개). 계산 문제(곱셈구구·덧셈과 뺄셈·곱셈과 나눗셈·혼합 계산)를 풀어 골드를 벌고, 병사 4종(순환 상성)·금광·성 대포로 컴퓨터(신병·기사·장군)와 겨룸. 화질 자동·직접 고르기.
+- **1단계** `game/play.html`: 연습 대전(컴퓨터 신병·기사·장군)과 **둘이서 대전**(태블릿 하나, 학생마다 다른 주제 가능). 롤처럼 대각선 지도에 3갈래 길(길마다 탑 한쪽 1개). 계산 문제(곱셈구구·덧셈과 뺄셈·곱셈과 나눗셈·혼합 계산)를 풀어 골드를 벌고, 병사 4종(순환 상성)·금광·성 대포로 컴퓨터(신병·기사·장군)와 겨룸. 화질 자동·직접 고르기.
 - 그래픽 비교판(11-03): A안 실시간 3D로 결정. 비교 페이지는 기록용으로 남겨 둠.
 
 같은 무료 3D 모형을 두 가지 방법으로 그려 비교합니다.
@@ -21,7 +21,7 @@
 | `game/js/sim.js` | 전투 규칙(정답 → 출전, 이동, 공격, 성 체력). A·B가 함께 씀. 카메라 약속(`CAM`)도 여기 |
 | `game/js/hud.js`, `game/css/hud.css` | 성 체력·정답 수·소식·승리 띠 |
 | `game/js/b_main.js` | B안 그리기 |
-| `game/src/play/` | **연습 대전** 원본(`config.js` 숫자 모음, `battle.js` 전투 규칙, `ai.js` 컴퓨터, `questions.js` 문제, `view3d.js` 3D, `quality.js` 화질, `sound.js` 효과음, `main.js` 화면) → `npm run build:play` 로 `game/js/play_bundle.js` |
+| `game/src/play/` | **게임** 원본(`config.js` 숫자 모음, `lanes.js` 3갈래 길, `battle.js` 전투 규칙, `ai.js` 컴퓨터, `questions.js` 문제(숫자·객관식·OX), `seat.js` 조작판 한 자리, `view3d.js` 3D, `quality.js` 화질, `sound.js` 효과음, `main.js` 화면 흐름) → `npm run build:play` 로 `game/js/play_bundle.js` |
 | `game/src/a_main.js` | A안 그리기 원본 → `npm run build:a` 로 `game/js/a_bundle.js` 생성 |
 | `game/assets/` | B안 그림(`*.webp`)과 그림 위치표 `data.js`(자동 생성) |
 | `game/models/*.js` | A안 모형(.glb를 base64로 바꾼 것, 자동 생성) |

@@ -166,6 +166,15 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .card:active { transform: scale(.97); }
 .card .key { position: absolute; top: 4px; right: 5px; font-size: 11px; color: var(--muted); }
 
+/* 처음 하는 학생 안내 말풍선 */
+.tip { position: absolute; z-index: 3; background: #ffd36b; color: #2b1d05; font-weight: 700; font-size: 13px; padding: 5px 11px; border-radius: 999px;
+  box-shadow: 0 3px 10px rgba(0,0,0,.4); white-space: nowrap; pointer-events: none; animation: tipb 1s ease-in-out infinite alternate; }
+.tip::after { content: ""; position: absolute; left: 50%; bottom: -6px; margin-left: -6px; border: 6px solid transparent; border-bottom: 0; border-top-color: #ffd36b; }
+.tip1 { left: 50%; top: 34%; transform: translateX(-50%); }
+.tip2 { left: 50%; top: 50px; transform: translate(-50%, -100%); }
+.tip3 { left: 50%; bottom: 34%; transform: translateX(-50%); }
+@keyframes tipb { to { margin-top: -5px; } }
+
 /* 자리 안 알림 */
 .stoast { position: absolute; left: 50%; top: -10px; transform: translate(-50%, -100%); background: rgba(10,14,20,.9); border: 1px solid var(--line);
   border-radius: 999px; padding: 5px 12px; font-size: 13px; white-space: nowrap; z-index: 2; animation: up .25s ease-out; pointer-events: none; }
