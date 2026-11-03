@@ -15,8 +15,9 @@ export const Sound = {
       master = ctx.createGain(); master.gain.value = 0.35; master.connect(ctx.destination);
     } catch { ctx = null; }
   },
+  quiet: false, // 시작 화면 뒤 전투처럼 소리 없이 보여 줄 때
   play(name) {
-    if (!on || !ctx) return;
+    if (!on || !ctx || Sound.quiet) return;
     const now = ctx.currentTime;
     if (last[name] && now - last[name] < (GAP[name] || 0)) return; // 같은 소리가 너무 겹치지 않게
     last[name] = now;

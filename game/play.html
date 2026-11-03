@@ -3,7 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>성문 대전 · 연습 대전</title>
+<title>성문 대전</title>
+<meta name="description" content="문제를 맞혀 골드를 벌고, 3갈래 길로 병사를 보내 상대 본성을 무너뜨리는 교실 대전 게임">
+<meta name="theme-color" content="#0d1712">
+<meta property="og:title" content="성문 대전 · 교실 대전 게임">
+<meta property="og:description" content="문제를 맞혀 골드를 벌고, 3갈래 길로 병사를 보내 상대 본성을 무너뜨려요. 혼자 또는 둘이서.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="thumbs/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Dodum&display=swap">
 <link rel="stylesheet" href="css/play.css">
@@ -27,10 +37,25 @@
 <!-- 아래 조작판(자리마다 seat.js 가 채움) -->
 <div id="panel" class="one"></div>
 
-<!-- 시작 화면 -->
+<!-- 타이틀 화면(뒤에서 컴퓨터끼리 싸움) -->
+<div class="screen" id="titleScreen" hidden>
+  <div class="titlebox">
+    <small class="kicker">교실 대전 게임</small>
+    <h1 class="logo"><span>성문</span><span>대전</span></h1>
+    <p class="tagline">문제를 맞혀 골드를 벌고, 3갈래 길로 병사를 보내 상대 본성을 무너뜨려라!</p>
+    <div class="titleact">
+      <button class="go big" id="quickBtn">바로 시작</button>
+      <button class="ghost" id="prepBtn">전투 준비</button>
+      <button class="ghost" id="setBtn0">설정</button>
+    </div>
+    <p class="lastset" id="lastSet"></p>
+  </div>
+</div>
+
+<!-- 전투 준비(설정 고르기) -->
 <div class="screen" id="startScreen" hidden>
   <div class="sheet">
-    <header class="title"><small>교실 대전 게임 · 시험판</small><h1>성문 대전</h1></header>
+    <header class="title"><small>전투 준비</small><h1>성문 대전</h1></header>
     <div class="modes" id="modes">
       <button class="mode" data-m="cpu">연습 대전<small>컴퓨터와 겨루기</small></button>
       <button class="mode" data-m="duo">둘이서 대전<small>태블릿 하나로 나란히</small></button>
@@ -56,7 +81,7 @@
         <li>5번 연속 정답이면 <b>성 대포</b>가 충전돼요.</li>
       </ol>
     </div>
-    <div class="actions"><a class="ghost" href="index.html">첫 페이지</a><button class="ghost" id="setBtn1">설정</button><button class="go" id="startBtn">전투 시작</button></div>
+    <div class="actions"><button class="ghost" id="backBtn">뒤로</button><button class="ghost" id="setBtn1">설정</button><button class="go" id="startBtn">전투 시작</button></div>
   </div>
 </div>
 
@@ -73,30 +98,30 @@
     <div class="pick"><h3>화질</h3><div class="opts" id="qualOpts"></div><p class="note" id="qualNote"></p></div>
     <label class="toggle"><input type="checkbox" id="fpsToggle"> 화면 빠르기(fps) 보기</label>
     <label class="toggle"><input type="checkbox" id="soundToggle"> 효과음</label>
+    <label class="toggle"><input type="checkbox" id="musicToggle"> 배경 음악</label>
+    <details class="credits"><summary>만든 사람·그림 자료</summary>
+      <p>게임 기획: 초등 교사 · 개발: Claude와 함께 바이브 코딩</p>
+      <p>3D 그림 자료: KayKit Character Pack(Adventurers, Skeletons), KayKit Medieval Hexagon Pack — Kay Lousberg (kaylousberg.com), CC0</p>
+      <p>3D 그리기: three.js · 글꼴: Black Han Sans, Gowun Dodum(구글 폰트) · 효과음·음악: 코드로 만듦</p>
+    </details>
     <div class="actions"><button class="go" id="setClose">닫기</button></div>
   </div>
 </div>
 
 <!-- 결과 -->
 <div class="screen" id="resultScreen" hidden>
-  <div class="sheet"><h2 id="resTitle">승리!</h2><p class="note" id="resWhy"></p>
+  <div class="sheet"><div class="stars" id="stars"><i></i><i></i><i></i></div><h2 id="resTitle">승리!</h2><p class="note" id="resWhy"></p>
     <div id="resBody"></div>
+    <div class="share" id="shareBox"><pre id="shareText"></pre><div class="shareact"><button class="ghost" id="copyBtn">기록 복사</button><button class="ghost" id="cardBtn">기록 카드 저장</button></div></div>
     <div class="actions"><button class="ghost" id="homeBtn">처음 화면</button><button class="go" id="againBtn">다시 하기</button></div>
   </div>
 </div>
 
 <div id="fps" hidden>-- fps</div>
 <div id="rotate" hidden><b>가로로 돌려 주세요</b><small>태블릿·크롬북 가로 화면에 맞춘 게임이에요</small></div>
-<div id="loading">전장을 펼치는 중 <b>0%</b></div>
+<div id="loading"><span class="ltitle">성문 대전</span><span class="lbar"><i id="lbar"></i></span><b>0%</b><small class="ltip" id="ltip">팁: 화살표 방향으로 강해요. 방패병은 돌격병을 막아요!</small></div>
+<div id="vignette"></div>
 
-<script src="models/knight.js"></script>
-<script src="models/barbarian.js"></script>
-<script src="models/rogue.js"></script>
-<script src="models/mage.js"></script>
-<script src="models/skel_warrior.js"></script>
-<script src="models/skel_minion.js"></script>
-<script src="models/skel_rogue.js"></script>
-<script src="models/skel_mage.js"></script>
 <script src="js/play_bundle.js"></script>
 </body>
 </html>

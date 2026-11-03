@@ -48,6 +48,7 @@ let models, view, quality, durations, idle;
 let mode = "menu";           // menu | play | pause | result
 let G = null;                 // 한 판의 상태
 let seats = [];               // 조작판 자리(혼자 1개, 둘이서 2개)
+let demo = null;              // 시작 화면 뒤에서 컴퓨터끼리 싸우는 전투
 const settings = {
   mode: remember("classArena.mode") || "cpu",               // cpu: 연습 대전, duo: 둘이서(한 기기)
   topic: remember("classArena.topic") || "gugu", topic2: remember("classArena.topic2") || "gugu",
@@ -63,12 +64,23 @@ const isDuo = () => G && G.duo;
 function loadScript(src) {
   return new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => no(new Error(src + " 를 불러오지 못했어요")); document.head.appendChild(s); });
 }
+const TIPS = [
+  "팁: 화살표 방향으로 강해요. 방패병은 돌격병을 막아요!",
+  "팁: 그 길의 적 탑을 부숴야 본성에 닿아요.",
+  "팁: 5번 연속 정답이면 성 대포가 충전돼요.",
+  "팁: 금광을 강화하면 문제마다 골드를 더 받아요.",
+  "팁: 마지막 1분은 총력전! 골드가 2배예요.",
+  "팁: 모르는 문제는 넘기기. 틀릴 때보다 덜 쉬어요.",
+];
 async function boot() {
   models = {};
+  $("#ltip").textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
+  const files = [`field_${MAP_KEY}`, ...MODELS.slice(1)];
   let n = 0;
-  await loadScript(`models/field_${MAP_KEY}.js`);
+  const step = () => { n++; const k = Math.round(n / (files.length * 2) * 100); $("#loading b").textContent = k + "%"; $("#lbar").style.width = k + "%"; };
+  for (const f of files) { await loadScript(`models/${f}.js`); step(); }   // 파일을 하나씩 받으며 진행 막대
   window.GLB.field = window.GLB["field_" + MAP_KEY];
-  for (const m of MODELS) { models[m] = await parseGLB(m); $("#loading b").textContent = Math.round(++n / MODELS.length * 100) + "%"; }
+  for (const m of MODELS) { models[m] = await parseGLB(m); step(); }
   await fontsReady();
   durations = {};
   for (const m of MODELS.slice(1)) {
@@ -108,12 +120,33 @@ function makeSeats(m) {
 function layout() {
   const ph = $("#panel").offsetHeight;
   const top = $("#top").getBoundingClientRect();
-  view.setViewport({ x: 0, y: 0, w: window.innerWidth, h: Math.max(100, window.innerHeight - ph) }, top.bottom + 4);
+  view.setViewport({ x: 0, y: 0, w: window.innerWidth, h: Math.max(100, window.innerHeight - ph) }, top.height ? top.bottom + 4 : 0);
   $("#rotate").hidden = !(window.innerHeight > window.innerWidth * 1.05);
 }
 
 // ---------- 한 판 ----------
+// 시작 화면 뒤 전투(소리 없음, 끝나면 새로)
+function startDemo() {
+  view.clear();
+  const b = new Battle(durations);
+  b.sides[-1].gold = b.sides[1].gold = 180;
+  demo = { b, ais: [new ComputerPlayer(b, -1, "knight"), new ComputerPlayer(b, 1, "knight")], endT: 0 };
+  for (const a of demo.ais) a.next = 0.3 + Math.random();
+}
+function tickDemo(dt) {
+  if (!demo) return;
+  const b = demo.b;
+  b.update(dt);
+  for (const a of demo.ais) a.update(dt);
+  const evts = b.events; b.events = [];
+  Sound.quiet = true; view.handle(evts, b); Sound.quiet = false;
+  if (b.state !== "play") { demo.endT += dt; if (demo.endT > 5) startDemo(); }
+}
+
 function newGame() {
+  demo = null;
+  document.body.classList.remove("menu");
+  layout();
   view.clear();
   const duo = settings.mode === "duo";
   if ((seats.length === 2) !== duo) makeSeats(duo ? "duo" : "cpu");
@@ -124,7 +157,7 @@ function newGame() {
   $("#blueSub").textContent = duo ? "왼쪽" : "나";
   $("#redSub").textContent = duo ? "오른쪽" : "컴퓨터 · " + AI_LEVELS[settings.ai].name;
   $("#banner").hidden = true;
-  for (const s of ["#startScreen", "#resultScreen", "#pauseScreen", "#setScreen"]) $(s).hidden = true;
+  for (const s of ["#titleScreen", "#startScreen", "#resultScreen", "#pauseScreen", "#setScreen"]) $(s).hidden = true;
   quality.reset();
   mode = "play";
   updateHud(true);
@@ -303,6 +336,10 @@ function buildStart() {
     ring.appendChild(img);
   }
   $("#startBtn").addEventListener("click", () => { Sound.unlock(); newGame(); });
+  $("#quickBtn").addEventListener("click", () => { Sound.unlock(); newGame(); });
+  $("#prepBtn").addEventListener("click", () => { Sound.unlock(); $("#titleScreen").hidden = true; $("#startScreen").hidden = false; drawStart(); });
+  $("#backBtn").addEventListener("click", () => { $("#startScreen").hidden = true; drawLastSet(); $("#titleScreen").hidden = false; });
+  $("#setBtn0").addEventListener("click", () => openSettings("#titleScreen"));
   $("#againBtn").addEventListener("click", () => { Sound.unlock(); newGame(); });
   $("#homeBtn").addEventListener("click", showStart);
   $("#pauseBtn").addEventListener("click", pause);
@@ -323,10 +360,19 @@ function drawStart() {
   document.querySelectorAll("#fmtOpts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.format));
 }
 function showStart() {
-  mode = "menu"; G = null; view.clear();
-  for (const s of ["#resultScreen", "#pauseScreen", "#setScreen"]) $(s).hidden = true;
+  mode = "menu"; G = null;
+  document.body.classList.add("menu");
+  layout();
+  startDemo();
+  for (const s of ["#resultScreen", "#pauseScreen", "#setScreen", "#startScreen"]) $(s).hidden = true;
   for (const st of seats) { st.lock = null; st.$(".lock").hidden = true; }
-  $("#startScreen").hidden = false;
+  drawLastSet();
+  $("#titleScreen").hidden = false;
+}
+function drawLastSet() {
+  const duo = settings.mode === "duo";
+  $("#lastSet").textContent = (duo ? "둘이서 대전 · " + TOPICS[settings.topic].name + " / " + TOPICS[settings.topic2].name
+    : "연습 대전 · " + TOPICS[settings.topic].name + " · 컴퓨터 " + AI_LEVELS[settings.ai].name) + " · " + FORMATS[settings.format].name + " · " + MAPS[MAP_KEY].name + " 지도";
 }
 function pause() { if (mode !== "play") return; mode = "pause"; $("#pauseScreen").hidden = false; }
 function resume() { mode = "play"; $("#pauseScreen").hidden = true; }
@@ -372,7 +418,8 @@ function frame(now) {
     updateHud(false);
     if (G.endT >= 0 && mode === "play") { G.endT += dt; if (G.endT > 2.8) showResult(); }
   }
-  view.update(mode === "pause" ? 0 : dt, G ? G.battle : idle);
+  if (mode === "menu") tickDemo(dt);
+  view.update(mode === "pause" ? 0 : dt, G ? G.battle : demo ? demo.b : idle);
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $("#toast").hidden = true; }
   if (mode !== "play") for (const st of seats) if (st.toastT > 0) st.tick(0);
   if (quality.showFps && now - fpsShown > 500) { fpsShown = now; $("#fps").textContent = Math.round(quality.fps) + " fps · " + QUALITY[quality.level].name; }
