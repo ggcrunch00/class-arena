@@ -13,3 +13,5 @@ preview_world.png
 # 굽는 중간 결과(게임은 .webp, .js만 씀)
 game/assets/*.png
 game/models/*.glb
+preview_units.png
+game/assets/portraits/*.png

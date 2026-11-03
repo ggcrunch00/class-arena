@@ -42,6 +42,15 @@ dd { margin: 0; min-width: 0; }
   padding: 10px 22px; border-radius: 999px; text-decoration: none; box-shadow: 0 3px 0 #7d6431; }
 .go:active { transform: translateY(2px); box-shadow: 0 1px 0 #7d6431; }
 .go:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.feature { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); background: var(--panel); border: 2px solid var(--gold); border-radius: 12px; overflow: hidden; color: inherit; text-decoration: none; }
+.feature img { width: 100%; height: 100%; object-fit: cover; aspect-ratio: 16 / 9; display: block; }
+.fbody { display: grid; gap: 10px; align-content: center; padding: 18px 20px; }
+.ftitle { font-family: var(--display); font-size: clamp(26px, 3.4vw, 34px); line-height: 1.1; }
+.fdesc { color: var(--muted); font-size: 15px; }
+.feature .go { justify-self: start; }
+.feature:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+h2.sub { font-family: var(--display); font-weight: 400; font-size: 22px; margin: 0; color: var(--muted); }
+@media (max-width: 720px) { .feature { grid-template-columns: 1fr; } }
 .check { background: var(--moss); border-radius: 12px; padding: 18px 20px; display: grid; gap: 10px; }
 .check h3 { font-family: var(--display); font-weight: 400; font-size: 21px; margin: 0; }
 .check ol { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; }
@@ -57,6 +66,17 @@ footer a { color: var(--gold); }
     <p class="lead">문제를 맞히면 병사가 출전해 상대 성을 무너뜨리는 대전 게임의 <b>그림만</b> 먼저 만들었습니다. 지금은 컴퓨터가 양쪽 학생 대신 정답을 냅니다. <b>같은 무료 3D 모형</b>을 두 가지 방법으로 그렸으니, 눈으로 보고 태블릿에서 부드러운지 비교해 주세요. 게임 이름은 임시입니다.</p>
   </header>
 
+  <a class="feature" href="play.html">
+    <img src="thumbs/play.webp" alt="연습 대전 화면: 위는 전장, 아래는 문제와 출전 버튼">
+    <span class="fbody">
+      <span class="eyebrow">새로 · 1단계 시험판</span>
+      <span class="ftitle">연습 대전 해 보기</span>
+      <span class="fdesc">곱셈구구·덧셈과 뺄셈·곱셈과 나눗셈·혼합 계산 문제를 풀어 골드를 벌고, 병사 4종(상성)을 출전시켜 컴퓨터(신병·기사·장군)와 겨룹니다. 설정에서 화질을 직접 고르거나 자동으로 둘 수 있습니다.</span>
+      <span class="go">연습 대전 열기</span>
+    </span>
+  </a>
+
+  <h2 class="sub">그래픽 비교(11-03)</h2>
   <section class="pair">
     <article class="card">
       <img src="thumbs/a.webp" alt="A안 실시간 3D 전투 장면">
@@ -87,7 +107,7 @@ footer a { color: var(--gold); }
   <section class="check">
     <h3>학교 태블릿에서 확인해 주실 것</h3>
     <ol>
-      <li>왼쪽 아래 <b>fps 숫자</b>: 30 이상이면 충분히 부드럽고, 20 아래면 느린 편입니다. 한 판(성 하나가 무너질 때까지) 동안 지켜봐 주세요.</li>
+      <li><b>연습 대전</b>은 설정에서 "화면 빠르기(fps) 보기"를 켜면 위쪽 가운데에 숫자가 나옵니다. 비교 화면(A안·B안)은 왼쪽 아래 <b>fps 숫자</b>: 30 이상이면 충분히 부드럽고, 20 아래면 느린 편입니다. 한 판(성 하나가 무너질 때까지) 동안 지켜봐 주세요.</li>
       <li>병사가 많이 모였을 때 끊기는지, 화면이 뜨거워지는지.</li>
       <li>어느 쪽이 더 <b>진짜 게임처럼</b> 보이는지.</li>
     </ol>

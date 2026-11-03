@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>성문 대전 · 연습 대전</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Dodum&display=swap">
+<link rel="stylesheet" href="css/play.css">
+</head>
+<body>
+<div id="stage"></div>
+<div id="overlay"></div>
+
+<!-- 전장 위 정보 -->
+<div id="field">
+  <div id="top">
+    <button class="icon-btn" id="pauseBtn" aria-label="일시 정지"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+    <div class="team" id="blue"><div class="row"><span class="name">기사단</span><span class="sub" id="blueSub">나</span></div><div class="hp"><i></i><span>100%</span></div></div>
+    <div id="clock"><b>6:00</b><small id="clockSub">남은 시간</small></div>
+    <div class="team" id="red"><div class="row"><span class="name">해골 군단</span><span class="sub" id="redSub">컴퓨터</span></div><div class="hp"><i></i><span>100%</span></div></div>
+  </div>
+  <div id="banner" hidden></div>
+  <div id="toast" hidden></div>
+</div>
+
+<!-- 아래 조작판 -->
+<div id="panel">
+  <section id="quiz" aria-label="문제">
+    <div class="qhead">
+      <span class="chip" id="topicChip">곱셈구구</span>
+      <div class="seg" id="diffSeg" role="radiogroup" aria-label="난이도">
+        <button data-d="0" role="radio">쉬움</button><button data-d="1" role="radio">보통</button><button data-d="2" role="radio">어려움</button>
+      </div>
+      <span class="streak" id="streak" hidden></span>
+      <button class="ghost" id="skipBtn">넘기기</button>
+    </div>
+    <div class="qline">
+      <div class="qtext"><small id="qPrompt"></small><b id="qText">7 × 8</b></div>
+      <div class="ans" id="ansBox" aria-live="polite"><span id="ansText"></span><i class="caret"></i></div>
+    </div>
+    <div class="keypad" id="keypad">
+      <button>1</button><button>2</button><button>3</button><button>4</button><button>5</button><button>6</button>
+      <button>7</button><button>8</button><button>9</button><button>0</button><button data-k="back" aria-label="지우기">지우기</button><button data-k="ok" class="ok">확인</button>
+    </div>
+    <div class="lock" id="lock" hidden><b id="lockMsg"></b><small id="lockSub"></small><i class="lockbar"><i id="lockBar"></i></i></div>
+  </section>
+  <section id="army" aria-label="출전">
+    <div class="ahead">
+      <div class="gold"><i class="coin"></i><b id="gold">60</b><span class="pop" id="goldPop"></span></div>
+      <button class="mine" id="mineBtn"><span>금광 <b id="mineLv">Lv1</b></span><small id="mineCost">120골드로 강화</small></button>
+      <button class="cannon" id="cannonBtn" disabled><span>성 대포</span><span class="pips" id="pips"><i></i><i></i><i></i><i></i><i></i></span></button>
+    </div>
+    <div class="cards" id="cards"></div>
+  </section>
+</div>
+
+<!-- 시작 화면 -->
+<div class="screen" id="startScreen" hidden>
+  <div class="sheet">
+    <header class="title"><small>교실 대전 게임 · 시험판</small><h1>성문 대전</h1></header>
+    <div class="modes">
+      <button class="mode on">연습 대전<small>컴퓨터와 겨루기</small></button>
+      <button class="mode" disabled>원정<small>준비 중</small></button>
+      <button class="mode" disabled>협동 작전<small>준비 중</small></button>
+      <button class="mode" disabled>대전<small>준비 중</small></button>
+    </div>
+    <div class="pick"><h3>문제 주제</h3><div class="opts" id="topicOpts"></div></div>
+    <div class="pick"><h3>컴퓨터 상대</h3><div class="opts" id="aiOpts"></div></div>
+    <div class="how">
+      <div class="ring" id="ring" aria-label="병사 상성: 방패병은 돌격병에, 돌격병은 궁수에, 궁수는 마법사에, 마법사는 방패병에 강함"></div>
+      <ol>
+        <li>문제를 맞히면 <b>골드</b>. 어려운 문제일수록, 연속으로 맞힐수록 많이 받아요.</li>
+        <li>골드로 <b>병사를 출전</b>시켜요. 병사는 알아서 싸워요.</li>
+        <li>화살표 방향으로 <b>강해요</b>. 상대를 보고 골라요.</li>
+        <li>5번 연속 정답이면 <b>성 대포</b>가 충전돼요.</li>
+      </ol>
+    </div>
+    <div class="actions"><a class="ghost" href="index.html">첫 페이지</a><button class="ghost" id="setBtn1">설정</button><button class="go" id="startBtn">전투 시작</button></div>
+  </div>
+</div>
+
+<!-- 일시 정지 -->
+<div class="screen" id="pauseScreen" hidden>
+  <div class="sheet small"><h2>잠깐 쉬는 중</h2>
+    <div class="actions col"><button class="go" id="resumeBtn">계속하기</button><button class="ghost" id="setBtn2">설정</button><button class="ghost" id="quitBtn">그만하고 처음으로</button></div>
+  </div>
+</div>
+
+<!-- 설정 -->
+<div class="screen" id="setScreen" hidden>
+  <div class="sheet small"><h2>설정</h2>
+    <div class="pick"><h3>화질</h3><div class="opts" id="qualOpts"></div><p class="note" id="qualNote"></p></div>
+    <label class="toggle"><input type="checkbox" id="fpsToggle"> 화면 빠르기(fps) 보기</label>
+    <label class="toggle"><input type="checkbox" id="soundToggle"> 효과음</label>
+    <div class="actions"><button class="go" id="setClose">닫기</button></div>
+  </div>
+</div>
+
+<!-- 결과 -->
+<div class="screen" id="resultScreen" hidden>
+  <div class="sheet"><h2 id="resTitle">승리!</h2><p class="note" id="resWhy"></p>
+    <div class="stats" id="resStats"></div>
+    <div class="review"><h3>틀린 문제 다시 풀기 <small id="revScore"></small></h3><div id="revList"></div></div>
+    <div class="actions"><button class="ghost" id="homeBtn">처음 화면</button><button class="go" id="againBtn">다시 하기</button></div>
+  </div>
+</div>
+
+<div id="fps" hidden>-- fps</div>
+<div id="rotate" hidden><b>가로로 돌려 주세요</b><small>태블릿·크롬북 가로 화면에 맞춘 게임이에요</small></div>
+<div id="loading">전장을 펼치는 중 <b>0%</b></div>
+
+<script src="models/field.js"></script>
+<script src="models/knight.js"></script>
+<script src="models/barbarian.js"></script>
+<script src="models/rogue.js"></script>
+<script src="models/mage.js"></script>
+<script src="models/skel_warrior.js"></script>
+<script src="models/skel_minion.js"></script>
+<script src="models/skel_rogue.js"></script>
+<script src="models/skel_mage.js"></script>
+<script src="js/play_bundle.js"></script>
+</body>
+</html>

@@ -3,15 +3,29 @@ import bpy, math, mathutils
 from scene_common import ADV, SKL
 
 UNITS = {
+    # 기사단 (side -1)
     "knight": {"file": ADV + "Characters/gltf/Knight.glb", "keep": ["1H_Sword", "Badge_Shield"], "face": 1,
                "anims": {"walk": "Walking_A", "attack": "1H_Melee_Attack_Chop", "death": "Death_A", "cheer": "Cheer"}},
+    "barbarian": {"file": ADV + "Characters/gltf/Barbarian.glb", "keep": ["2H_Axe"], "face": 1,
+                  "anims": {"walk": "Running_A", "attack": "2H_Melee_Attack_Chop", "death": "Death_B", "cheer": "Cheer"}},
+    "rogue": {"file": ADV + "Characters/gltf/Rogue_Hooded.glb", "keep": ["2H_Crossbow"], "face": 1,
+              "anims": {"walk": "Walking_B", "attack": "2H_Ranged_Shoot", "death": "Death_A", "cheer": "Cheer"}},
     "mage": {"file": ADV + "Characters/gltf/Mage.glb", "keep": ["2H_Staff"], "face": 1,
              "anims": {"walk": "Walking_A", "attack": "Spellcast_Shoot", "death": "Death_A", "cheer": "Cheer"}},
+    # 해골 군단 (side +1)
     "skel_warrior": {"file": SKL + "Characters/gltf/Skeleton_Warrior.glb", "face": -1,
                      "attach": [("Skeleton_Blade", "handslot.r", (0, -0.0787, 0), (0, 0, -0.7071, -0.7071)),
                                 ("Skeleton_Shield_Small_A", "handslot.l", (0, -0.095, 0.1559), (0.7071, -0.7071, 0, 0))],
                      "anims": {"walk": "Walking_D_Skeletons", "attack": "1H_Melee_Attack_Chop", "death": "Death_C_Skeletons",
                                "cheer": "Cheer", "spawn": "Spawn_Ground_Skeletons"}},
+    "skel_minion": {"file": SKL + "Characters/gltf/Skeleton_Minion.glb", "face": -1,
+                    "attach": [("Skeleton_Axe", "handslot.r", (0, -0.0787, 0), (0, 0, -0.7071, -0.7071))],
+                    "anims": {"walk": "Running_C", "attack": "1H_Melee_Attack_Chop", "death": "Death_C_Skeletons",
+                              "cheer": "Cheer", "spawn": "Spawn_Ground_Skeletons"}},
+    "skel_rogue": {"file": SKL + "Characters/gltf/Skeleton_Rogue.glb", "face": -1,
+                   "attach": [("Skeleton_Crossbow", "handslot.r", (-0.1046, -0.1224, 0), (0.5, -0.5, 0.5, 0.5))],
+                   "anims": {"walk": "Walking_D_Skeletons", "attack": "2H_Ranged_Shoot", "death": "Death_C_Skeletons",
+                             "cheer": "Cheer", "spawn": "Spawn_Ground_Skeletons"}},
     "skel_mage": {"file": SKL + "Characters/gltf/Skeleton_Mage.glb", "face": -1,
                   "attach": [("Skeleton_Staff", "handslot.r", (0, -0.112, 0), (0, 0, -0.7071, -0.7071))],
                   "anims": {"walk": "Walking_D_Skeletons", "attack": "Spellcast_Shoot", "death": "Death_C_Skeletons",
