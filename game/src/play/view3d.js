@@ -1,10 +1,10 @@
 // 전장 그리기(three.js 실시간 3D). 전투 규칙(battle.js)의 상태를 받아 그림·효과·소리로 보여 줌.
 import * as THREE from "three";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
-import { ELEV, VIEW_WIDTH, VIEW_TARGET, LANE, UNIT_SCALE, SIDES, ROLE_INFO } from "./config.js";
+import { ELEV, UNIT_SCALE, SIDES, ROLE_INFO, TOWER, BASE } from "./config.js";
+import { LANES, LANE_NAMES, BOUNDS, BASES } from "./lanes.js";
 import { Sound } from "./sound.js";
 
-const FACE = 65 * Math.PI / 180;
 // 블렌더 좌표(x 오른쪽, y 뒤쪽, z 위) → three 좌표
 const V = (x, y, z) => new THREE.Vector3(x, z, -y);
 
@@ -30,7 +30,7 @@ export class View3D {
 
     const scene = this.scene = new THREE.Scene();
     this.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 400);
-    const target = V(VIEW_TARGET.x, VIEW_TARGET.y, VIEW_TARGET.z);
+    const target = V(0, 0, 0);
     const dir = V(0, Math.cos(ELEV), -Math.sin(ELEV));
     this.cam.position.copy(target).addScaledVector(dir, -120);
     this.cam.up.copy(V(0, Math.sin(ELEV), Math.cos(ELEV)));
@@ -40,7 +40,7 @@ export class View3D {
     const sun = this.sun = new THREE.DirectionalLight(0xfff8ee, 3.4);
     sun.position.copy(target).addScaledVector(V(0.485, 0.621, -0.616).normalize(), -40);
     sun.target.position.copy(target);
-    Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 20, bottom: -20, near: 1, far: 100 });
+    Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 26, bottom: -26, near: 1, far: 120 });
     sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
     scene.add(sun, sun.target, new THREE.HemisphereLight(0xa8c4f0, 0x5a6b3a, 1.25));
 
@@ -52,15 +52,24 @@ export class View3D {
       for (const m of [].concat(o.material)) if (m.name === "Dirt") m.color.setRGB(0.5, 0.33, 0.19);
     });
     scene.add(field);
-    this.castles = {};
+    // 본성·탑(무너지면 폐허로 바꿔 끼움)
+    this.nodes = {};
     for (const side of [-1, 1]) {
       const col = side < 0 ? "blue" : "red";
-      const body = field.getObjectByName("castle_" + col), ruin = field.getObjectByName("ruin_" + col);
-      ruin.visible = false;
-      const mats = [];
-      body.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); mats.push(o.material); } });
-      this.castles[side] = { body, ruin, mats, base: body.position.clone(), shake: 0, flash: 0 };
+      for (const name of ["base_" + col, ...LANE_NAMES.map((n) => `tower_${col}_${n}`)]) {
+        const body = field.getObjectByName(name), ruin = field.getObjectByName("ruin_" + name);
+        ruin.visible = false;
+        const mats = [];
+        body.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); mats.push(o.material); } });
+        let bar = null;
+        if (name.startsWith("tower")) {
+          bar = document.createElement("div"); bar.className = "tbar " + (side < 0 ? "b" : "r"); bar.innerHTML = "<i></i>";
+          overlay.appendChild(bar);
+        }
+        this.nodes[name] = { body, ruin, mats, base: body.position.clone(), shake: 0, flash: 0, bar };
+      }
     }
+    this.laneMarks = this.makeLaneMarks();
 
     this.T_GLOW = radialTex([[0, "rgba(255,255,255,1)"], [0.35, "rgba(255,255,255,0.55)"], [1, "rgba(255,255,255,0)"]]);
     this.T_SMOKE = radialTex([[0, "rgba(255,255,255,0.85)"], [0.6, "rgba(255,255,255,0.35)"], [1, "rgba(255,255,255,0)"]]);
@@ -110,14 +119,49 @@ export class View3D {
     this.resize();
   }
 
-  setViewport(rect) { this.view = rect; this.resize(); }
+  setViewport(rect, topPad = 0) { this.view = rect; this.topPad = topPad; this.resize(); }
+  // 지도 전체(섬 + 본성·탑 꼭대기)가 화면 칸에 다 들어가게 맞춤
   resize() {
     const W = window.innerWidth, H = window.innerHeight;
     this.renderer.setSize(W, H);
-    const halfW = VIEW_WIDTH / 2, halfH = halfW * this.view.h / Math.max(1, this.view.w);
-    Object.assign(this.cam, { left: -halfW, right: halfW, top: halfH, bottom: -halfH });
+    const [bx, by] = BOUNDS, sn = Math.sin(ELEV), cs = Math.cos(ELEV);
+    const pts = [[-bx - 1, -by - 1.5, 0], [bx + 1, -by - 1.5, 0], [-bx - 1, by + 1, 0], [bx + 1, by + 1, 0],
+      [BASES[1][0], BASES[1][1], BASE.height + 2.5], [BASES[-1][0], BASES[-1][1], BASE.height + 2]];
+    let x0 = 1e9, x1 = -1e9, u0 = 1e9, u1 = -1e9;
+    for (const [x, y, z] of pts) { const u = y * sn + z * cs; x0 = Math.min(x0, x); x1 = Math.max(x1, x); u0 = Math.min(u0, u); u1 = Math.max(u1, u); }
+    const vw = Math.max(1, this.view.w), vh = Math.max(1, this.view.h - (this.topPad || 0));
+    const k = Math.max((x1 - x0) / vw, (u1 - u0) / vh);       // 1px당 m
+    const cx = (x0 + x1) / 2, cu = (u0 + u1) / 2;
+    // 지도는 위쪽 정보 띠(topPad)를 뺀 아래 칸 가운데에 오게
+    const bottom = cu - vh * k / 2;
+    Object.assign(this.cam, { left: cx - vw * k / 2, right: cx + vw * k / 2, bottom, top: bottom + this.view.h * k });
     this.cam.updateProjectionMatrix();
+    this.mPerPx = k;
   }
+
+  // 고른 길 표시: 파란 본성에서 나가는 길 앞부분을 금빛으로
+  makeLaneMarks() {
+    const marks = {};
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.6, depthWrite: false });
+    for (const n of LANE_NAMES) {
+      const L = LANES[n], pos = [], idx = [];
+      const steps = 24, s0 = 2.0, s1 = 13.0, w = 1.35;
+      for (let i = 0; i <= steps; i++) {
+        const p = L.at(s0 + (s1 - s0) * i / steps), ww = w * (i > steps - 5 ? (steps - i) / 5 : 1);
+        const a = V(p.x - p.dy * ww, p.y + p.dx * ww, 0.25), b = V(p.x + p.dy * ww, p.y - p.dx * ww, 0.25);
+        pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+        if (i) { const j = i * 2; idx.push(j - 2, j - 1, j, j - 1, j + 1, j); }
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+      const m = new THREE.Mesh(g, mat); m.renderOrder = 3; m.visible = false;
+      this.scene.add(m); marks[n] = m;
+    }
+    this.laneMat = mat;
+    return marks;
+  }
+  setLane(n) { for (const k in this.laneMarks) this.laneMarks[k].visible = k === n; }
+
+  structNode(st) { return this.nodes[(st.kind === "base" ? "base_" : "tower_") + (st.side < 0 ? "blue" : "red") + (st.kind === "tower" ? "_" + st.lane : "")]; }
 
   toPx(p) {
     const v = p.clone().project(this.cam);
@@ -147,7 +191,7 @@ export class View3D {
     d.className = "float " + (cls || ""); d.textContent = str;
     if (color) d.style.color = color;
     d.style.left = s.x + (Math.random() - 0.5) * 12 + "px"; d.style.top = s.y + "px";
-    d.style.fontSize = Math.max(13, this.view.w / 2880 * 54 * (cls === "counter" ? 1.15 : 1)) + "px";
+    d.style.fontSize = Math.max(12, 0.62 / (this.mPerPx || 0.03) * (cls === "counter" ? 1.15 : 1)) + "px";
     this.overlay.appendChild(d);
     setTimeout(() => d.remove(), 950);
   }
@@ -159,7 +203,7 @@ export class View3D {
     const src = this.models[u.model];
     const obj = SkeletonUtils.clone(src.scene);
     obj.scale.setScalar(UNIT_SCALE);
-    obj.rotation.y = FACE * (u.side < 0 ? 1 : -1);
+    obj.rotation.y = Math.atan2(u.fx, -u.fy);
     const mats = [];
     obj.traverse((o) => {
       if (o.isMesh) { o.castShadow = true; o.material = o.material.clone(); o.material.transparent = true; mats.push(o.material); }
@@ -197,7 +241,7 @@ export class View3D {
     this.projViews.clear();
     for (const q of this.parts) { this.scene.remove(q.s); q.s.material.dispose(); }
     this.parts = [];
-    for (const s of [-1, 1]) { this.castles[s].body.visible = true; this.castles[s].ruin.visible = false; }
+    for (const n of Object.values(this.nodes)) { n.body.visible = true; n.ruin.visible = false; n.flash = 0; }
     this.overlay.querySelectorAll(".float").forEach((d) => d.remove());
   }
 
@@ -243,28 +287,27 @@ export class View3D {
         Sound.play(e.counter ? "counter" : "hit");
       } else if (e.type === "death") {
         this.burst(V(e.unit.x, e.unit.y, 0.6), 10, { tex: this.T_SMOKE, tint: 0xd9d2c5, speed: 1.5, up: 0.3, life: 1.0, s0: 0.8, s1: 1.7, a0: 0.45 });
-      } else if (e.type === "castleHit") {
-        const c = this.castles[e.side]; c.shake = 0.18; c.flash = Math.min(1, c.flash + 0.5);
+      } else if (e.type === "structHit") {
+        const c = this.structNode(e.struct); c.shake = 0.18; c.flash = Math.min(1, c.flash + 0.5);
         const p = V(e.x, e.y, e.z);
         this.burst(p, 12, { tint: 0xffd27a, add: true, speed: 5.5, life: 0.35, s0: 0.5, s1: 0.06 });
         this.text(V(e.x, e.y, e.z + 0.5), e.dmg, "", "#ffffff");
         this.shake = Math.max(this.shake, 0.05);
         Sound.play("castle");
-      } else if (e.type === "end" && e.winner) {
-        const lose = -e.winner, c = this.castles[lose];
-        if (b.sides[lose].castle <= 0) {
-          c.body.visible = false; c.ruin.visible = true;
-          const p = V(lose * LANE.castleX, 0.9, 3);
-          this.burst(p, 40, { tex: this.T_SMOKE, tint: 0xb8ad9c, speed: 4, up: 0.8, life: 2.2, s0: 1.6, s1: 3.6, a0: 0.75, spread: 3 });
-          this.burst(p, 30, { tint: 0xffc06a, add: true, speed: 8, life: 0.7, s0: 0.7, s1: 0.1, spread: 2.5 });
-          this.shake = 0.25;
-        }
+      } else if (e.type === "structDown") {
+        const st = e.struct, c = this.structNode(st), big = st.kind === "base";
+        c.body.visible = false; c.ruin.visible = true;
+        const p = V(st.x, st.y, big ? 3 : 2);
+        this.burst(p, big ? 40 : 24, { tex: this.T_SMOKE, tint: 0xb8ad9c, speed: big ? 4 : 3, up: 0.8, life: 2.0, s0: 1.4, s1: big ? 3.6 : 2.6, a0: 0.75, spread: big ? 3 : 2 });
+        this.burst(p, big ? 30 : 16, { tint: 0xffc06a, add: true, speed: 7, life: 0.6, s0: 0.7, s1: 0.1, spread: 2 });
+        this.shake = big ? 0.3 : 0.15;
+        Sound.play("cannon");
       } else if (e.type === "launch") {
         this.projViews.set(e.proj.id, this.makeProjectile(e.proj));
         if (e.proj.kind === "orb") Sound.play("magic");
         else if (e.proj.kind === "arrow") Sound.play("arrow");
       } else if (e.type === "cannon") {
-        const p = V(e.side * LANE.castleX, 0.9, 7.5);
+        const p = V(e.proj.sx, e.proj.sy, 7.5);
         this.burst(p, 16, { tex: this.T_SMOKE, tint: 0xcfc6b8, speed: 2.5, up: 0.5, life: 1.0, s0: 0.8, s1: 2.0, a0: 0.7 });
         this.burst(p, 10, { tint: 0xffc06a, add: true, speed: 5, life: 0.3, s0: 0.6, s1: 0.1 });
         Sound.play("cannon");
@@ -290,6 +333,11 @@ export class View3D {
       this.play(v, u.anim);
       v.mixer.update(dt);
       v.obj.position.copy(V(u.x, u.y, 0));
+      // 가는 방향(공격할 땐 상대 쪽)으로 부드럽게 돌기
+      const want = Math.atan2(u.fx, -u.fy);
+      let d = want - v.obj.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
+      v.obj.rotation.y += d * Math.min(1, dt * 10);
+      if (u.anim === "walk" && v.actions.walk) v.actions.walk.timeScale = Math.min(1.6, ROLE_INFO[u.role].speed / 1.3);
       v.blob.position.copy(V(u.x, u.y, 0.03));
       let a = 1;
       if (u.state === "spawn" && u.anim === "walk") a = Math.min(1, u.stateT / 0.35);
@@ -300,7 +348,7 @@ export class View3D {
         const s = this.toPx(V(u.x, u.y, 3.9));
         v.bar.style.display = "block";
         v.bar.style.transform = `translate(${s.x}px, ${s.y}px)`;
-        v.bar.style.width = Math.max(26, this.view.w / 2880 * 90) + "px";
+        v.bar.style.width = Math.max(22, 1.7 / (this.mPerPx || 0.03)) + "px";
         v.bar.firstChild.style.width = (u.hp / u.maxHp * 100) + "%";
       } else v.bar.style.display = "none";
     }
@@ -336,12 +384,23 @@ export class View3D {
       q.s.scale.setScalar(q.s0 + (q.s1 - q.s0) * k);
       q.s.material.opacity = q.a0 * (1 - k * k);
     }
-    for (const s of [-1, 1]) {
-      const c = this.castles[s];
+    for (const c of Object.values(this.nodes)) {
       c.shake = Math.max(0, c.shake - dt); c.flash = Math.max(0, c.flash - dt * 8);
       c.body.position.x = c.base.x + (c.shake > 0 ? (Math.random() - 0.5) * 0.12 : 0);
       for (const m of c.mats) m.emissive.setScalar(c.flash * 0.15);
     }
+    // 탑 체력 막대
+    for (const st of b.structs || []) {
+      if (st.kind !== "tower") continue;
+      const c = this.structNode(st);
+      if (!c.bar) continue;
+      if (!st.alive) { c.bar.style.display = "none"; continue; }
+      const s = this.toPx(V(st.x, st.y, TOWER.height + 1.2));
+      c.bar.style.display = "block";
+      c.bar.style.transform = `translate(${s.x}px, ${s.y}px)`;
+      c.bar.firstChild.style.width = (st.hp / st.max * 100) + "%";
+    }
+    if (this.laneMat) this.laneMat.opacity = 0.55 + Math.sin(performance.now() / 300) * 0.2;
     for (const m of this.clouds) {
       m.position.x += m.speed * dt;
       if (m.position.x > 30) { m.position.x = -30; m.position.z = -(-6 + Math.random() * 22); }

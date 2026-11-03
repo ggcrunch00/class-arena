@@ -16,9 +16,9 @@
 <div id="field">
   <div id="top">
     <button class="icon-btn" id="pauseBtn" aria-label="일시 정지"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
-    <div class="team" id="blue"><div class="row"><span class="name">기사단</span><span class="sub" id="blueSub">나</span></div><div class="hp"><i></i><span>100%</span></div></div>
+    <div class="team" id="blue"><div class="row"><span class="name">기사단</span><span class="towers" id="blueTowers"></span><span class="sub" id="blueSub">나</span></div><div class="hp"><i></i><span>100%</span></div></div>
     <div id="clock"><b>6:00</b><small id="clockSub">남은 시간</small></div>
-    <div class="team" id="red"><div class="row"><span class="name">해골 군단</span><span class="sub" id="redSub">컴퓨터</span></div><div class="hp"><i></i><span>100%</span></div></div>
+    <div class="team" id="red"><div class="row"><span class="name">해골 군단</span><span class="towers" id="redTowers"></span><span class="sub" id="redSub">컴퓨터</span></div><div class="hp"><i></i><span>100%</span></div></div>
   </div>
   <div id="banner" hidden></div>
   <div id="toast" hidden></div>
@@ -51,6 +51,12 @@
       <button class="mine" id="mineBtn"><span>금광 <b id="mineLv">Lv1</b></span><small id="mineCost">120골드로 강화</small></button>
       <button class="cannon" id="cannonBtn" disabled><span>성 대포</span><span class="pips" id="pips"><i></i><i></i><i></i><i></i><i></i></span></button>
     </div>
+    <div class="lanes" id="lanes" role="radiogroup" aria-label="보낼 길">
+      <span class="lab">보낼 길</span>
+      <button data-lane="top" role="radio"><svg viewBox="0 0 24 16"><path d="M3 14 V3 H21" /></svg>윗길</button>
+      <button data-lane="mid" role="radio"><svg viewBox="0 0 24 16"><path d="M3 14 L21 2" /></svg>가운뎃길</button>
+      <button data-lane="bot" role="radio"><svg viewBox="0 0 24 16"><path d="M3 14 H21 V3" /></svg>아랫길</button>
+    </div>
     <div class="cards" id="cards"></div>
   </section>
 </div>
@@ -72,6 +78,7 @@
       <ol>
         <li>문제를 맞히면 <b>골드</b>. 어려운 문제일수록, 연속으로 맞힐수록 많이 받아요.</li>
         <li>골드로 <b>병사를 출전</b>시켜요. 병사는 알아서 싸워요.</li>
+        <li><b>보낼 길</b>(윗길·가운뎃길·아랫길)을 고르고 카드를 눌러요. 그 길의 적 탑을 부숴야 본성에 닿아요.</li>
         <li>화살표 방향으로 <b>강해요</b>. 상대를 보고 골라요.</li>
         <li>5번 연속 정답이면 <b>성 대포</b>가 충전돼요.</li>
       </ol>

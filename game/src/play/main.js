@@ -1,7 +1,8 @@
 // 「성문 대전」 연습 대전: 화면 조립, 문제 풀기, 출전 버튼, 시작·설정·결과 화면, 매 프레임 흐름.
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { ROLES, ROLE_INFO, SIDES, AI_LEVELS, QUALITY, QUALITY_ORDER, MINE, CANNON, GOLD, MATCH } from "./config.js";
+import { ROLES, ROLE_INFO, SIDES, AI_LEVELS, QUALITY, QUALITY_ORDER, MINE, CANNON, GOLD, BASE } from "./config.js";
+import { LANE_NAMES, LANE_LABEL } from "./lanes.js";
 import { Battle } from "./battle.js";
 import { ComputerPlayer } from "./ai.js";
 import { View3D } from "./view3d.js";
@@ -77,7 +78,8 @@ async function boot() {
 
 function layout() {
   const ph = $("#panel").offsetHeight;
-  view.setViewport({ x: 0, y: 0, w: window.innerWidth, h: Math.max(100, window.innerHeight - ph) });
+  const top = $("#top").getBoundingClientRect();
+  view.setViewport({ x: 0, y: 0, w: window.innerWidth, h: Math.max(100, window.innerHeight - ph) }, top.bottom + 4);
   $("#rotate").hidden = !(window.innerHeight > window.innerWidth * 1.05);
 }
 
@@ -94,6 +96,7 @@ function newGame() {
   $("#banner").hidden = true;
   for (const s of ["#startScreen", "#resultScreen", "#pauseScreen", "#setScreen"]) $(s).hidden = true;
   quality.reset();
+  setLane(lane);
   setDiff(0);
   mode = "play";
   updateHud(true);
@@ -190,6 +193,8 @@ function buildCards() {
     box.appendChild(b);
     cards[role] = b;
   }
+  document.querySelectorAll("#lanes button").forEach((b) => b.addEventListener("click", () => setLane(b.dataset.lane)));
+  setLane("mid");
   $("#mineBtn").addEventListener("click", () => {
     if (mode !== "play") return;
     if (G.battle.upgradeMine(PLAYER)) { Sound.play("mine"); toast(`금광 Lv${G.battle.sides[PLAYER].mine}! 문제당 골드 +${Math.round(MINE.bonus * 100)}%`); }
@@ -204,14 +209,24 @@ function buildCards() {
     if (/^[0-9]$/.test(e.key)) press(e.key);
     else if (e.key === "Backspace") press("back");
     else if (e.key === "Enter") press("ok");
+    else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      const i = LANE_NAMES.indexOf(lane) + (e.key === "ArrowUp" ? -1 : 1);
+      setLane(LANE_NAMES[Math.max(0, Math.min(2, i))]); e.preventDefault();
+    }
   });
+}
+let lane = "mid";
+function setLane(n) {
+  lane = n;
+  document.querySelectorAll("#lanes button").forEach((b) => { const on = b.dataset.lane === n; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
+  if (view) view.setLane(n);
 }
 function deploy(role, el) {
   if (mode !== "play") return;
   const why = G.battle.canDeploy(PLAYER, role);
   if (why === "끝남") return;
   if (why) { toast(why === "골드 부족" ? "골드가 모자라요. 문제를 더 풀어요!" : why === "대기" ? "아직 준비 중이에요" : why); el.animate([{ transform: "translateX(-4px)" }, { transform: "translateX(4px)" }, { transform: "none" }], 200); return; }
-  G.battle.deploy(PLAYER, role);
+  G.battle.deploy(PLAYER, role, lane);
 }
 
 // ---------- 화면 위 정보 ----------
@@ -236,9 +251,12 @@ function updateHud(force) {
   const st = $("#streak");
   st.hidden = S.streak < 2; st.textContent = S.streak + "연속!";
   for (const s of [-1, 1]) {
-    const hp = b.sides[s].castle;
+    const hp = b.sides[s].base.hp;
+    const towersLeft = Object.values(b.sides[s].towers).filter((t) => t.alive).length;
+    const tEl = $(s < 0 ? "#blueTowers" : "#redTowers");
+    if (tEl.dataset.n !== String(towersLeft)) { tEl.dataset.n = towersLeft; tEl.innerHTML = "탑 " + "<i></i>".repeat(towersLeft) + "<i class=\"x\"></i>".repeat(3 - towersLeft); }
     if (hp !== lastHp[s] || force) {
-      const el = $(s < 0 ? "#blue" : "#red"), k = hp / MATCH.castleHp;
+      const el = $(s < 0 ? "#blue" : "#red"), k = hp / BASE.hp;
       el.querySelector(".hp i").style.width = (k * 100).toFixed(1) + "%";
       el.querySelector(".hp span").textContent = Math.ceil(k * 100) + "%";
       if (!force && hp < lastHp[s]) { el.classList.remove("hit"); void el.offsetWidth; el.classList.add("hit"); }
@@ -260,6 +278,10 @@ function onEvents(evts) {
     if (e.type === "overtime") { banner("총력전! 골드 2배"); Sound.play("horn"); }
     else if (e.type === "mine" && e.side === CPU) toast("상대가 금광을 강화했어요");
     else if (e.type === "cannon" && e.side === CPU) toast("상대의 성 대포!");
+    else if (e.type === "structDown" && e.struct.kind === "tower") {
+      const n = LANE_LABEL[e.struct.lane];
+      if (e.struct.side === CPU) banner(`${n} 탑을 무너뜨렸어요!`, 1.6); else toast(`우리 ${n} 탑이 무너졌어요! 막아야 해요`);
+    }
     else if (e.type === "end") {
       G.endT = 0;
       const w = e.winner;
@@ -274,9 +296,9 @@ function showResult() {
   mode = "result";
   const b = G.battle, S = b.sides[PLAYER], w = b.winner;
   $("#resTitle").textContent = w === PLAYER ? "승리!" : w === CPU ? "아쉬운 패배" : "무승부";
-  $("#resWhy").textContent = b.endWhy === "castle"
-    ? (w === PLAYER ? "해골 군단의 성을 무너뜨렸어요!" : "우리 성이 무너졌어요. 상성을 노려 다시 도전해요!")
-    : "시간이 끝나서 성이 더 튼튼한 쪽이 이겼어요.";
+  $("#resWhy").textContent = b.endWhy === "base"
+    ? (w === PLAYER ? "해골 군단의 본성을 무너뜨렸어요!" : "우리 본성이 무너졌어요. 약한 길을 막고 상성을 노려 다시 도전해요!")
+    : (w ? "시간이 끝나서 본성과 탑이 더 튼튼한 쪽이 이겼어요." : "시간이 끝났고 양쪽이 비슷했어요.");
   const tried = S.stats.right + S.stats.wrong;
   const stat = (k, v) => `<div class="stat"><small>${k}</small><b>${v}</b></div>`;
   $("#resStats").innerHTML = stat("맞힌 문제", S.stats.right) + stat("정답률", tried ? Math.round(S.stats.right / tried * 100) + "%" : "-") +
@@ -414,7 +436,7 @@ function exposeTestHook() {
     start: (topic, ai) => { if (topic) settings.topic = topic; if (ai) settings.ai = ai; newGame(); },
     answerRight() { if (!G || G.lock) return false; G.input = String(G.q.answer); submit(); return true; },
     answerWrong() { if (!G || G.lock) return false; G.input = String(G.q.answer + 1); submit(); return true; },
-    deploy: (r) => deploy(r, cards[r]),
+    deploy: (r, l) => { if (l) setLane(l); deploy(r, cards[r]); },
   };
 }
 

@@ -1,7 +1,7 @@
 # class-arena (가칭 「성문 대전」)
 
 학생이 문제를 맞히면 병사가 출전해 상대 성을 무너뜨리는 교실 대전 게임입니다.
-- **1단계 연습 대전** `game/play.html`: 계산 문제(곱셈구구·덧셈과 뺄셈·곱셈과 나눗셈·혼합 계산)를 풀어 골드를 벌고, 병사 4종(순환 상성)·금광·성 대포로 컴퓨터(신병·기사·장군)와 겨룸. 화질 자동·직접 고르기.
+- **1단계 연습 대전** `game/play.html`: 롤처럼 대각선 지도에 3갈래 길(길마다 탑 한쪽 1개). 계산 문제(곱셈구구·덧셈과 뺄셈·곱셈과 나눗셈·혼합 계산)를 풀어 골드를 벌고, 병사 4종(순환 상성)·금광·성 대포로 컴퓨터(신병·기사·장군)와 겨룸. 화질 자동·직접 고르기.
 - 그래픽 비교판(11-03): A안 실시간 3D로 결정. 비교 페이지는 기록용으로 남겨 둠.
 
 같은 무료 3D 모형을 두 가지 방법으로 그려 비교합니다.
@@ -37,7 +37,9 @@ bash tools/get_assets.sh                    # KayKit 자료, 블렌더(bpy), npm
 ./venv/bin/python tools/build_world.py bake      # 배경·성·폐허 굽기(약 7분)
 for u in knight mage skel_warrior skel_mage; do ./venv/bin/python tools/bake_units.py $u; done  # 병사 굽기(약 25분)
 python3 tools/pack_units.py                 # 프레임 모으기 → game/assets/*.webp, data.js
-./venv/bin/python tools/export_glb.py       # A안 모형 → game/models/*.glb
+./venv/bin/python tools/export_glb.py       # 병사 모형 → game/models/*.glb (전장은 비교판용 한 갈래)
+./venv/bin/python tools/build_map.py preview  # 3갈래 지도 미리보기
+./venv/bin/python tools/build_map.py glb      # 3갈래 지도 → game/models/field.glb + game/src/play/map.json
 python3 tools/make_model_js.py              # .glb → .js
 ./venv/bin/python tools/bake_portraits.py    # 출전 버튼 얼굴 그림
 npm run build                               # A안 + 연습 대전 묶기
