@@ -19,3 +19,4 @@ preview_map.png
 __pycache__/
 preview_map_*.png
 game/models/*.raw.glb
+undefined/
