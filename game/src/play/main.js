@@ -645,6 +645,16 @@ function buildStart() {
   $("#modeCamp").addEventListener("click", () => { $("#startScreen").hidden = true; openCamp(); });
   $("#campMapBtn").addEventListener("click", () => showCamp(G && G.stage ? G.stage.id : null));
   $("#nextBtn").addEventListener("click", () => afterWin(G.stage));
+  $("#cBack").addEventListener("click", () => { Sound.play("tap"); showStart(); });
+  // 이야기 다시 보기: 처음 이야기 + 고른 장에서 깬 스테이지 이야기(시작·끝)
+  $("#cStory").addEventListener("click", () => {
+    const ch = CHAPTERS[campSel - 1];
+    const lines = ch.id === 1 ? [...WORLD.intro] : [];
+    for (const st of ch.stages) if (camp.stars[st.id]) lines.push(...st.intro, ...st.win);
+    if (ch.stages.some((x) => x.final) && camp.done) lines.push(...ENDING);
+    if (!lines.length) { toast("이 장은 아직 이야기가 없어요. 먼저 출전해요!"); return; }
+    playStory(lines, { art: ch.id === 1 && !camp.stars["1-1"] ? "world" : ch.art }, () => showCamp(ch.stages[0].id));
+  });
   $("#prepBtn").addEventListener("click", () => { Sound.unlock(); Music.start(); $("#titleScreen").hidden = true; $("#startScreen").hidden = false; drawStart(); });
   $("#backBtn").addEventListener("click", () => { $("#startScreen").hidden = true; drawLastSet(); $("#titleScreen").hidden = false; });
   $("#setBtn0").addEventListener("click", () => openSettings("#titleScreen"));
