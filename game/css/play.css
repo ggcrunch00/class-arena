@@ -443,7 +443,7 @@ body.duo { --panel-h: clamp(250px, 45vh, 360px); }
 @keyframes blink { 50% { opacity: .3; } }
 .sskip { position: absolute; z-index: 3; top: 14px; right: 14px; background: rgba(14,20,16,.7); }
 /* 전투 중 말풍선(인물 대사·보스가 읽은 버릇) */
-#talk { position: fixed; z-index: 6; left: 50%; top: 64px; transform: translateX(-50%); display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center;
+#talk { position: fixed; z-index: 6; left: 50%; top: clamp(66px, 10.5vh, 82px); transform: translateX(-50%); display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center;
   width: min(560px, calc(100% - 24px)); padding: 8px 14px 8px 8px; border-radius: 14px; background: rgba(14,20,16,.9); border: 2px solid var(--line);
   box-shadow: 0 6px 20px rgba(0,0,0,.45); animation: talkin .35s cubic-bezier(.2,1.4,.4,1); pointer-events: none; }
 #talk.foe { border-color: #d8786a; background: rgba(34,14,14,.92); }

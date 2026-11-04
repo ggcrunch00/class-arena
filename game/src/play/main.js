@@ -210,7 +210,8 @@ async function newGame(stage = null) {
     if (duo) seats[1].start(battle, settings.topic2, settings.format);
     $("#blueSub").textContent = duo ? "왼쪽" : "나";
     $("#redSub").textContent = duo ? "오른쪽" : stage ? `${stage.id} ${stage.boss ? CHARS[stage.boss].name : stage.name}` : "컴퓨터 · " + AI_LEVELS[daily ? "knight" : settings.ai].name;
-    $("#banner").hidden = true; talkQ.length = 0; $("#talk").hidden = true; talkT = 0;
+    $("#banner").hidden = true; talkQ.length = 0; talkLog.length = 0;
+    document.querySelectorAll(".confetti").forEach((c) => c.remove()); // 앞 판 색종이 지우기 $("#talk").hidden = true; talkT = 0;
     if (daily) setTimeout(() => banner(`오늘의 도전 · ${daily.label} · ${TOPICS[daily.topic].name}`, 2.2), 300);
     if (stage) setTimeout(() => banner("목표: " + stage.goal.replace(/요$/, "요!"), 2.4), 300);
     quality.reset();
@@ -222,9 +223,10 @@ async function newGame(stage = null) {
 let busy = false;
 
 // ---------- 전투 중 말풍선(인물 대사·보스가 읽은 버릇) ----------
-const talkQ = []; let talkT = 0;
+const talkQ = [], talkLog = []; let talkT = 0;
 function talk(who, text, foe) {
   const c = CHARS[who] || CHARS.narr;
+  talkLog.push(c.name + ": " + text); if (talkLog.length > 30) talkLog.shift();
   talkQ.push({ c, text, foe: foe || c.side === 1 });
   if (talkT <= 0) nextTalk();
 }
@@ -768,6 +770,19 @@ function exposeTestHook() {
     answerWrong(i = 0) { const s = seats[i]; if (!G || s.lock) return false; s.input = String(s.q.answer + 1); s.submit(); return true; },
     deploy: (r, l, i = 0) => { const s = seats[i]; if (l) s.setLane(l); s.deploy(r, s.cards[r]); },
     stage: (id) => newGame(stageById(id)), playStage: (id) => startStage(stageById(id)), openCamp, showCamp, get camp() { return camp; },
+    // 점검용: 그림 없이 게임 시간을 빨리 감기(학생 대신 n번째마다 출전)
+    fast(sec, every = 0, role = "shield", lane = null) {
+      const b = G.battle; let t = 0, k = 0;
+      while (t < sec && b.state === "play") {
+        const dt = 1 / 20; t += dt; k++;
+        b.update(dt); if (G.ai) G.ai.update(dt);
+        const ev = b.events; b.events = [];
+        if (G.runner) G.runner.update(dt, ev);
+        onEvents(ev); view.handle(ev, b);
+        if (every && k % Math.round(every * 20) === 0) { b.sides[-1].gold += 80; b.deploy(-1, role, lane || "mid"); }
+      }
+      return { time: b.time, talks: talkLog.slice(), state: b.state, mode: G.ai && G.ai.mode && G.ai.mode.type };
+    },
     setCamp(p) { camp = { stars: {}, seenIntro: false, done: false, ...p }; saveProgress(camp); drawStart(); drawLastSet(); }, get story() { return story; }, storyNext, get G() { return G; },
   };
 }
