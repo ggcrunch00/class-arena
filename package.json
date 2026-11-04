@@ -8,7 +8,8 @@
     "serve": "python3 tools/serve_csp.py 8130",
     "balance": "node tests/balance.js 80",
     "build:play": "esbuild game/src/play/main.js --bundle --format=iife --minify --target=es2020 --outfile=game/js/play_bundle.js",
-    "build": "npm run build:a && npm run build:play"
+    "build": "npm run build:a && npm run build:play",
+    "check:bank": "node --no-warnings tools/check_bank.mjs"
   },
   "dependencies": {
     "pixi.js": "8.22.0",
