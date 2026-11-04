@@ -4,6 +4,7 @@ import SAJA from "./bank/saja.json" with { type: "json" };
 import SPELL from "./bank/spell.json" with { type: "json" };
 import GEO5 from "./bank/geo5.json" with { type: "json" };
 import GEO6 from "./bank/geo6.json" with { type: "json" };
+import HIST6 from "./bank/hist6.json" with { type: "json" };
 
 // 같은 문제가 바로 다시 나오지 않게 최근 12개는 피함
 const recent = [];
@@ -247,6 +248,7 @@ function makeSpell(diff, format, BANK = SPELL, tilePrompt = "빈칸에 들어갈
 TOPICS.saja = { name: SAJA.name, group: "국어", hint: SAJA.hint, words: true, make: makeSaja, bank: SAJA };
 TOPICS.spell = { name: SPELL.name, group: "국어", hint: SPELL.hint, words: true, make: makeBlank(SPELL), bank: SPELL, blank: true };
 TOPICS.geo5 = { name: GEO5.name, group: "사회", hint: GEO5.hint, words: true, make: makeBlank(GEO5, "빈칸에 들어갈 말을 만들어요"), bank: GEO5, blank: true };
+TOPICS.hist6 = { name: HIST6.name, group: "사회", hint: HIST6.hint, words: true, make: makeBlank(HIST6, "빈칸에 들어갈 말을 만들어요"), bank: HIST6, blank: true };
 TOPICS.geo6 = { name: GEO6.name, group: "사회", hint: GEO6.hint, words: true, make: makeBlank(GEO6, "빈칸에 들어갈 말을 만들어요"), bank: GEO6, blank: true };
 
 function num(text, answer, prompt = "") {

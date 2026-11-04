@@ -103,7 +103,7 @@ for (const BK of BLANKS) {
     if (len(it.s) + 1 > lim) warn(at, `문장이 ${len(it.s) + 1}글자예요(${lim}글자 넘으면 둘이서 화면에서 잘릴 수 있어요)`);
     if (!it.why) err(at, "까닭(why)이 없어요");
     else if (!/요\.$/.test(it.why) || NOT_HAEYO.test(it.why)) err(at, `까닭이 해요체로 끝나지 않아요: "${it.why}"`);
-    for (const w of [it.r, ...(it.x || [])]) if (len(w) > LIMIT.word) warn(at, `보기 "${w}"가 ${len(w)}글자예요(${LIMIT.word}글자 넘으면 좁은 칸에서 줄어들어요)`);
+    for (const w of [it.r, ...(it.x || [])]) if (len(w) > LIMIT.word) warn(at, `보기 「${w}」 ${len(w)}글자(${LIMIT.word}글자 넘으면 좁은 칸에서 글씨가 줄어들어요)`);
     checkBan(at, it.s); checkBan(at, it.why);
     const k = it.r + it.s;
     if (seen.has(k)) err(at, `${seen.get(k)}번과 똑같은 문제`); else seen.set(k, i + 1);
