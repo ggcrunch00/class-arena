@@ -38,15 +38,18 @@ export class StageRunner {
 
 // 지면 조금씩 쉽게(학생이 한 스테이지에서 막혀 포기하지 않게): 2번 지면 1단계, 그 뒤 질 때마다 한 단계(최대 4단계)
 export const assistLevel = (losses = 0) => (losses >= 2 ? Math.min(4, losses - 1) : 0);
-// 캠페인 스테이지의 컴퓨터 상대 설정
-export function stageAI(stage, losses = 0) {
-  const a = { ...stage.ai }, k = assistLevel(losses);
+// 캠페인 스테이지의 컴퓨터 상대 설정. hard: 도전 모드(문제를 빨리·잘 푸는 학생용 — 해골이 더 빠르고 영리함, 도움 없음)
+export function stageAI(stage, losses = 0, hard = false) {
+  const a = { ...stage.ai }, k = hard ? 0 : assistLevel(losses);
+  // 도전 모드: 해골도 보통 문제(골드 ×2)를 풀고 더 빠르고 영리함
+  if (hard) { a.diff = 1; a.answerEvery *= 0.8; a.accuracy = Math.min(0.95, a.accuracy + 0.06); a.counter = Math.min(0.9, a.counter + 0.3); a.mineTo = Math.max(2, a.mineTo || 1); }
   if (k) { a.answerEvery *= 1 + 0.12 * k; a.accuracy = Math.max(0.6, a.accuracy - 0.03 * k); a.counter *= 1 - 0.12 * k; }
   return a;
 }
 // 캠페인 스테이지의 전투 설정(도움 단계마다 해골 본성·탑 체력 6%씩 줄임)
-export function stageBattle(stage, losses = 0) {
-  const o = { ...stage.battle }, k = assistLevel(losses);
+export function stageBattle(stage, losses = 0, hard = false) {
+  const o = { ...stage.battle }, k = hard ? 0 : assistLevel(losses);
+  if (hard) o.baseHp = { ...(o.baseHp || {}), 1: ((o.baseHp && o.baseHp[1]) || 1) * 1.15 };
   if (k) {
     o.baseHp = { ...(o.baseHp || {}), 1: ((o.baseHp && o.baseHp[1]) || 1) * (1 - 0.06 * k) };
     o.towerHp = { ...(o.towerHp || {}), 1: ((o.towerHp && o.towerHp[1]) || 1) * (1 - 0.06 * k) };

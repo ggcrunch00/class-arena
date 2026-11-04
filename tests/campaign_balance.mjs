@@ -1,5 +1,5 @@
 // 원정 스테이지마다 학생 흉내로 여러 판 돌려 승률을 잰다(지도·규칙·무리·거인·보스 버릇 읽기 포함).
-// 사용: [LOSSES=2] node tests/campaign_balance.mjs [판 수=60] [보통|빠른|느린|모두] [스테이지 id(쉼표)]  (LOSSES: 두 번 진 뒤 도움 켠 상태)
+// 사용: [LOSSES=2] [HARD=1] node tests/campaign_balance.mjs [판 수=60] [보통|빠른|느린|모두] [스테이지 id(쉼표)]  (LOSSES: 두 번 진 뒤 도움 켠 상태)
 import { readFileSync } from "node:fs";
 import { Battle } from "../game/src/play/battle.js";
 import { ComputerPlayer } from "../game/src/play/ai.js";
@@ -25,10 +25,11 @@ for (const st of STAGES) {
   for (const k of kinds) {
     let win = 0, len = 0;
     for (let i = 0; i < N; i++) {
-      const b = new Battle(dur, stageBattle(st, +(process.env.LOSSES || 0)));
+      const HARD = !!process.env.HARD;
+      const b = new Battle(dur, stageBattle(st, +(process.env.LOSSES || 0), HARD));
       const R = st.rules;
       const me = new ComputerPlayer(b, -1, { adaptive: KINDS[k], counter: 0.35, mineTo: R.mine === false ? 1 : 2, cannonAt: 2, cannon: R.cannon !== false, roles: R.roles });
-      const cpu = new ComputerPlayer(b, 1, stageAI(st, +(process.env.LOSSES || 0)));
+      const cpu = new ComputerPlayer(b, 1, stageAI(st, +(process.env.LOSSES || 0), HARD));
       const run = new StageRunner(b, st, cpu, {}, assistLevel(+(process.env.LOSSES || 0)));
       while (b.state === "play") {
         b.update(1 / 20); me.update(1 / 20); cpu.update(1 / 20);

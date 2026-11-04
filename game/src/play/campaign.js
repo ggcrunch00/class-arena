@@ -55,7 +55,7 @@ export const CHAPTERS = [
     teach: "문제를 풀어 골드를 벌고, 병사를 불러요",
     stages: [
       {
-        id: "1-1", name: "첫 불빛", map: "shore",
+        id: "1-1", name: "첫 불빛", map: "shore", unlock: "방패병·궁수와 함께 출발!",
         goal: "해골 군단의 본성을 무너뜨려요",
         rules: { roles: ["shield", "archer"], mine: false, cannon: false },
         battle: { time: 300, baseHp: { 1: 0.55 }, towerHp: { 1: 0.7 }, gold: { [-1]: 80 } },
@@ -105,7 +105,7 @@ export const CHAPTERS = [
     teach: "길을 골라 보내요 · 돌격병 합류",
     stages: [
       {
-        id: "2-1", name: "갈림길", map: "twin",
+        id: "2-1", name: "갈림길", map: "twin", unlock: "새 병사: 돌격병 합류! · 길을 골라 보내요",
         goal: "적 탑 2개를 무너뜨려요",
         rules: { roles: ["shield", "rusher", "archer"], mine: false, cannon: false },
         battle: { time: 330, objective: { type: "towers", n: 2 }, gold: { [-1]: 80 } },
@@ -154,7 +154,7 @@ export const CHAPTERS = [
     teach: "상성 고리 완성 · 마법사 합류",
     stages: [
       {
-        id: "3-1", name: "다리를 지켜라", map: "bridge",
+        id: "3-1", name: "다리를 지켜라", map: "bridge", unlock: "새 병사: 마법사 합류! · 상성 고리 완성",
         goal: "4분 동안 본성을 지켜요",
         rules: { roles: ALL, mine: false, cannon: false },
         battle: { time: 240, objective: { type: "survive" }, gold: { [-1]: 140, [1]: 80 }, baseHp: { [-1]: 1.2 } },
@@ -203,7 +203,7 @@ export const CHAPTERS = [
     teach: "금광·성 대포로 작전 세우기",
     stages: [
       {
-        id: "4-1", name: "금광을 지켜라", map: "pass",
+        id: "4-1", name: "금광을 지켜라", map: "pass", unlock: "새 기능: 금광 강화 · 성 대포",
         goal: "해골 군단의 본성을 무너뜨려요",
         rules: { roles: ALL },
         battle: { time: 360, towerHp: { 1: 1.1 } },
@@ -321,8 +321,8 @@ export const stageById = (id) => STAGES.find((s) => s.id === id);
 // ---------- 진행 저장(이 기기에만, localStorage) ----------
 const KEY = "classArena.campaign";
 export function loadProgress() {
-  try { const p = JSON.parse(localStorage.getItem(KEY) || "{}"); return { stars: p.stars || {}, seenIntro: !!p.seenIntro, done: !!p.done }; }
-  catch { return { stars: {}, seenIntro: false, done: false }; }
+  try { const p = JSON.parse(localStorage.getItem(KEY) || "{}"); return { stars: p.stars || {}, hstars: p.hstars || {}, loss: p.loss || {}, seenIntro: !!p.seenIntro, done: !!p.done, hard: !!p.hard }; }
+  catch { return { stars: {}, hstars: {}, loss: {}, seenIntro: false, done: false, hard: false }; }
 }
 export function saveProgress(p) { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* 저장 못 해도 게임은 계속 */ } }
 // 앞 스테이지를 깼으면 열림(첫 스테이지는 처음부터)

@@ -463,3 +463,6 @@ body.duo #talk { display: none; }
 #panel.two .qtext b.sent.xl, #panel.two .qline.tq .qt.sent.xl { font-size: clamp(12px, 1.4vw, 15px); }
 .tiles .tile { line-height: 1; padding: 0; } /* 낮은 화면에서 글자가 칸 위아래로 삐져나오지 않게 */
 .tgroup { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; align-items: stretch; } /* 과목마다 한 줄 */
+.hardtog { display: grid; grid-template-columns: auto 1fr; column-gap: 6px; align-items: center; color: var(--ink); }
+.hardtog small { grid-column: 2; font-size: 11px; color: var(--muted); }
+.cstage .st .hs { font-weight: 400; color: #ff9c8a; font-size: 12px; }

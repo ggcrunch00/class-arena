@@ -201,10 +201,12 @@ async function newGame(stage = null) {
     layout();
     view.clear();
     const losses = stage ? (camp.loss && camp.loss[stage.id]) || 0 : 0;
-    const battle = new Battle(durations, stage ? stageBattle(stage, losses) : {});
-    const level = stage ? stageAI(stage, losses) : daily ? "knight" : settings.ai;
+    const hard = !!(stage && camp.hard);
+    const battle = new Battle(durations, stage ? stageBattle(stage, losses, hard) : {});
+    const level = stage ? stageAI(stage, losses, hard) : daily ? "knight" : settings.ai;
     G = { battle, duo, daily, stage, ai: duo ? null : new ComputerPlayer(battle, CPU, level), endT: -1 };
-    if (stage) G.runner = new StageRunner(battle, stage, G.ai, { talk: (w, t) => talk(w, t), boss: (w, t) => talk(w, t, true) }, assistLevel(losses));
+    if (stage) G.runner = new StageRunner(battle, stage, G.ai, { talk: (w, t) => talk(w, t), boss: (w, t) => talk(w, t, true) }, hard ? 0 : assistLevel(losses));
+    G.hard = hard;
     setSeed(daily ? daily.key : null);
     seats[0].start(battle, daily ? daily.topic : settings.topic, daily ? "input" : settings.format, stage ? stage.rules : undefined);
     if (duo) seats[1].start(battle, settings.topic2, settings.format);
@@ -213,7 +215,8 @@ async function newGame(stage = null) {
     $("#banner").hidden = true; talkQ.length = 0; talkLog.length = 0;
     document.querySelectorAll(".confetti").forEach((c) => c.remove()); // 앞 판 색종이 지우기 $("#talk").hidden = true; talkT = 0;
     if (daily) setTimeout(() => banner(`오늘의 도전 · ${daily.label} · ${TOPICS[daily.topic].name}`, 2.2), 300);
-    if (stage) setTimeout(() => banner("목표: " + stage.goal.replace(/요$/, "요!"), 2.4), 300);
+    if (stage) setTimeout(() => banner((hard ? "도전 모드 · " : "") + "목표: " + stage.goal.replace(/요$/, "요!"), 2.4), 300);
+    if (stage && stage.unlock && !camp.stars[stage.id]) setTimeout(() => { if (G && G.stage === stage) banner(stage.unlock, 2.4); }, 2900);
     quality.reset();
     mode = "play";
     updateHud(true);
@@ -407,10 +410,11 @@ function showResult() {
   const st = G.stage, won = w === PLAYER;
   if (st) {
     camp.stars[st.id] = Math.max(camp.stars[st.id] || 0, won ? Math.max(1, stars) : 0);
+    if (G.hard && won) { camp.hstars = camp.hstars || {}; camp.hstars[st.id] = Math.max(camp.hstars[st.id] || 0, Math.max(1, stars)); }
     camp.loss = camp.loss || {};
     if (won) delete camp.loss[st.id]; else camp.loss[st.id] = (camp.loss[st.id] || 0) + 1;
     saveProgress(camp);
-    if (!won && assistLevel(camp.loss[st.id]) > assistLevel(camp.loss[st.id] - 1)) toast("다음 판부터 해골 군단이 조금 약해져요. 힘내요!");
+    if (!won && !G.hard && assistLevel(camp.loss[st.id]) > assistLevel(camp.loss[st.id] - 1)) toast("다음 판부터 해골 군단이 조금 약해져요. 힘내요!");
   }
   $("#resHint").hidden = !st || won;
   if (st && !won) $("#resHint").textContent = "작전 도움말: " + st.hint;
@@ -517,7 +521,8 @@ function drawCamp() {
     const open = isOpen(camp, st.id), stars = camp.stars[st.id] || 0;
     const row = document.createElement("div");
     row.className = "cstage" + (st.boss ? " boss" : "") + (open ? "" : " locked");
-    row.innerHTML = `<span class="t"><i>${st.id}</i>${st.name}</span><span class="st">${"★".repeat(stars)}${"☆".repeat(3 - stars)}</span>` +
+    const hs = (camp.hstars && camp.hstars[st.id]) || 0;
+    row.innerHTML = `<span class="t"><i>${st.id}</i>${st.name}</span><span class="st">${"★".repeat(stars)}${"☆".repeat(3 - stars)}${hs ? ` <b class="hs" title="도전 모드 별">도전 ${"★".repeat(hs)}</b>` : ""}</span>` +
       `<span class="g">${open ? st.goal : "앞 스테이지를 깨면 열려요"}${st.boss ? " · 보스" : ""}</span>`;
     const go = document.createElement("button"); go.className = "go"; go.textContent = stars ? "다시" : "출전"; go.disabled = !open;
     go.addEventListener("click", () => startStage(stageById(st.id)));
@@ -533,6 +538,9 @@ function drawCamp() {
     fSel.addEventListener("change", () => { settings.format = fSel.value; remember("classArena.format", fSel.value); drawStart(); });
   }
   tSel.value = settings.topic; fSel.value = settings.format;
+  const hc = $("#cHard");
+  if (!hc.dataset.on) { hc.dataset.on = 1; hc.addEventListener("change", () => { camp.hard = hc.checked; saveProgress(camp); Sound.play("tap"); }); }
+  hc.checked = !!camp.hard;
 }
 function startStage(st) {
   Sound.unlock(); Music.start();
