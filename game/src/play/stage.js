@@ -5,8 +5,9 @@ import { bossLine } from "./campaign.js";
 
 export class StageRunner {
   // hooks: { talk(who, text), boss(who, text) } — 화면에 말풍선(없으면 조용히)
-  constructor(battle, stage, ai, hooks = {}) {
-    this.b = battle; this.stage = stage; this.ai = ai; this.hooks = hooks;
+  // assist: 도움 단계(0~4) — 거인 체력을 줄이고, 3단계부터 무리를 한 명씩 줄임
+  constructor(battle, stage, ai, hooks = {}, assist = 0) {
+    this.b = battle; this.stage = stage; this.ai = ai; this.hooks = hooks; this.assist = assist;
     this.done = new Set();
     if (ai) ai.onTalk = (type, info) => {
       const line = bossLine(stage.lines, type, info, LANE_LABEL);
@@ -28,16 +29,27 @@ export class StageRunner {
       if (this.done.has(i) || b.time < ev.at) return;
       this.done.add(i);
       const lane = (l) => (l && l !== "auto" && LANE_NAMES.includes(l) ? l : this.autoLane());
-      if (ev.wave) { const l = lane(ev.wave.lane); for (const r of ev.wave.roles) b.spawnFree(1, r, l); }
-      if (ev.giant) b.spawnFree(1, "giant", lane(ev.giant));
+      if (ev.wave) { const l = lane(ev.wave.lane), rs = ev.wave.roles.slice(0, Math.max(1, ev.wave.roles.length - (this.assist >= 3 ? 1 : 0))); for (const r of rs) b.spawnFree(1, r, l); }
+      if (ev.giant) { const g = b.spawnFree(1, "giant", lane(ev.giant)); if (g && this.assist) { g.hp = g.maxHp = Math.round(g.maxHp * (1 - 0.12 * this.assist)); } }
       if (ev.talk && this.hooks.talk) this.hooks.talk(ev.talk[0], ev.talk[1]);
     });
   }
 }
 
-// 캠페인 스테이지의 컴퓨터 상대 설정(장 안 숫자) — 별을 못 받고 두 번 넘게 지면 조금 약하게(학생이 막히지 않게)
+// 지면 조금씩 쉽게(학생이 한 스테이지에서 막혀 포기하지 않게): 2번 지면 1단계, 그 뒤 질 때마다 한 단계(최대 4단계)
+export const assistLevel = (losses = 0) => (losses >= 2 ? Math.min(4, losses - 1) : 0);
+// 캠페인 스테이지의 컴퓨터 상대 설정
 export function stageAI(stage, losses = 0) {
-  const a = { ...stage.ai };
-  if (losses >= 2) { a.answerEvery *= 1.15; a.accuracy = Math.max(0.6, a.accuracy - 0.05); a.counter *= 0.8; }
+  const a = { ...stage.ai }, k = assistLevel(losses);
+  if (k) { a.answerEvery *= 1 + 0.12 * k; a.accuracy = Math.max(0.6, a.accuracy - 0.03 * k); a.counter *= 1 - 0.12 * k; }
   return a;
+}
+// 캠페인 스테이지의 전투 설정(도움 단계마다 해골 본성·탑 체력 6%씩 줄임)
+export function stageBattle(stage, losses = 0) {
+  const o = { ...stage.battle }, k = assistLevel(losses);
+  if (k) {
+    o.baseHp = { ...(o.baseHp || {}), 1: ((o.baseHp && o.baseHp[1]) || 1) * (1 - 0.06 * k) };
+    o.towerHp = { ...(o.towerHp || {}), 1: ((o.towerHp && o.towerHp[1]) || 1) * (1 - 0.06 * k) };
+  }
+  return o;
 }

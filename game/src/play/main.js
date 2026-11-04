@@ -12,7 +12,7 @@ import { Music } from "./music.js";
 import { TOPICS, FORMATS, checkAnswer, questionLine, setSeed } from "./questions.js";
 import { Seat } from "./seat.js";
 import { WORLD, CHARS, CHAPTERS, ENDING, STAGES, stageById, loadProgress, saveProgress, isOpen, chapterStars, chapterCleared } from "./campaign.js";
-import { StageRunner, stageAI } from "./stage.js";
+import { StageRunner, stageAI, stageBattle, assistLevel } from "./stage.js";
 
 const $ = (s) => document.querySelector(s);
 // 지도: 자유 대전에서 고른 지도(주소 끝 #wide 처럼 줄 수도 있음). 판마다 필요한 전장 모형만 그때 받음
@@ -200,10 +200,11 @@ async function newGame(stage = null) {
     document.body.classList.remove("menu");
     layout();
     view.clear();
-    const battle = new Battle(durations, stage ? stage.battle : {});
-    const level = stage ? stageAI(stage, (camp.loss && camp.loss[stage.id]) || 0) : daily ? "knight" : settings.ai;
+    const losses = stage ? (camp.loss && camp.loss[stage.id]) || 0 : 0;
+    const battle = new Battle(durations, stage ? stageBattle(stage, losses) : {});
+    const level = stage ? stageAI(stage, losses) : daily ? "knight" : settings.ai;
     G = { battle, duo, daily, stage, ai: duo ? null : new ComputerPlayer(battle, CPU, level), endT: -1 };
-    if (stage) G.runner = new StageRunner(battle, stage, G.ai, { talk: (w, t) => talk(w, t), boss: (w, t) => talk(w, t, true) });
+    if (stage) G.runner = new StageRunner(battle, stage, G.ai, { talk: (w, t) => talk(w, t), boss: (w, t) => talk(w, t, true) }, assistLevel(losses));
     setSeed(daily ? daily.key : null);
     seats[0].start(battle, daily ? daily.topic : settings.topic, daily ? "input" : settings.format, stage ? stage.rules : undefined);
     if (duo) seats[1].start(battle, settings.topic2, settings.format);
@@ -407,7 +408,7 @@ function showResult() {
     camp.loss = camp.loss || {};
     if (won) delete camp.loss[st.id]; else camp.loss[st.id] = (camp.loss[st.id] || 0) + 1;
     saveProgress(camp);
-    if (!won && camp.loss[st.id] === 2) toast("다음 판부터 해골 군단이 조금 느려져요. 힘내요!");
+    if (!won && assistLevel(camp.loss[st.id]) > assistLevel(camp.loss[st.id] - 1)) toast("다음 판부터 해골 군단이 조금 약해져요. 힘내요!");
   }
   $("#resHint").hidden = !st || won;
   if (st && !won) $("#resHint").textContent = "작전 도움말: " + st.hint;
@@ -689,7 +690,11 @@ function drawLastSet() {
   const n = STAGES.filter((x) => camp.stars[x.id]).length;
   $("#campBtn").textContent = n === 0 ? "원정 떠나기" : camp.done ? "원정 지도" : `원정 이어 하기 (${n}/${STAGES.length})`;
 }
-function pause() { if (mode !== "play") return; mode = "pause"; $("#pauseScreen").hidden = false; Music.duck(true); }
+function pause() {
+  if (mode !== "play") return;
+  mode = "pause"; $("#pauseScreen").hidden = false; Music.duck(true);
+  $("#quitBtn").textContent = G && G.stage ? "그만하고 원정 지도로" : "그만하고 처음으로";
+}
 function resume() { mode = "play"; $("#pauseScreen").hidden = true; Music.duck(false); }
 
 let setBack = null;
@@ -760,7 +765,7 @@ function exposeTestHook() {
     answerWrong(i = 0) { const s = seats[i]; if (!G || s.lock) return false; s.input = String(s.q.answer + 1); s.submit(); return true; },
     deploy: (r, l, i = 0) => { const s = seats[i]; if (l) s.setLane(l); s.deploy(r, s.cards[r]); },
     stage: (id) => newGame(stageById(id)), playStage: (id) => startStage(stageById(id)), openCamp, showCamp, get camp() { return camp; },
-    setCamp(p) { camp = { stars: {}, seenIntro: false, done: false, ...p }; saveProgress(camp); drawStart(); }, get story() { return story; }, storyNext, get G() { return G; },
+    setCamp(p) { camp = { stars: {}, seenIntro: false, done: false, ...p }; saveProgress(camp); drawStart(); drawLastSet(); }, get story() { return story; }, storyNext, get G() { return G; },
   };
 }
 
