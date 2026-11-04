@@ -125,7 +125,7 @@ export class Seat {
   showTips() {
     const st = this.tipStep;
     this.$(".tip1").hidden = st !== 1;
-    this.$(".tip2").hidden = st !== 2;
+    this.$(".tip2").hidden = st !== 2 || LANE_NAMES.length < 2; // 길이 하나인 지도에서는 "길을 골라요" 안내를 건너뜀
     this.$(".tip3").hidden = st !== 2;
   }
   destroy() { this.el.remove(); }
