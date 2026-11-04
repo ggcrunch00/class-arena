@@ -9,7 +9,7 @@ const TPL = `
 <section class="quiz" aria-label="문제">
   <div class="qhead">
     <span class="chip"></span>
-    <div class="seg" role="radiogroup" aria-label="난이도"><button data-d="0" role="radio">쉬움</button><button data-d="1" role="radio">보통</button><button data-d="2" role="radio">어려움</button></div>
+    <div class="seg" role="radiogroup" aria-label="난이도(올리기만 직접, 내리기는 자동)"><button data-d="0" role="radio" data-x="×1">쉬움</button><button data-d="1" role="radio" data-x="×2">보통</button><button data-d="2" role="radio" data-x="×4">어려움</button></div>
     <span class="streak" hidden></span>
     <button class="ghost skip">넘기기</button>
   </div>
@@ -72,7 +72,13 @@ export class Seat {
     q(".cannon").addEventListener("click", () => { if (this.active() && this.b.fireCannon(side)) this.say("성 대포 발사!"); });
     q(".skip").addEventListener("click", () => this.skip());
     q(".keypad").addEventListener("click", (e) => { const t = e.target.closest("button"); if (t) this.press(t.dataset.k || t.textContent); });
-    this.el.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => { if (this.active() && !this.lock) this.setDiff(+b.dataset.d); }));
+    // 난이도: 올리기만 직접(골드 ×1·×2·×4). 내리기는 2번 틀리면 자동 → "쉬운 문제만 빨리 풀기"를 막음(11-04 A안)
+    this.el.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => {
+      if (!this.active() || this.lock) return;
+      const d = +b.dataset.d;
+      if (d > this.diff) this.setDiff(d, `${b.textContent} 문제로! 골드 ${b.dataset.x}`);
+      else if (d < this.diff) this.say("난이도는 2번 틀리면 저절로 내려가요");
+    }));
     this.toastT = 0;
     // 누른 단추에 초점이 남지 않게(키보드 Enter가 그 단추를 다시 누르는 일 막기)
     this.el.addEventListener("click", (e) => { const t = e.target.closest("button"); if (t && e.detail > 0) t.blur(); });
@@ -113,7 +119,7 @@ export class Seat {
 
   setDiff(d, msg) {
     this.diff = d; this.runRight = 0; this.runWrong = 0;
-    this.el.querySelectorAll(".seg button").forEach((b) => { const on = +b.dataset.d === d; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
+    this.el.querySelectorAll(".seg button").forEach((b) => { const on = +b.dataset.d === d; b.classList.toggle("on", on); b.classList.toggle("below", +b.dataset.d < d); b.setAttribute("aria-checked", on); });
     if (msg) this.say(msg);
     this.next();
   }
@@ -233,7 +239,7 @@ export class Seat {
       this.drawAnswer("good");
       this.runRight++; this.runWrong = 0;
       if (this.tipStep === 1 && b.sides[side].gold >= 60) { this.tipStep = 2; this.showTips(); }
-      if (this.runRight >= 5 && this.diff < 2) this.setDiff(this.diff + 1, "잘하고 있어요! 한 단계 어려운 문제(골드 ↑)");
+      if (this.runRight >= 5 && this.diff < 2) this.setDiff(this.diff + 1, `잘하고 있어요! 한 단계 어려운 문제(골드 ${["×1", "×2", "×4"][this.diff + 1]})`);
       else this.next();
     } else {
       b.answer(side, "wrong");

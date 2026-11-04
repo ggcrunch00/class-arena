@@ -9,7 +9,7 @@ for (const r of ROLES) BEATEN_BY[ROLE_INFO[r].beats] = r;
 export class ComputerPlayer {
   constructor(battle, side, levelKey) {
     this.b = battle; this.side = side; this.L = AI_LEVELS[levelKey];
-    this.next = this.L.answerEvery * (0.5 + Math.random());
+    this.next = (this.L.adaptive ? this.L.adaptive.time[0] : this.L.answerEvery) * (0.5 + Math.random());
     this.plan = null;
   }
 
@@ -18,9 +18,15 @@ export class ComputerPlayer {
     if (b.state !== "play") return;
     this.next -= dt;
     if (this.next <= 0) {
-      const right = Math.random() < this.L.accuracy;
-      b.answer(this.side, right ? "right" : "wrong", "number", this.L.diff);
-      this.next = this.L.answerEvery * (0.6 + Math.random() * 0.8) + (right ? 0 : 3);
+      // adaptive(학생 흉내용): 난이도마다 걸리는 시간·정답률이 다르고, 학생 화면과 같은 규칙으로 난이도가 오르내림
+      const A = this.L.adaptive, d = A ? (this.d ??= 0) : this.L.diff;
+      const right = Math.random() < (A ? A.acc[d] : this.L.accuracy);
+      b.answer(this.side, right ? "right" : "wrong", "number", d);
+      if (A) {
+        if (right) { this.rr = (this.rr || 0) + 1; this.rw = 0; if (this.rr >= 5 && d < 2) { this.d++; this.rr = 0; } }
+        else { this.rw = (this.rw || 0) + 1; this.rr = 0; if (this.rw >= 2 && d > 0) { this.d--; this.rw = 0; } }
+      }
+      this.next = (A ? A.time[d] : this.L.answerEvery) * (0.6 + Math.random() * 0.8) + (right ? 0 : 3);
     }
     const threat = this.threats();
     const quiet = Object.values(threat).every((v) => v.n === 0);

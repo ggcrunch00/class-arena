@@ -14,7 +14,7 @@ export const MATCH = {
 // 골드 규칙
 export const GOLD = {
   base: { number: 12, tiles: 12, choice: 8, ox: 5 },  // 문제 종류별(찍기 어려울수록 많이). 2지선다 객관식은 ox 값(gk)
-  diffMult: [1, 1.5, 2],                    // 쉬움·보통·어려움
+  diffMult: [1, 2, 4],                      // 쉬움·보통·어려움(11-04: 풀이 시간 차이를 메우게 크게. 난이도는 게임이 정함)
   streakFrom: 3, streakBonus: 0.2,          // 3연속부터 +20%
   wrongLock: 3, skipLock: 2,                // 틀리면 3초, 넘기면 2초 쉼
   start: 60,                                // 시작 골드
@@ -48,9 +48,9 @@ export const SIDES = {
 
 // 컴퓨터 상대 3단계
 export const AI_LEVELS = {
-  recruit: { name: "신병", answerEvery: 4.8, accuracy: 0.8, diff: 0, counter: 0.15, mineTo: 1, cannonAt: 4 },
-  knight: { name: "기사", answerEvery: 4.0, accuracy: 0.84, diff: 1, counter: 0.5, mineTo: 2, cannonAt: 3 },
-  general: { name: "장군", answerEvery: 4.0, accuracy: 0.88, diff: 1, counter: 0.85, mineTo: 3, cannonAt: 2 },
+  recruit: { name: "신병", answerEvery: 6.6, accuracy: 0.8, diff: 0, counter: 0.15, mineTo: 1, cannonAt: 4 },
+  knight: { name: "기사", answerEvery: 5.8, accuracy: 0.84, diff: 1, counter: 0.5, mineTo: 2, cannonAt: 3 },
+  general: { name: "장군", answerEvery: 4.7, accuracy: 0.88, diff: 1, counter: 0.85, mineTo: 3, cannonAt: 2 },
 };
 
 // 화질 단계(설정 메뉴에서 고르거나 자동)

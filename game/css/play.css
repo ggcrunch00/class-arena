@@ -98,6 +98,9 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .seg { display: flex; background: rgba(0,0,0,.35); border-radius: 999px; padding: 2px; }
 .seg button { font-size: 13px; padding: 4px 10px; border-radius: 999px; color: var(--muted); white-space: nowrap; }
 .seg button.on { background: var(--gold); color: var(--night); font-weight: 700; }
+.seg button::after { content: " " attr(data-x); font-size: .85em; opacity: .75; }
+.seg button.below { opacity: .4; cursor: default; }
+#panel.two .seg button::after { content: none; }
 .streak { font-family: var(--display); color: var(--coin); font-size: 15px; white-space: nowrap; }
 .ghost { margin-left: auto; font-size: 13px; padding: 5px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25); color: var(--ink); white-space: nowrap; }
 .qline { display: flex; align-items: center; gap: 12px; min-width: 0; }
