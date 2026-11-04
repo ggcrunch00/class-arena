@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { ROLES, ROLE_INFO, SIDES, AI_LEVELS, QUALITY, QUALITY_ORDER, BASE } from "./config.js";
-import { LANE_LABEL, MAPS, useMap } from "./lanes.js";
+import { LANE_LABEL, LANE_NAMES, MAPS, useMap } from "./lanes.js";
 import { Battle } from "./battle.js";
 import { ComputerPlayer } from "./ai.js";
 import { View3D } from "./view3d.js";
@@ -11,10 +11,16 @@ import { Sound } from "./sound.js";
 import { Music } from "./music.js";
 import { TOPICS, FORMATS, checkAnswer, questionLine, setSeed } from "./questions.js";
 import { Seat } from "./seat.js";
+import { WORLD, CHARS, CHAPTERS, ENDING, STAGES, stageById, loadProgress, saveProgress, isOpen, chapterStars, chapterCleared } from "./campaign.js";
+import { StageRunner, stageAI } from "./stage.js";
 
 const $ = (s) => document.querySelector(s);
-// 지도는 주소 끝 #diag 또는 #wide 로 고름(시작 화면에서 바꾸면 다시 불러옴)
-const MAP_KEY = useMap((location.hash || "").replace("#", "") || remember("classArena.map") || "diag");
+// 지도: 자유 대전에서 고른 지도(주소 끝 #wide 처럼 줄 수도 있음). 판마다 필요한 전장 모형만 그때 받음
+const firstMap = (location.hash || "").replace("#", "");
+let camp = loadProgress();    // 원정 진행(별·처음 이야기 봤는지)
+// 자유 대전에서 쓸 수 있는 지도: 처음부터 둘 + 원정에서 깬 장의 지도
+const mapOpen = (k) => !!MAPS[k] && (MAPS[k].free || chapterCleared(camp, MAPS[k].chapter));
+let MAP_KEY = useMap(MAPS[firstMap] ? firstMap : remember("classArena.map") || "diag");
 const MODELS = ["field", ...Object.values(SIDES[-1].models), ...Object.values(SIDES[1].models)];
 const PLAYER = -1, CPU = 1;
 
@@ -54,6 +60,7 @@ const settings = {
   mode: remember("classArena.mode") || "cpu",               // cpu: 연습 대전, duo: 둘이서(한 기기)
   topic: remember("classArena.topic") || "gugu", topic2: remember("classArena.topic2") || "gugu",
   ai: remember("classArena.ai") || "recruit", format: remember("classArena.format") || "input",
+  map: MAP_KEY,
 };
 if (!["cpu", "duo", "daily"].includes(settings.mode)) settings.mode = "cpu";
 // 오늘의 도전: 날짜로 주제·문제 순서가 정해짐(모두 같음), 상대는 기사, 형식은 직접 입력
@@ -89,6 +96,7 @@ async function boot() {
   for (const f of files) { await loadScript(`models/${f}.js`); step(); }   // 파일을 하나씩 받으며 진행 막대
   window.GLB.field = window.GLB["field_" + MAP_KEY];
   for (const m of MODELS) { models[m] = await parseGLB(m); step(); }
+  models["field_" + MAP_KEY] = models.field;
   await fontsReady();
   durations = {};
   for (const m of MODELS.slice(1)) {
@@ -117,6 +125,27 @@ async function boot() {
     if ("serviceWorker" in navigator && location.protocol === "https:" && !/claude\.ai|claudeusercontent/.test(location.hostname))
       navigator.serviceWorker.register("sw.js").catch(() => {});
   } catch { /* 지원 안 하는 브라우저 */ }
+}
+
+// 지도 바꾸기: 처음 쓰는 지도면 전장 모형을 받아 풀고(약 1.5MB), 길·탑·빛을 새 지도로
+async function switchMap(key) {
+  if (!MAPS[key]) key = "diag";
+  if (key === MAP_KEY && view.field === models["field_" + key]) return;
+  const name = "field_" + key;
+  if (!models[name]) {
+    const l = $("#loading"); l.hidden = false; l.classList.add("soft");
+    $("#loading b").textContent = ""; $("#lbar").style.width = "30%"; $("#ltip").textContent = MAPS[key].name + " 전장을 여는 중…";
+    try {
+      if (!window.GLB || !window.GLB[name]) await loadScript(`models/${name}.js`);
+      $("#lbar").style.width = "70%";
+      models[name] = await parseGLB(name);
+    } finally { l.hidden = true; l.classList.remove("soft"); }
+  }
+  MAP_KEY = useMap(key);
+  view.clear();
+  view.setField(models[name]);
+  for (const s of seats) s.setLanes();
+  layout();
 }
 
 function makeSeats(m) {
@@ -157,31 +186,65 @@ function tickDemo(dt) {
   if (b.state !== "play") { demo.endT += dt; if (demo.endT > 5) startDemo(); }
 }
 
-function newGame() {
-  demo = null;
-  Music.intense(false); Music.duck(false); Music.start();
-  document.body.classList.remove("menu");
-  layout();
-  view.clear();
-  const duo = settings.mode === "duo", daily = settings.mode === "daily" ? today() : null;
-  if ((seats.length === 2) !== duo) makeSeats(duo ? "duo" : "cpu");
-  const battle = new Battle(durations);
-  G = { battle, duo, daily, ai: duo ? null : new ComputerPlayer(battle, CPU, daily ? "knight" : settings.ai), endT: -1 };
-  setSeed(daily ? daily.key : null);
-  seats[0].start(battle, daily ? daily.topic : settings.topic, daily ? "input" : settings.format);
-  if (duo) seats[1].start(battle, settings.topic2, settings.format);
-  $("#blueSub").textContent = duo ? "왼쪽" : "나";
-  $("#redSub").textContent = duo ? "오른쪽" : "컴퓨터 · " + AI_LEVELS[daily ? "knight" : settings.ai].name;
-  if (daily) setTimeout(() => banner(`오늘의 도전 · ${daily.label} · ${TOPICS[daily.topic].name}`, 2.2), 300);
-  $("#banner").hidden = true;
-  for (const s of ["#titleScreen", "#startScreen", "#resultScreen", "#pauseScreen", "#setScreen"]) $(s).hidden = true;
-  quality.reset();
-  mode = "play";
-  updateHud(true);
+// stage: 원정 스테이지(없으면 자유 대전·둘이서·오늘의 도전)
+async function newGame(stage = null) {
+  if (busy) return;
+  busy = true;
+  try {
+    demo = null;
+    const duo = !stage && settings.mode === "duo", daily = !stage && settings.mode === "daily" ? today() : null;
+    for (const s of ["#titleScreen", "#startScreen", "#resultScreen", "#pauseScreen", "#setScreen", "#campScreen", "#storyScreen"]) $(s).hidden = true;
+    if ((seats.length === 2) !== duo) makeSeats(duo ? "duo" : "cpu");
+    await switchMap(stage ? stage.map : mapOpen(settings.map) ? settings.map : "diag");
+    Music.intense(false); Music.duck(false); Music.start();
+    document.body.classList.remove("menu");
+    layout();
+    view.clear();
+    const battle = new Battle(durations, stage ? stage.battle : {});
+    const level = stage ? stageAI(stage, (camp.loss && camp.loss[stage.id]) || 0) : daily ? "knight" : settings.ai;
+    G = { battle, duo, daily, stage, ai: duo ? null : new ComputerPlayer(battle, CPU, level), endT: -1 };
+    if (stage) G.runner = new StageRunner(battle, stage, G.ai, { talk: (w, t) => talk(w, t), boss: (w, t) => talk(w, t, true) });
+    setSeed(daily ? daily.key : null);
+    seats[0].start(battle, daily ? daily.topic : settings.topic, daily ? "input" : settings.format, stage ? stage.rules : undefined);
+    if (duo) seats[1].start(battle, settings.topic2, settings.format);
+    $("#blueSub").textContent = duo ? "왼쪽" : "나";
+    $("#redSub").textContent = duo ? "오른쪽" : stage ? `${stage.id} ${stage.boss ? CHARS[stage.boss].name : stage.name}` : "컴퓨터 · " + AI_LEVELS[daily ? "knight" : settings.ai].name;
+    $("#banner").hidden = true; talkQ.length = 0; $("#talk").hidden = true; talkT = 0;
+    if (daily) setTimeout(() => banner(`오늘의 도전 · ${daily.label} · ${TOPICS[daily.topic].name}`, 2.2), 300);
+    if (stage) setTimeout(() => banner("목표: " + stage.goal.replace(/요$/, "요!"), 2.4), 300);
+    quality.reset();
+    mode = "play";
+    updateHud(true);
+  } catch (e) { toast("전장을 열지 못했어요: " + ((e && e.message) || e)); showStart(); }
+  finally { busy = false; }
+}
+let busy = false;
+
+// ---------- 전투 중 말풍선(인물 대사·보스가 읽은 버릇) ----------
+const talkQ = []; let talkT = 0;
+function talk(who, text, foe) {
+  const c = CHARS[who] || CHARS.narr;
+  talkQ.push({ c, text, foe: foe || c.side === 1 });
+  if (talkT <= 0) nextTalk();
+}
+function nextTalk() {
+  const t = talkQ.shift(), el = $("#talk");
+  if (!t) { el.hidden = true; talkT = 0; return; }
+  el.className = t.foe ? "foe" : "";
+  el.querySelector("img").src = `assets/portraits/${t.c.img || "knight"}.webp`;
+  el.querySelector("b").textContent = t.c.name;
+  el.querySelector("p").textContent = t.text;
+  el.hidden = false; el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
+  talkT = Math.max(3.2, 1.6 + t.text.length * 0.07);
+  Sound.play(t.foe ? "horn" : "talk");
 }
 
 function buildKeys() {
+  $("#storyScreen").addEventListener("click", (e) => { if (e.target.closest("#sSkip")) return; storyNext(); });
+  $("#sSkip").addEventListener("click", storyEnd);
   window.addEventListener("keydown", (e) => {
+    if (story && (e.key === "Enter" || e.key === " " || e.key === "ArrowRight")) { e.preventDefault(); storyNext(); return; }
+    if (story && e.key === "Escape") { storyEnd(); return; }
     if (e.key === "Escape") { if (mode === "play") pause(); else if (mode === "pause") resume(); return; }
     // 전투 중 Enter·스페이스가 마지막에 누른 단추(병사 카드 등)를 다시 누르지 않게 막음
     // (크롬북: 카드를 누른 뒤 키보드로 답을 쓰고 Enter → 그 카드가 또 출전하던 문제)
@@ -202,7 +265,8 @@ function updateHud(force) {
     const hp = b.sides[s].base.hp;
     const towersLeft = Object.values(b.sides[s].towers).filter((t) => t.alive).length;
     const tEl = $(s < 0 ? "#blueTowers" : "#redTowers");
-    if (tEl.dataset.n !== String(towersLeft)) { tEl.dataset.n = towersLeft; tEl.innerHTML = "탑 " + "<i></i>".repeat(towersLeft) + "<i class=\"x\"></i>".repeat(3 - towersLeft); }
+    const tk = towersLeft + "/" + LANE_NAMES.length;
+    if (tEl.dataset.n !== tk) { tEl.dataset.n = tk; tEl.innerHTML = "탑 " + "<i></i>".repeat(towersLeft) + "<i class=\"x\"></i>".repeat(LANE_NAMES.length - towersLeft); }
     if (hp !== lastHp[s] || force) {
       const el = $(s < 0 ? "#blue" : "#red"), k = hp / BASE.hp;
       el.querySelector(".hp i").style.width = (k * 100).toFixed(1) + "%";
@@ -214,7 +278,10 @@ function updateHud(force) {
   const t = Math.ceil(b.timeLeft);
   $("#clock b").textContent = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
   $("#clock").classList.toggle("ot", b.overtime);
-  $("#clockSub").textContent = b.overtime ? "총력전 · 골드 2배" : "남은 시간";
+  const ob = b.objective;
+  $("#clockSub").textContent = b.overtime ? "총력전 · 골드 2배"
+    : ob.type === "towers" ? `목표: 탑 ${Object.values(b.sides[CPU].towers).filter((t) => !t.alive).length}/${ob.n}`
+      : ob.type === "survive" ? "목표: 끝까지 버티기" : "남은 시간";
 }
 let toastT = 0;
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; t.style.animation = "none"; void t.offsetWidth; t.style.animation = ""; toastT = 2.6; }
@@ -306,9 +373,11 @@ function showResult() {
     $("#resWhy").textContent = b.endWhy === "base" ? `${sideName(-w)}의 본성이 무너졌어요.` : "시간이 끝나서 본성과 탑이 더 튼튼한 쪽이 이겼어요.";
   } else {
     $("#resTitle").textContent = w === PLAYER ? "승리!" : w === CPU ? "아쉬운 패배" : "무승부";
-    $("#resWhy").textContent = b.endWhy === "base"
-      ? (w === PLAYER ? "해골 군단의 본성을 무너뜨렸어요!" : "우리 본성이 무너졌어요. 약한 길을 막고 상성을 노려 다시 도전해요!")
-      : (w ? "시간이 끝나서 본성과 탑이 더 튼튼한 쪽이 이겼어요." : "시간이 끝났고 양쪽이 비슷했어요.");
+    $("#resWhy").textContent = b.endWhy === "towers" ? "목표한 탑을 모두 무너뜨렸어요!"
+      : b.endWhy === "survive" ? "끝까지 본성을 지켜 냈어요!"
+        : b.endWhy === "base"
+          ? (w === PLAYER ? "해골 군단의 본성을 무너뜨렸어요!" : "우리 본성이 무너졌어요. 약한 길을 막고 상성을 노려 다시 도전해요!")
+          : (w ? "시간이 끝나서 본성과 탑이 더 튼튼한 쪽이 이겼어요." : "시간이 끝났고 양쪽이 비슷했어요.");
   }
   const stat = (k, v) => `<div class="stat"><small>${k}</small><b>${v}</b></div>`;
   const statsOf = (side) => {
@@ -331,6 +400,21 @@ function showResult() {
   const starBox = $("#stars"); starBox.hidden = G.duo;
   [...starBox.children].forEach((st, i) => { st.className = ""; if (i < stars) setTimeout(() => { st.className = "on"; Sound.play("coin"); }, 500 + i * 350); });
   G.stars = stars;
+  // 원정: 별 저장, 이기면 "이야기 계속", 지면 도움말
+  const st = G.stage, won = w === PLAYER;
+  if (st) {
+    camp.stars[st.id] = Math.max(camp.stars[st.id] || 0, won ? Math.max(1, stars) : 0);
+    camp.loss = camp.loss || {};
+    if (won) delete camp.loss[st.id]; else camp.loss[st.id] = (camp.loss[st.id] || 0) + 1;
+    saveProgress(camp);
+    if (!won && camp.loss[st.id] === 2) toast("다음 판부터 해골 군단이 조금 느려져요. 힘내요!");
+  }
+  $("#resHint").hidden = !st || won;
+  if (st && !won) $("#resHint").textContent = "작전 도움말: " + st.hint;
+  $("#nextBtn").hidden = !st || !won;
+  $("#campMapBtn").hidden = !st;
+  $("#homeBtn").hidden = !!st;
+  $("#againBtn").className = st && won ? "ghost" : "go";
   $("#shareText").textContent = shareText();
   $("#resultScreen").hidden = false;
 }
@@ -348,8 +432,9 @@ function shareText() {
     return `성문 대전 · 둘이서 · ${w ? (w < 0 ? "기사단" : "해골 군단") + " 승리" : "무승부"} · ${tm}\n기사단: ${line(seats[0])}\n해골 군단: ${line(seats[1])}`;
   }
   const res = b.winner === PLAYER ? "승리" : b.winner === CPU ? "패배" : "무승부";
-  const head = G.daily ? `성문 대전 · 오늘의 도전 ${G.daily.label}` : "성문 대전";
-  return `${head} · ${res} ${"★".repeat(G.stars)}${"☆".repeat(3 - G.stars)} · 컴퓨터 ${G.daily ? "기사" : AI_LEVELS[settings.ai].name} · ${tm}\n${line(seats[0])}`;
+  const head = G.daily ? `성문 대전 · 오늘의 도전 ${G.daily.label}` : G.stage ? `성문 대전 · 원정 ${G.stage.id} ${G.stage.name}` : "성문 대전";
+  const foe = G.stage ? "" : ` · 컴퓨터 ${G.daily ? "기사" : AI_LEVELS[settings.ai].name}`;
+  return `${head} · ${res} ${"★".repeat(G.stars)}${"☆".repeat(3 - G.stars)}${foe} · ${tm}\n${line(seats[0])}`;
 }
 function copyShare() {
   const txt = $("#shareText").textContent;
@@ -387,6 +472,114 @@ function saveCard() {
   const box = $("#cardView"); box.hidden = false; box.querySelector("img").src = url;
 }
 
+// ---------- 원정: 군도 지도·이야기 ----------
+function openCamp() {
+  for (const s of ["#titleScreen", "#startScreen"]) $(s).hidden = true;
+  if (!camp.seenIntro) {
+    playStory(WORLD.intro, { art: "world" }, () => { camp.seenIntro = true; saveProgress(camp); showCamp(); });
+  } else showCamp();
+}
+// 다음에 할 스테이지(안 깬 것 중 처음), 다 깼으면 마지막
+const nextStage = () => STAGES.find((x) => !camp.stars[x.id]) || STAGES[STAGES.length - 1];
+let campSel = 1;
+function showCamp(stageId) {
+  mode = "menu"; G = null;
+  document.body.classList.add("menu");
+  if (!demo) startDemo();
+  for (const s of ["#titleScreen", "#startScreen", "#resultScreen", "#pauseScreen", "#storyScreen"]) $(s).hidden = true;
+  $("#talk").hidden = true; talkQ.length = 0;
+  const st = stageById(stageId) || nextStage();
+  campSel = st.chapter.id;
+  drawCamp();
+  $("#campScreen").hidden = false;
+}
+function drawCamp() {
+  const nodes = $("#cNodes"); nodes.innerHTML = "";
+  const nx = nextStage();
+  for (const ch of CHAPTERS) {
+    const open = isOpen(camp, ch.stages[0].id), stars = chapterStars(camp, ch);
+    const b = document.createElement("button");
+    b.className = "cnode" + (ch.id === campSel ? " on" : "") + (open ? "" : " locked") + (nx.chapter.id === ch.id && !camp.done ? " next" : "");
+    b.style.left = ch.pos[0] + "%"; b.style.top = ch.pos[1] + "%";
+    b.innerHTML = `<span class="num">${ch.id}</span><b>${ch.name}</b><small>${open ? "★".repeat(stars) + "☆".repeat(ch.stages.length * 3 - stars) : "잠김"}</small>`;
+    b.addEventListener("click", () => { campSel = ch.id; Sound.play("tap"); drawCamp(); });
+    nodes.appendChild(b);
+  }
+  const ch = CHAPTERS[campSel - 1];
+  $("#cKicker").textContent = `원정 · ${ch.id}장`;
+  $("#cTitle").textContent = ch.name;
+  $("#cTeach").textContent = ch.teach;
+  const box = $("#cStages"); box.innerHTML = "";
+  for (const st of ch.stages) {
+    const open = isOpen(camp, st.id), stars = camp.stars[st.id] || 0;
+    const row = document.createElement("div");
+    row.className = "cstage" + (st.boss ? " boss" : "") + (open ? "" : " locked");
+    row.innerHTML = `<span class="t"><i>${st.id}</i>${st.name}</span><span class="st">${"★".repeat(stars)}${"☆".repeat(3 - stars)}</span>` +
+      `<span class="g">${open ? st.goal : "앞 스테이지를 깨면 열려요"}${st.boss ? " · 보스" : ""}</span>`;
+    const go = document.createElement("button"); go.className = "go"; go.textContent = stars ? "다시" : "출전"; go.disabled = !open;
+    go.addEventListener("click", () => startStage(stageById(st.id)));
+    row.appendChild(go);
+    box.appendChild(row);
+  }
+  // 문제 주제·형식(원정에서도 고를 수 있게)
+  const tSel = $("#cTopic"), fSel = $("#cFmt");
+  if (!tSel.options.length) {
+    for (const [k, t] of Object.entries(TOPICS)) tSel.add(new Option(`${t.group ? t.group + " · " : ""}${t.name}`, k));
+    for (const [k, f] of Object.entries(FORMATS)) fSel.add(new Option(f.name, k));
+    tSel.addEventListener("change", () => { settings.topic = tSel.value; remember("classArena.topic", tSel.value); drawStart(); });
+    fSel.addEventListener("change", () => { settings.format = fSel.value; remember("classArena.format", fSel.value); drawStart(); });
+  }
+  tSel.value = settings.topic; fSel.value = settings.format;
+}
+function startStage(st) {
+  Sound.unlock(); Music.start();
+  const ch = st.chapter;
+  playStory(st.intro, { art: ch.art, card: { kick: `${ch.id}장 · ${ch.name}`, title: `${st.id} ${st.name}`, goal: "목표: " + st.goal } }, () => newGame(st));
+}
+// 이긴 뒤: 이야기 → (마지막이면 맺음 이야기) → 군도 지도(다음 스테이지)
+function afterWin(st) {
+  if (!st) return showStart();
+  $("#resultScreen").hidden = true;
+  playStory(st.win, { art: st.chapter.art }, () => {
+    if (st.final) {
+      playStory(ENDING, { art: "ending", card: { kick: "원정 완료", title: "안개가 걷혔어요", goal: "모든 장의 지도가 자유 대전에 열렸어요" } }, () => { camp.done = true; saveProgress(camp); drawStart(); showCamp(st.id); });
+    } else { drawStart(); showCamp(nextStage().id); }
+  });
+}
+
+// 이야기 보여 주기: 배경 그림 + (제목 카드) + 대사 한 줄씩. 누르거나 Enter·스페이스로 넘김
+let story = null;
+function playStory(lines, opt, done) {
+  mode = "story";
+  for (const s of ["#titleScreen", "#startScreen", "#resultScreen", "#campScreen"]) $(s).hidden = true;
+  $("#sArt").src = `assets/story/${opt.art || "world"}.webp`;
+  story = { lines, i: -1, done, card: opt.card };
+  $("#storyScreen").hidden = false;
+  if (opt.card) {
+    $("#sCardKick").textContent = opt.card.kick; $("#sCardTitle").textContent = opt.card.title; $("#sCardGoal").textContent = opt.card.goal || "";
+    $("#sCard").hidden = false; $("#sBox").hidden = true; story.i = -2;
+  } else { $("#sCard").hidden = true; storyNext(); }
+}
+function storyNext() {
+  if (!story) return;
+  if (story.i === -2) { story.i = -1; $("#sCard").hidden = true; }
+  story.i++;
+  if (story.i >= story.lines.length) return storyEnd();
+  const L = story.lines[story.i], c = CHARS[L.who] || CHARS.narr, box = $("#sBox");
+  box.hidden = false;
+  box.className = "sbox" + (c.side === 1 ? " foe" : "") + (c.img ? "" : " narr");
+  $("#sFace").hidden = !c.img;
+  if (c.img) $("#sFace").src = `assets/portraits/${c.img}.webp`;
+  $("#sName").textContent = c.name; $("#sName").hidden = !c.name;
+  $("#sText").textContent = L.text;
+  box.animate([{ opacity: 0.4, transform: "translate(-50%, 6px)" }, { opacity: 1, transform: "translate(-50%, 0)" }], 220);
+}
+function storyEnd() {
+  const d = story && story.done; story = null;
+  $("#storyScreen").hidden = true;
+  if (d) d();
+}
+
 // ---------- 시작·설정·멈춤 ----------
 function buildStart() {
   document.querySelectorAll("#modes .mode[data-m]").forEach((b) => b.addEventListener("click", () => {
@@ -411,17 +604,7 @@ function buildStart() {
     b.addEventListener("click", () => { settings.format = k; remember("classArena.format", k); drawStart(); });
     fmtBox.appendChild(b);
   }
-  const mapBox = $("#mapOpts"), mapDesc = { diag: "롤처럼 모서리에서 모서리로", wide: "옆으로 넓게, 병사가 크게" };
-  for (const [k, m] of Object.entries(MAPS)) {
-    const b = document.createElement("button"); b.className = "opt" + (k === MAP_KEY ? " on" : ""); b.dataset.k = k;
-    b.innerHTML = `<span>${m.name}</span><small>${mapDesc[k]}</small>`;
-    b.addEventListener("click", () => {
-      if (k === MAP_KEY) return;
-      remember("classArena.map", k);
-      location.hash = k; location.reload();
-    });
-    mapBox.appendChild(b);
-  }
+  // 지도 단추는 drawStart가 그림(원정에서 장을 깨면 늘어남)
   const aiBox = $("#aiOpts"), desc = { recruit: "천천히 풀어요", knight: "가끔 상성을 노려요", general: "빠르고 영리해요" };
   for (const [k, a] of Object.entries(AI_LEVELS)) {
     const b = document.createElement("button"); b.className = "opt"; b.dataset.k = k;
@@ -443,18 +626,22 @@ function buildStart() {
     ring.appendChild(img);
   }
   $("#startBtn").addEventListener("click", () => { Sound.unlock(); newGame(); });
-  $("#quickBtn").addEventListener("click", () => { Sound.unlock(); newGame(); });
+  $("#quickBtn").addEventListener("click", () => { Sound.unlock(); if (settings.mode === "duo" || settings.mode === "daily") { /* 지난 설정 그대로 */ } newGame(); });
+  $("#campBtn").addEventListener("click", () => { Sound.unlock(); Music.start(); openCamp(); });
+  $("#modeCamp").addEventListener("click", () => { $("#startScreen").hidden = true; openCamp(); });
+  $("#campMapBtn").addEventListener("click", () => showCamp(G && G.stage ? G.stage.id : null));
+  $("#nextBtn").addEventListener("click", () => afterWin(G.stage));
   $("#prepBtn").addEventListener("click", () => { Sound.unlock(); Music.start(); $("#titleScreen").hidden = true; $("#startScreen").hidden = false; drawStart(); });
   $("#backBtn").addEventListener("click", () => { $("#startScreen").hidden = true; drawLastSet(); $("#titleScreen").hidden = false; });
   $("#setBtn0").addEventListener("click", () => openSettings("#titleScreen"));
-  $("#againBtn").addEventListener("click", () => { Sound.unlock(); newGame(); });
+  $("#againBtn").addEventListener("click", () => { Sound.unlock(); newGame(G ? G.stage : null); });
   $("#copyBtn").addEventListener("click", copyShare);
   $("#cardBtn").addEventListener("click", saveCard);
   $("#cardView").addEventListener("click", () => { $("#cardView").hidden = true; });
   $("#homeBtn").addEventListener("click", showStart);
   $("#pauseBtn").addEventListener("click", pause);
   $("#resumeBtn").addEventListener("click", resume);
-  $("#quitBtn").addEventListener("click", showStart);
+  $("#quitBtn").addEventListener("click", () => { const st = G && G.stage; if (st) showCamp(st.id); else showStart(); });
   $("#setBtn1").addEventListener("click", () => openSettings("#startScreen"));
   $("#setBtn2").addEventListener("click", () => openSettings("#pauseScreen"));
   drawStart();
@@ -471,22 +658,36 @@ function drawStart() {
   document.querySelectorAll("#topic2Opts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.topic2));
   document.querySelectorAll("#aiOpts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.ai));
   document.querySelectorAll("#fmtOpts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.format));
+  const mapBox = $("#mapOpts"); mapBox.innerHTML = "";
+  for (const [k, m] of Object.entries(MAPS)) {
+    if (!mapOpen(k)) continue;
+    const b = document.createElement("button"); b.className = "opt" + (k === settings.map ? " on" : ""); b.dataset.k = k;
+    b.innerHTML = `<span>${m.name}</span><small>${m.desc}</small>`;
+    b.addEventListener("click", () => { settings.map = k; remember("classArena.map", k); drawStart(); });
+    mapBox.appendChild(b);
+  }
+  const lock = Object.keys(MAPS).filter((k) => !mapOpen(k)).length;
+  if (lock) { const n = document.createElement("span"); n.className = "note"; n.textContent = `원정에서 열 지도 ${lock}개`; mapBox.appendChild(n); }
 }
 function showStart() {
   mode = "menu"; G = null;
   document.body.classList.add("menu");
   layout();
   startDemo();
-  for (const s of ["#resultScreen", "#pauseScreen", "#setScreen", "#startScreen"]) $(s).hidden = true;
+  for (const s of ["#resultScreen", "#pauseScreen", "#setScreen", "#startScreen", "#campScreen", "#storyScreen"]) $(s).hidden = true;
+  $("#talk").hidden = true; talkQ.length = 0;
   for (const st of seats) { st.lock = null; st.$(".lock").hidden = true; }
   drawLastSet();
   $("#titleScreen").hidden = false;
 }
 function drawLastSet() {
   const duo = settings.mode === "duo";
-  if (settings.mode === "daily") { const t = today(); $("#lastSet").textContent = `오늘의 도전 · ${t.label} · ${TOPICS[t.topic].name} · ${MAPS[MAP_KEY].name} 지도`; return; }
-  $("#lastSet").textContent = (duo ? "둘이서 대전 · " + TOPICS[settings.topic].name + " / " + TOPICS[settings.topic2].name
-    : "연습 대전 · " + TOPICS[settings.topic].name + " · 컴퓨터 " + AI_LEVELS[settings.ai].name) + " · " + FORMATS[settings.format].name + " · " + MAPS[MAP_KEY].name + " 지도";
+  const mapName = MAPS[mapOpen(settings.map) ? settings.map : "diag"].name;
+  if (settings.mode === "daily") { const t = today(); $("#lastSet").textContent = `자유 대전: 오늘의 도전 · ${t.label} · ${TOPICS[t.topic].name} · ${mapName} 지도`; return; }
+  $("#lastSet").textContent = "자유 대전: " + (duo ? "둘이서 대전 · " + TOPICS[settings.topic].name + " / " + TOPICS[settings.topic2].name
+    : "연습 대전 · " + TOPICS[settings.topic].name + " · 컴퓨터 " + AI_LEVELS[settings.ai].name) + " · " + FORMATS[settings.format].name + " · " + mapName + " 지도";
+  const n = STAGES.filter((x) => camp.stars[x.id]).length;
+  $("#campBtn").textContent = n === 0 ? "원정 떠나기" : camp.done ? "원정 지도" : `원정 이어 하기 (${n}/${STAGES.length})`;
 }
 function pause() { if (mode !== "play") return; mode = "pause"; $("#pauseScreen").hidden = false; Music.duck(true); }
 function resume() { mode = "play"; $("#pauseScreen").hidden = true; Music.duck(false); }
@@ -533,6 +734,7 @@ function frame(now) {
     G.battle.update(simDt);
     if (mode === "play") { if (G.ai) G.ai.update(simDt); for (const st of seats) st.tick(dt); }
     const evts = G.battle.events; G.battle.events = [];
+    if (G.runner && mode === "play") G.runner.update(simDt, evts);
     view.handle(evts, G.battle);
     onEvents(evts);
     updateHud(false);
@@ -541,6 +743,7 @@ function frame(now) {
   if (mode === "menu") tickDemo(dt);
   view.update(mode === "pause" ? 0 : simDt, G ? G.battle : demo ? demo.b : idle);
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $("#toast").hidden = true; }
+  if (talkT > 0 && mode === "play") { talkT -= dt; if (talkT <= 0) nextTalk(); }
   if (mode !== "play") for (const st of seats) if (st.toastT > 0) st.tick(0);
   if (quality.showFps && now - fpsShown > 500) { fpsShown = now; $("#fps").textContent = Math.round(quality.fps) + " fps · " + QUALITY[quality.level].name; }
   const cap = quality.preset.cap;
@@ -556,6 +759,8 @@ function exposeTestHook() {
     answerRight(i = 0) { const s = seats[i]; if (!G || s.lock) return false; s.input = String(s.q.answer); s.submit(); return true; },
     answerWrong(i = 0) { const s = seats[i]; if (!G || s.lock) return false; s.input = String(s.q.answer + 1); s.submit(); return true; },
     deploy: (r, l, i = 0) => { const s = seats[i]; if (l) s.setLane(l); s.deploy(r, s.cards[r]); },
+    stage: (id) => newGame(stageById(id)), playStage: (id) => startStage(stageById(id)), openCamp, showCamp, get camp() { return camp; },
+    setCamp(p) { camp = { stars: {}, seenIntro: false, done: false, ...p }; saveProgress(camp); drawStart(); }, get story() { return story; }, storyNext, get G() { return G; },
   };
 }
 

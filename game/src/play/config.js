@@ -39,6 +39,10 @@ export const ROLE_INFO = {
   mage: { name: "마법사", cost: 90, cooldown: 5.0, hp: 100, dmg: 18, range: 5.5, speed: 1.45, hitAt: 0.45, beats: "shield", shot: "orb", splash: 1.8 },
 };
 export const COUNTER_MULT = 1.6;
+// 캠페인 보스 병사(골드로 뽑지 않고 이야기 장면에서 나옴): 해골 전사 모형을 크게, 잿빛으로
+export const SPECIAL = {
+  giant: { name: "안개 거인", model: "skel_warrior", scale: 1.75, tint: 0x9a90c0, hp: 1100, dmg: 42, range: 1.7, speed: 0.95, hitAt: 0.42, beats: null },
+};
 
 // 진영별 모형(파일 이름 = game/models/*.js)
 export const SIDES = {

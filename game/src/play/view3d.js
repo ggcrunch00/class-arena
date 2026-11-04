@@ -1,8 +1,8 @@
 // 전장 그리기(three.js 실시간 3D). 전투 규칙(battle.js)의 상태를 받아 그림·효과·소리로 보여 줌.
 import * as THREE from "three";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
-import { ELEV, UNIT_SCALE, SIDES, ROLE_INFO, TOWER, BASE } from "./config.js";
-import { LANES, LANE_NAMES, BOUNDS, BASES, RIVER } from "./lanes.js";
+import { ELEV, UNIT_SCALE, SIDES, ROLE_INFO, SPECIAL, TOWER, BASE } from "./config.js";
+import { LANES, LANE_NAMES, BOUNDS, BASES, RIVER, MOOD } from "./lanes.js";
 import { Sound } from "./sound.js";
 
 // 블렌더 좌표(x 오른쪽, y 뒤쪽, z 위) → three 좌표
@@ -44,34 +44,11 @@ export class View3D {
     sun.target.position.copy(target);
     Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 26, bottom: -26, near: 1, far: 120 });
     sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
-    scene.add(sun, sun.target, new THREE.HemisphereLight(0xa8c4f0, 0x5a6b3a, 1.25));
-
-    // 전장·성
-    const field = models.field.scene;
-    field.traverse((o) => {
-      if (!o.isMesh) return;
-      o.castShadow = true; o.receiveShadow = true;
-      for (const m of [].concat(o.material)) if (m.name === "Dirt") m.color.setRGB(0.5, 0.33, 0.19);
-    });
-    scene.add(field);
-    // 본성·탑(무너지면 폐허로 바꿔 끼움)
+    this.hemi = new THREE.HemisphereLight(0xa8c4f0, 0x5a6b3a, 1.25);
+    scene.add(sun, sun.target, this.hemi);
     this.nodes = {};
-    for (const side of [-1, 1]) {
-      const col = side < 0 ? "blue" : "red";
-      for (const name of ["base_" + col, ...LANE_NAMES.map((n) => `tower_${col}_${n}`)]) {
-        const body = field.getObjectByName(name), ruin = field.getObjectByName("ruin_" + name);
-        ruin.visible = false;
-        const mats = [];
-        body.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); mats.push(o.material); } });
-        let bar = null;
-        if (name.startsWith("tower")) {
-          bar = document.createElement("div"); bar.className = "tbar " + (side < 0 ? "b" : "r"); bar.innerHTML = "<i></i>";
-          overlay.appendChild(bar);
-        }
-        this.nodes[name] = { body, ruin, mats, base: body.position.clone(), scale: body.scale.clone(), shake: 0, flash: 0, bar };
-      }
-    }
-    this.laneMarks = this.makeLaneMarks();
+    this.laneMarks = { [-1]: {}, [1]: {} };
+    this.setField(models.field);
 
     this.T_GLOW = radialTex([[0, "rgba(255,255,255,1)"], [0.35, "rgba(255,255,255,0.55)"], [1, "rgba(255,255,255,0)"]]);
     this.T_SMOKE = radialTex([[0, "rgba(255,255,255,0.85)"], [0.6, "rgba(255,255,255,0.35)"], [1, "rgba(255,255,255,0)"]]);
@@ -109,6 +86,55 @@ export class View3D {
     this.shake = 0;
     this.view = { x: 0, y: 0, w: 1, h: 1 };
     this.applyQuality();
+  }
+
+  // ---------- 전장 바꿔 끼우기(지도마다 모형이 다름) ----------
+  // 지도(useMap)를 먼저 바꾼 뒤 부름. 본성·탑을 이름으로 찾아 묶고, 고른 길 표시와 빛·안개를 새 지도에 맞춤
+  setField(model) {
+    const scene = this.scene;
+    if (this.field) scene.remove(this.field);
+    for (const n of Object.values(this.nodes)) if (n.bar) n.bar.remove();
+    for (const side of [-1, 1]) for (const m of Object.values(this.laneMarks[side] || {})) { scene.remove(m); m.geometry.dispose(); }
+    const field = this.field = model.scene;
+    if (!field.userData.ready) {
+      field.userData.ready = true;
+      field.traverse((o) => {
+        if (!o.isMesh) return;
+        o.castShadow = true; o.receiveShadow = true;
+        for (const m of [].concat(o.material)) if (m.name === "Dirt") m.color.setRGB(0.5, 0.33, 0.19);
+      });
+    }
+    scene.add(field);
+    // 본성·탑(무너지면 폐허로 바꿔 끼움)
+    this.nodes = {};
+    for (const side of [-1, 1]) {
+      const col = side < 0 ? "blue" : "red";
+      for (const name of ["base_" + col, ...LANE_NAMES.map((n) => `tower_${col}_${n}`)]) {
+        const body = field.getObjectByName(name), ruin = field.getObjectByName("ruin_" + name);
+        ruin.visible = false;
+        const mats = [];
+        body.traverse((o) => { if (o.isMesh) { if (!o.userData.own) { o.material = o.material.clone(); o.userData.own = true; } mats.push(o.material); } });
+        let bar = null;
+        if (name.startsWith("tower")) {
+          bar = document.createElement("div"); bar.className = "tbar " + (side < 0 ? "b" : "r"); bar.innerHTML = "<i></i>";
+          this.overlay.appendChild(bar);
+        }
+        if (!body.userData.base) { body.userData.base = body.position.clone(); body.userData.scale = body.scale.clone(); }
+        this.nodes[name] = { body, ruin, mats, base: body.userData.base, scale: body.userData.scale, shake: 0, flash: 0, bar };
+      }
+    }
+    if (this.laneMats) for (const m of this.laneMats) m.dispose();
+    this.laneMarks = this.makeLaneMarks();
+    this.setMood(MOOD);
+    if (this.view) this.resize();
+  }
+  // 지도 분위기: 햇빛 색·세기, 하늘빛, 바탕색, 안개(없으면 기본값)
+  setMood(m = {}) {
+    const c = (a, d) => (a ? new THREE.Color(a[0], a[1], a[2]) : new THREE.Color(d));
+    this.sun.color.copy(c(m.sun, 0xfff8ee)); this.sun.intensity = m.sunI ?? 3.4;
+    this.hemi.color.copy(c(m.hemiSky, 0xa8c4f0)); this.hemi.intensity = m.hemiI ?? 1.25;
+    this.renderer.setClearColor(new THREE.Color(m.bg || "#0d1712"));
+    this.scene.fog = m.fog ? new THREE.Fog(new THREE.Color(m.fog), m.fogNear ?? 100, m.fogFar ?? 180) : null;
   }
 
   // ---------- 화질 ----------
@@ -222,22 +248,23 @@ export class View3D {
     if (v) return v;
     const src = this.models[u.model];
     const obj = SkeletonUtils.clone(src.scene);
-    obj.scale.setScalar(UNIT_SCALE);
+    const sc = UNIT_SCALE * (u.scale || 1);
+    obj.scale.setScalar(sc);
     obj.rotation.y = Math.atan2(u.fx, -u.fy);
     const mats = [];
     obj.traverse((o) => {
-      if (o.isMesh) { o.castShadow = true; o.material = o.material.clone(); o.material.transparent = true; mats.push(o.material); }
+      if (o.isMesh) { o.castShadow = true; o.material = o.material.clone(); o.material.transparent = true; if (u.tint) o.material.color.multiply(new THREE.Color(u.tint)); mats.push(o.material); }
     });
     this.scene.add(obj);
     const mixer = new THREE.AnimationMixer(obj);
     const actions = {};
     for (const clip of src.animations) actions[clip.name] = mixer.clipAction(clip);
     const blob = new THREE.Mesh(this.blobGeo, this.blobMat.clone());
-    blob.scale.set(1.6, 1, 1.0); blob.visible = this.quality.preset.blob; blob.renderOrder = 1;
+    blob.scale.set(1.6 * (u.scale || 1), 1, 1.0 * (u.scale || 1)); blob.visible = this.quality.preset.blob; blob.renderOrder = 1;
     this.scene.add(blob);
-    const bar = document.createElement("div"); bar.className = "bar " + (u.side < 0 ? "b" : "r"); bar.innerHTML = "<i></i>";
+    const bar = document.createElement("div"); bar.className = "bar " + (u.side < 0 ? "b" : "r") + (u.special ? " big" : ""); bar.innerHTML = "<i></i>";
     this.overlay.appendChild(bar);
-    v = { obj, mixer, actions, mats, anim: null, bar, blob, pop: 0 };
+    v = { obj, mixer, actions, mats, anim: null, bar, blob, pop: 0, sc };
     this.views.set(u.id, v);
     return v;
   }
@@ -384,22 +411,22 @@ export class View3D {
       // 출전할 때 통통 튀며 나타남(찌그러졌다 펴지기)
       if (v.pop < 0.4) {
         v.pop += dt;
-        const k = Math.min(1, v.pop / 0.4), sq = Math.sin(k * Math.PI) * 0.18, s0 = UNIT_SCALE * Math.max(0.05, backOut(k));
+        const k = Math.min(1, v.pop / 0.4), sq = Math.sin(k * Math.PI) * 0.18, s0 = v.sc * Math.max(0.05, backOut(k));
         v.obj.scale.set(s0 * (1 + sq), s0 * (1 - sq), s0 * (1 + sq));
       }
       // 가는 방향(공격할 땐 상대 쪽)으로 부드럽게 돌기
       const want = Math.atan2(u.fx, -u.fy);
       let d = want - v.obj.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
       v.obj.rotation.y += d * Math.min(1, dt * 10);
-      if (u.anim === "walk" && v.actions.walk) v.actions.walk.timeScale = Math.min(1.6, ROLE_INFO[u.role].speed / 1.3);
+      if (u.anim === "walk" && v.actions.walk) v.actions.walk.timeScale = Math.min(1.6, (ROLE_INFO[u.role] || SPECIAL[u.role]).speed / 1.3);
       v.blob.position.copy(V(u.x, u.y, 0.03));
       let a = 1;
       if (u.state === "spawn" && u.anim === "walk") a = Math.min(1, u.stateT / 0.35);
       if (u.state === "death") a = 1 - Math.max(0, Math.min(1, (u.stateT - b.dur[u.model].death - 0.1) / 1.0));
       for (const m of v.mats) { m.opacity = a; m.emissive.setScalar(u.flash * 0.9); }
       v.blob.material.opacity = a;
-      if (u.hp < u.maxHp && u.state !== "death") {
-        const s = this.toPx(V(u.x, u.y, 3.9));
+      if ((u.hp < u.maxHp || u.special) && u.state !== "death") {
+        const s = this.toPx(V(u.x, u.y, 3.9 * (u.scale || 1)));
         v.bar.style.display = "block";
         v.bar.style.transform = `translate(${s.x}px, ${s.y}px)`;
         v.bar.style.width = Math.max(22, 1.7 / (this.mPerPx || 0.03)) + "px";

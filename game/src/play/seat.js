@@ -1,7 +1,7 @@
 // 조작판 한 자리: 문제 풀기 + 출전(길 고르기·병사 카드·금광·성 대포).
 // 혼자 하기에서는 한 자리(기사단), 둘이서 하기에서는 두 자리(왼쪽 기사단, 오른쪽 해골 군단).
 import { ROLES, ROLE_INFO, SIDES, MINE, CANNON, GOLD } from "./config.js";
-import { LANE_NAMES } from "./lanes.js";
+import { LANE_NAMES, LANE_LABEL } from "./lanes.js";
 import { Sound } from "./sound.js";
 import { TOPICS, makeQuestion, checkAnswer, answerText, questionLine } from "./questions.js";
 
@@ -31,9 +31,9 @@ const TPL = `
   </div>
   <div class="lanes" role="radiogroup" aria-label="보낼 길">
     <span class="lab">보낼 길</span>
-    <button data-lane="top" role="radio"><svg viewBox="0 0 24 16"><path d="M3 14 V3 H21" /></svg>윗길</button>
-    <button data-lane="mid" role="radio"><svg viewBox="0 0 24 16"><path d="M3 14 L21 2" /></svg>가운뎃길</button>
-    <button data-lane="bot" role="radio"><svg viewBox="0 0 24 16"><path d="M3 14 H21 V3" /></svg>아랫길</button>
+    <button data-lane="top" role="radio"><svg viewBox="0 0 24 16"><path d="M3 14 V3 H21" /></svg><span>윗길</span></button>
+    <button data-lane="mid" role="radio"><svg viewBox="0 0 24 16"><path d="M3 14 L21 2" /></svg><span>가운뎃길</span></button>
+    <button data-lane="bot" role="radio"><svg viewBox="0 0 24 16"><path d="M3 14 H21 V3" /></svg><span>아랫길</span></button>
   </div>
   <div class="cards"></div>
   <div class="stoast" hidden></div>
@@ -86,9 +86,29 @@ export class Seat {
 
   active() { return this.ctx.isPlaying() && this.b && this.b.state === "play"; }
 
+  // 지도에 있는 길만 단추로(길이 하나면 길 줄을 숨김), 길 이름도 지도에 맞춤
+  setLanes() {
+    this.el.querySelectorAll(".lanes button").forEach((b) => {
+      b.hidden = !LANE_NAMES.includes(b.dataset.lane);
+      b.querySelector("span").textContent = LANE_LABEL[b.dataset.lane];
+    });
+    this.$(".lanes").hidden = LANE_NAMES.length < 2;
+    this.el.classList.toggle("onelane", LANE_NAMES.length < 2);
+    if (!LANE_NAMES.includes(this.lane)) this.lane = LANE_NAMES.includes("mid") ? "mid" : LANE_NAMES[0];
+  }
+  // 이번 판에 쓸 수 있는 병사·금광·대포(캠페인 앞 장에서는 하나씩 열림)
+  setRules(rules = {}) {
+    this.roles = rules.roles || ROLES;
+    for (const r of ROLES) { const c = this.cards[r]; c.hidden = !this.roles.includes(r); }
+    this.$(".cards").style.setProperty("--n", this.roles.length);
+    this.$(".mine").hidden = rules.mine === false;
+    this.$(".cannon").hidden = rules.cannon === false;
+  }
+
   // 새 판
-  start(battle, topic, format) {
+  start(battle, topic, format, rules) {
     this.b = battle; this.topic = topic; this.format = format;
+    this.setLanes(); this.setRules(rules);
     this.lock = null; this.wrongs = []; this.runRight = 0; this.runWrong = 0;
     this.log = [];            // 맞힘(1)·틀림(0) 순서(기록 카드의 ■□ 줄)
     this.shownGold = battle.sides[this.side].gold; this.wasReady = {};
@@ -115,7 +135,7 @@ export class Seat {
     this.el.querySelectorAll(".lanes button").forEach((b) => { const on = b.dataset.lane === n; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
     if (this.ctx.view) this.ctx.view.setLane(n, this.side);
   }
-  moveLane(d) { const i = LANE_NAMES.indexOf(this.lane) + d; this.setLane(LANE_NAMES[Math.max(0, Math.min(2, i))]); }
+  moveLane(d) { const i = LANE_NAMES.indexOf(this.lane) + d; this.setLane(LANE_NAMES[Math.max(0, Math.min(LANE_NAMES.length - 1, i))]); }
 
   setDiff(d, msg) {
     this.diff = d; this.runRight = 0; this.runWrong = 0;

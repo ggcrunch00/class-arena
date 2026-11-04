@@ -1,14 +1,19 @@
 // 전투 규칙(그림과 상관없는 부분). 3갈래 길: 병사는 고른 길을 따라 걷고, 그 길의 적 탑을 부숴야 본성에 닿음.
 // 화면(view3d.js)과 컴퓨터 상대(ai.js)가 이 규칙을 씀. 그림 없이 node로도 돌릴 수 있음(tests/balance_play.mjs).
-import { LANE, MATCH, GOLD, MINE, CANNON, TOWER, BASE, ROLE_INFO, COUNTER_MULT, SIDES } from "./config.js";
+import { LANE, MATCH, GOLD, MINE, CANNON, TOWER, BASE, ROLE_INFO, COUNTER_MULT, SIDES, SPECIAL } from "./config.js";
 import { LANES, LANE_NAMES, BASES, TOWERS } from "./lanes.js";
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
 export class Battle {
   // durations: { 모형이름: { walk, attack, death, cheer, spawn? } } (초)
-  constructor(durations) {
+  // opts(캠페인): time 판 길이, baseHp/towerHp {[-1]: 배율, [1]: 배율}, gold {[-1]: 시작 골드, [1]: …},
+  //   objective { type: "base" | "towers" | "survive", n } — towers: 적 탑 n개를 무너뜨리면 승리, survive: 시간 끝까지 본성을 지키면 승리
+  constructor(durations, opts = {}) {
     this.dur = durations;
+    this.opts = opts;
+    this.matchTime = opts.time || MATCH.time;
+    this.objective = opts.objective || { type: "base" };
     this.units = [];
     this.projectiles = [];
     this.events = [];
@@ -21,26 +26,27 @@ export class Battle {
     this.structs = [];
     for (const s of [-1, 1]) {
       this.sides[s] = {
-        gold: GOLD.start, mine: 1, streak: 0, bestStreak: 0, cannon: 0,
+        gold: (opts.gold && opts.gold[s]) ?? GOLD.start, mine: 1, streak: 0, bestStreak: 0, cannon: 0,
         cooldown: { shield: 0, rusher: 0, archer: 0, mage: 0 },
         stats: { right: 0, wrong: 0, skip: 0, goldEarned: 0, deployed: 0 },
       };
       const [bx, by] = BASES[s];
-      const base = { id: this.nextId++, side: s, kind: "base", x: bx, y: by, hp: BASE.hp, max: BASE.hp, radius: BASE.radius, alive: true, guardT: 0 };
+      const bh = Math.round(BASE.hp * ((opts.baseHp && opts.baseHp[s]) || 1)), th = Math.round(TOWER.hp * ((opts.towerHp && opts.towerHp[s]) || 1));
+      const base = { id: this.nextId++, side: s, kind: "base", x: bx, y: by, hp: bh, max: bh, radius: BASE.radius, alive: true, guardT: 0 };
       this.structs.push(base);
       this.sides[s].base = base;
       this.sides[s].towers = {};
       for (const n of LANE_NAMES) {
         const [tx, ty] = TOWERS[n][s];
         const t = { id: this.nextId++, side: s, kind: "tower", lane: n, s: LANES[n].project(tx, ty), x: tx, y: ty,
-          hp: TOWER.hp, max: TOWER.hp, radius: TOWER.radius, alive: true, guardT: 0 };
+          hp: th, max: th, radius: TOWER.radius, alive: true, guardT: 0 };
         this.structs.push(t);
         this.sides[s].towers[n] = t;
       }
     }
   }
 
-  get timeLeft() { return Math.max(0, MATCH.time - this.time); }
+  get timeLeft() { return Math.max(0, this.matchTime - this.time); }
 
   // ---------- 문제 결과 → 골드 ----------
   // kind: "right" | "wrong" | "skip", qtype: number/choice/ox, diff: 0~2. 번 골드를 돌려줌
@@ -93,6 +99,24 @@ export class Battle {
     this.place(u);
     this.units.push(u);
     this.events.push({ type: "spawn", unit: u });
+    return u;
+  }
+
+  // 이야기 장면용 출전(골드·대기 시간·병사 수 제한 없음): role은 병사 종류 또는 "giant"(안개 거인)
+  spawnFree(side, role, lane) {
+    if (this.state !== "play" || !LANES[lane]) return null;
+    const sp = SPECIAL[role], R = sp || ROLE_INFO[role], L = LANES[lane];
+    const model = sp ? sp.model : SIDES[side].models[role];
+    const spawnLen = this.dur[model].spawn ? this.dur[model].spawn / 2 : 0.35;
+    const u = {
+      id: this.nextId++, side, role, model, lane, dir: -side, s: side < 0 ? LANE.spawn : L.length - LANE.spawn,
+      off: sp ? 0 : rand(-LANE.halfWidth, LANE.halfWidth), hp: R.hp, maxHp: R.hp, special: !!sp, scale: sp ? sp.scale : 1, tint: sp ? sp.tint : 0,
+      state: "spawn", anim: this.dur[model].spawn ? "spawn" : "walk", animT: 0, stateT: 0, spawnLen, hitDone: false, flash: 0,
+      x: 0, y: 0, fx: 0, fy: 0,
+    };
+    this.place(u);
+    this.units.push(u);
+    this.events.push({ type: "spawn", unit: u, free: true });
     return u;
   }
 
@@ -161,6 +185,7 @@ export class Battle {
   damageUnit(t, raw, from) {
     if (t.state === "death") return;
     const counter = !!(from && ROLE_INFO[from.role] && ROLE_INFO[from.role].beats === t.role);
+    if (t.special) raw *= 0.85; // 거인은 조금 단단함
     const dmg = Math.round(raw * (counter ? COUNTER_MULT : 1));
     t.hp -= dmg; t.flash = 1;
     this.events.push({ type: "hit", target: t, x: t.x, y: t.y, z: 1.5, dmg, counter, side: from ? from.side : 0 });
@@ -176,6 +201,10 @@ export class Battle {
       st.alive = false;
       this.events.push({ type: "structDown", struct: st });
       if (st.kind === "base") this.finish(-st.side, "base");
+      else if (this.objective.type === "towers" && st.side === 1) {
+        const down = Object.values(this.sides[1].towers).filter((t) => !t.alive).length;
+        if (down >= (this.objective.n || 1)) this.finish(-1, "towers");
+      }
     }
   }
 
@@ -210,7 +239,7 @@ export class Battle {
   }
 
   shoot(u, t, dmg) {
-    const R = ROLE_INFO[u.role];
+    const R = ROLE_INFO[u.role] || SPECIAL[u.role];
     const sx = u.x + u.fx * 0.6, sy = u.y + u.fy * 0.6, sz = R.shot === "arrow" ? 1.6 : 2.3;
     const tx = t.kind === "unit" ? t.unit.x : t.struct.x, ty = t.kind === "unit" ? t.unit.y : t.struct.y;
     const tz = t.kind === "unit" ? 1.3 : 2.6;
@@ -242,15 +271,18 @@ export class Battle {
       this.time += dt;
       if (!this.overtime && this.timeLeft <= MATCH.overtime) { this.overtime = true; this.events.push({ type: "overtime" }); }
       if (this.timeLeft <= 0) {
-        const a = this.score(-1), b = this.score(1);
-        this.finish(Math.abs(a - b) < 0.01 ? 0 : (a > b ? -1 : 1), "time");
+        if (this.objective.type === "survive") this.finish(-1, "survive");
+        else {
+          const a = this.score(-1), b = this.score(1);
+          this.finish(Math.abs(a - b) < 0.01 ? 0 : (a > b ? -1 : 1), "time");
+        }
       }
       for (const s of [-1, 1]) for (const r in this.sides[s].cooldown) this.sides[s].cooldown[r] = Math.max(0, this.sides[s].cooldown[r] - dt);
       for (const st of this.structs) if (st.alive) this.guard(st, dt);
     }
 
     for (const u of this.units) {
-      const R = ROLE_INFO[u.role], D = this.dur[u.model];
+      const R = ROLE_INFO[u.role] || SPECIAL[u.role], D = this.dur[u.model];
       u.stateT += dt; u.animT += dt;
       u.flash = Math.max(0, u.flash - dt * 7);
       if (u.state === "spawn") { if (u.stateT >= u.spawnLen) this.setState(u, "walk"); continue; }
