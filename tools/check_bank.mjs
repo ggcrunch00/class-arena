@@ -126,12 +126,56 @@ if (AVOID) {
 } else notes.push("시판 문장 겹침: 피할 문장 파일(--avoid)이 없어서 건너뜀");
 
 // ---------- 3. 실제로 만들어지는 문제 ----------
-// 계산식을 따로 다시 풀어 보기(× ÷ − 와 괄호만 씀)
+// 계산식을 따로 다시 풀어 보기(× ÷ − 와 괄호, 소수점만 씀)
 const calc = (expr) => {
   const js = expr.replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-");
-  if (!/^[\d\s+\-*/()]+$/.test(js)) throw new Error("알 수 없는 식 " + expr);
-  return Function(`"use strict";return (${js})`)();
+  if (!/^[\d\s+\-*/().]+$/.test(js)) throw new Error("알 수 없는 식 " + expr);
+  return Math.round(Function(`"use strict";return (${js})`)() * 1e9) / 1e9;
 };
+// 낱말이 섞인 수학 문제(5·6학년) 다시 풀기
+const gcdC = (a, b) => (b ? gcdC(b, a % b) : a);
+function solveWords(t) {
+  let m;
+  if ((m = t.match(/^(\d+)의 약수는 모두 몇 개$/))) { let c = 0; for (let k = 1; k <= +m[1]; k++) if (m[1] % k === 0) c++; return c; }
+  if ((m = t.match(/^(\d+)의 배수 중 (\d+)번째 수$/))) return m[1] * m[2];
+  if ((m = t.match(/^(\d+)[과와] (\d+)의 최대공약수$/))) return gcdC(+m[1], +m[2]);
+  if ((m = t.match(/^(\d+)[과와] (\d+)의 최소공배수$/))) return m[1] * m[2] / gcdC(+m[1], +m[2]);
+  if ((m = t.match(/^비율 ([\d.]+)[을를] 백분율로\(%\)$/))) return Math.round(m[1] * 100);
+  if ((m = t.match(/^(\d+)명 중 (\d+)명은 몇 %$/))) return m[2] / m[1] * 100;
+  return null;
+}
+// 분수: "3/4", "1과 1/12", "2" → [분자, 분모]
+function parseFrac(x) {
+  x = String(x).trim(); let m;
+  if ((m = x.match(/^(\d+)[과와] (\d+)\/(\d+)$/))) return [m[1] * m[3] + +m[2], +m[3]];
+  if ((m = x.match(/^(\d+)\/(\d+)$/))) return [+m[1], +m[2]];
+  if (/^\d+$/.test(x)) return [+x, 1];
+  throw new Error("분수 모양이 아님: " + x);
+}
+const fEq = (a, b) => a[0] * b[1] === a[1] * b[0];
+// 분수 문제 식을 따로 풀기 → [값, 기약분수여야 하는지]
+function solveFrac(t) {
+  let m;
+  if ((m = t.match(/^(\d+)\/(\d+)[을를] 기약분수로$/))) return [[+m[1], +m[2]], true];
+  if ((m = t.match(/^(\d+) : (\d+)의 비율을 분수로$/))) return [[+m[1], +m[2]], false];
+  if ((m = t.match(/^(\d+)\/(\d+) ([+−÷]) (\d+)(?:\/(\d+))?$/))) {
+    const a = [+m[1], +m[2]], b = [+m[4], m[5] ? +m[5] : 1];
+    if (m[3] === "+") return [[a[0] * b[1] + b[0] * a[1], a[1] * b[1]], false];
+    if (m[3] === "−") return [[a[0] * b[1] - b[0] * a[1], a[1] * b[1]], false];
+    return [[a[0] * b[1], a[1] * b[0]], false];
+  }
+  throw new Error("풀 수 없는 분수 문제: " + t);
+}
+// 수 뒤 조사(읽는 소리 받침): 24와, 16과, 0.5를, 30/54을(분자를 마지막에 읽음)
+const BATC = { 0: 1, 1: 1, 2: 0, 3: 1, 4: 0, 5: 0, 6: 1, 7: 1, 8: 1, 9: 0 };
+function checkJosa(at, t) {
+  for (const m of t.matchAll(/([\d./]+)(과|와|을|를)(?=\s)/g)) {
+    const num = m[1].includes("/") ? m[1].split("/")[0] : m[1];
+    const has = /\d0$/.test(num) && !num.includes(".") ? 1 : BATC[num[num.length - 1]];
+    const want = { 과: has ? "과" : "와", 와: has ? "과" : "와", 을: has ? "을" : "를", 를: has ? "을" : "를" }[m[2]];
+    if (want !== m[2]) err(at, `조사가 어색해요: "${m[1]}${m[2]}" → "${m[1]}${want}"`);
+  }
+}
 const sajaByW = new Map(SAJA.items.map((i) => [i.w, i]));
 const sajaByM = new Map(SAJA.items.map((i) => [i.m, i]));
 const sameGroup = (a, b) => a && b && a !== b && a.same && a.same === b.same;
@@ -170,6 +214,35 @@ function checkQ(q, topic, diff, fmt) {
   if (!answerText(q)) err(at, "바른 답 글이 비었어요");
 
   // 정답을 따로 다시 풀어 보기
+  if (q.frac) {
+    checkJosa(at, q.text);
+    const expr = q.type === "ox" ? q.text.split(/ = | → /)[0] : q.text;
+    const [val, mustReduce] = solveFrac(expr);
+    const ok = (o) => { const f = parseFrac(o); return fEq(f, val) && (!mustReduce || gcdC(f[0], f[1]) === 1); };
+    if (q.type === "choice") {
+      const good = q.options.filter(ok);
+      if (good.length !== 1 || good[0] !== q.answer) err(at, `다시 풀어 보니 맞는 보기가 ${good.length}개(${good.join(", ")}), 정답 표시는 ${q.answer}`);
+    } else if (q.type === "ox") {
+      const shown = q.text.split(/ = | → /)[1];
+      if (ok(shown) !== (q.answer === "O")) err(at, "분수 OX 정답이 반대예요");
+    }
+    return;
+  }
+  if (!q.word && solveWords((q.base || q).text) !== null) {
+    const base = q.base || q;
+    checkJosa(at, base.text);
+    const sol = solveWords(base.text);
+    if (sol !== base.answer) err(at, `다시 풀어 보니 ${sol}인데 정답이 ${base.answer}예요`);
+    if (q.type === "choice") for (const o of q.options) if (!/^\d+$/.test(o) || +o <= 0) err(at, `보기 "${o}"가 자연수가 아니에요`);
+    if (q.type === "ox") err(at, "낱말이 섞인 문제는 OX로 바꾸지 않기로 했어요");
+    return;
+  }
+  if (!q.word && (q.base || q).text.includes("/")) { // 분수 ÷ 분수의 몫이 자연수(숫자판으로 답함)
+    const base = q.base || q, [v] = solveFrac(base.text);
+    if (v[1] === 0 || v[0] % v[1] !== 0 || v[0] / v[1] !== base.answer) err(at, `다시 풀어 보니 ${v[0]}/${v[1]}인데 정답이 ${base.answer}예요`);
+    if (q.type === "ox") { const shown = q.text.split(" = ")[1]; if ((+shown === base.answer) !== (q.answer === "O")) err(at, "OX 정답이 반대예요"); }
+    return;
+  }
   if (!q.word) {
     const base = q.base || q;
     let solved;

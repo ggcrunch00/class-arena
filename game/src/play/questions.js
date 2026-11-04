@@ -64,6 +64,99 @@ export const TOPICS = {
   },
 };
 
+// ---------- 5·6학년 수학(자동 출제, 11-04 밤) ----------
+// 분수 답은 숫자판으로 쓸 수 없어서 객관식·OX로 냄(정수 답은 숫자판). 분수는 "3/4", 대분수는 "1과 1/2"처럼 씀
+const gcd = (a, b) => (b ? gcd(b, a % b) : a), lcm = (a, b) => a / gcd(a, b) * b;
+const fr = (n, d) => { const g = gcd(Math.abs(n), Math.abs(d)); return [n / g, d / g]; };
+// 1보다 큰 분수는 대분수로("1과 7/12")
+const fs = ([n, d]) => (n % d === 0 ? String(n / d) : n > d ? `${jo(Math.floor(n / d), "과")} ${n % d}/${d}` : `${n}/${d}`);
+// 수 뒤 조사: 읽는 소리의 받침으로(24 → 이십사 → "와", 16 → 십육 → "과", 분수는 분자를 마지막에 읽음)
+const BAT = { 0: 1, 1: 1, 2: 0, 3: 1, 4: 0, 5: 0, 6: 1, 7: 1, 8: 1, 9: 0 };
+function jo(x, j) {
+  const str = String(x), last = str.includes("/") ? str.split("/")[0].replace(/.*과 /, "") : str;
+  const has = /\d0$/.test(last) && !last.includes(".") ? 1 : BAT[last[last.length - 1]] ?? 1;
+  const pair = { 과: ["과", "와"], 와: ["과", "와"], 을: ["을", "를"], 를: ["을", "를"], 은: ["은", "는"], 는: ["은", "는"], 이: ["이", "가"], 가: ["이", "가"] }[j];
+  return str + (has ? pair[0] : pair[1]);
+}
+// 분수 문제 보기: 정답 + 흔한 실수(분자·분모끼리 더하기, 약분 안 하기, 하나 차이)
+// equiv: 값이 같은 분수(약분 안 한 것)를 오답으로 써도 되는지(“기약분수로” 문제만)
+function fracChoice(text, ans, wrongs, diff, format, prompt, equiv = false) {
+  const a = fs(ans), seen = new Set([a]), opts = [a];
+  const same = ([n, d]) => n * ans[1] === d * ans[0];
+  for (const w of shuffle(wrongs.filter((x) => x[1] > 0 && x[0] > 0 && (equiv || !same(x))).map(fs))) { if (opts.length >= (diff === 0 ? 3 : 4)) break; if (!seen.has(w) && !w.includes("-") && !w.startsWith("0")) { seen.add(w); opts.push(w); } }
+  for (let k = 1; opts.length < (diff === 0 ? 3 : 4) && k < 9; k++) { const w = fs([ans[0] + k, ans[1]]); if (!seen.has(w)) { seen.add(w); opts.push(w); } }
+  if (format === "mix" && rnd() < 0.25 || format === "pick" && rnd() < 0.35) {
+    const right = rnd() < 0.5, shown = right ? a : opts[1 + Math.floor(rnd() * (opts.length - 1))];
+    const words = /[가-힣]/.test(text);
+    return { type: "ox", text: words ? `${text} → ${shown}` : `${text} = ${shown}`, prompt: "맞으면 O, 틀리면 X", answer: right ? "O" : "X", reveal: `${text} → ${a}`, frac: true };
+  }
+  return { type: "choice", text, prompt: prompt || "알맞은 답을 골라요", answer: a, options: shuffle(opts), reveal: `${text} = ${a}`, frac: true };
+}
+Object.assign(TOPICS, {
+  factor: {
+    name: "약수와 배수", group: "수학", hint: "5학년 · 최대공약수·최소공배수", noOX: true,
+    make(diff) {
+      if (diff === 0) {
+        if (rnd() < 0.5) { const n = pick([6, 8, 10, 12, 15, 16, 18, 20, 24, 28, 30, 36]); let c = 0; for (let k = 1; k <= n; k++) if (n % k === 0) c++; return num(`${n}의 약수는 모두 몇 개`, c, "약수의 개수를 써요"); }
+        const a = ri(3, 9), k = ri(3, 9); return num(`${a}의 배수 중 ${k}번째 수`, a * k, "배수 찾기");
+      }
+      const g = ri(2, diff === 1 ? 9 : 12), p = ri(1, 7), q = ri(2, 8);
+      const x = g * p, y = g * (gcd(p, q) === 1 && p !== q ? q : q + (q % p === 0 ? 1 : 0));
+      if (diff === 1) return num(`${jo(x, "과")} ${y}의 최대공약수`, gcd(x, y));
+      const a = ri(4, 15), b0 = ri(4, 18), b = b0 === a ? b0 + 1 : b0;
+      return num(`${jo(a, "과")} ${b}의 최소공배수`, lcm(a, b));
+    },
+  },
+  fracadd: {
+    name: "분수의 덧셈과 뺄셈", group: "수학", hint: "5학년 · 약분과 통분",
+    make(diff, format) {
+      if (diff === 0) { // 기약분수로 나타내기
+        const d = ri(2, 9), n = ri(1, d - 1), k = ri(2, 6), [a, b] = fr(n, d);
+        return fracChoice(`${jo(`${n * k}/${d * k}`, "을")} 기약분수로`, [a, b], [[n * k, d * k], [a * 2, b * 2], [a + 1, b], [a, b + 1]], diff, format === "input" ? "pick" : format, "기약분수로 나타내요", true);
+      }
+      const b = ri(2, diff === 1 ? 6 : 9), d = ri(2, diff === 1 ? 6 : 10), a = ri(1, b - 1), c = ri(1, d - 1);
+      if (gcd(a, b) > 1 || gcd(c, d) > 1) return TOPICS.fracadd.make(diff, format); // 기약분수끼리만
+      const plus = diff === 1 || rnd() < 0.5;
+      let n = plus ? a * d + c * b : a * d - c * b; const den = b * d;
+      if (!plus && n <= 0) return TOPICS.fracadd.make(diff, format);
+      const ans = fr(n, den);
+      const naive = plus ? [a + c, b + d] : [Math.abs(a - c) || 1, Math.abs(b - d) || 1];
+      return fracChoice(`${a}/${b} ${plus ? "+" : "−"} ${c}/${d}`, ans, [naive, [n, den], [ans[0] + 1, ans[1]], [ans[0], ans[1] + 1]], diff, format);
+    },
+  },
+  fracdiv: {
+    name: "분수·소수의 나눗셈", group: "수학", hint: "6학년",
+    make(diff, format) {
+      if (diff === 0) { // (분수) ÷ (자연수)
+        const k = ri(2, 6), d = ri(3, 9), n0 = ri(1, d - 1), n = n0 * (rnd() < 0.5 && n0 * k < d ? k : 1), ans = fr(n, d * k);
+        if (gcd(n, d) > 1) return TOPICS.fracdiv.make(diff, format);
+        return fracChoice(`${n}/${d} ÷ ${k}`, ans, [[n * k, d], [n, d + k], [ans[0] + 1, ans[1]]], diff, format === "input" ? "pick" : format);
+      }
+      if (diff === 1) { // (분수) ÷ (분수)
+        const b = ri(2, 9), d = ri(2, 9), a = ri(1, b - 1), c = ri(1, d - 1), ans = fr(a * d, b * c);
+        if (gcd(a, b) > 1 || gcd(c, d) > 1) return TOPICS.fracdiv.make(diff, format);
+        if (ans[1] === 1 && format === "input") return num(`${a}/${b} ÷ ${c}/${d}`, ans[0]);
+        return fracChoice(`${a}/${b} ÷ ${c}/${d}`, ans, [fr(a * c, b * d), [a + c, b + d], [ans[0] + 1, ans[1]]], diff, format === "input" ? "pick" : format);
+      }
+      // (소수) ÷ (소수), 몫이 자연수
+      const q = ri(2, 9), dv = pick([0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.2, 1.4, 1.5, 1.6, 2.5]), x = Math.round(q * dv * 100) / 100;
+      return num(`${x} ÷ ${dv}`, q);
+    },
+  },
+  ratio: {
+    name: "비와 비율", group: "수학", hint: "6학년 · 백분율", noOX: true,
+    make(diff, format) {
+      if (diff === 0) { // 비 → 비율(분수)
+        const b = ri(2, 10), a = ri(1, b - 1);
+        return fracChoice(`${a} : ${b}의 비율을 분수로`, fr(a, b), [[b, a], [a, a + b], fr(a + 1, b)], diff, format === "input" ? "pick" : format, "비율을 분수로 나타내요");
+      }
+      if (diff === 1) { const p = pick([5, 10, 20, 25, 40, 50, 60, 75, 80]); return num(`비율 ${jo(p / 100, "을")} 백분율로(%)`, p, "% 앞의 수를 써요"); }
+      const whole = pick([20, 25, 40, 50, 80, 200, 400]), p = pick([5, 10, 20, 25, 30, 40, 50, 60, 75].filter((v) => (whole * v) % 100 === 0)); // 사람 수가 자연수인 것만
+      return num(`${whole}명 중 ${whole * p / 100}명은 몇 %`, p, "% 앞의 수를 써요");
+    },
+  },
+});
+
 // ---------- 낱말 문제(문제 은행) ----------
 // 난이도에 맞는 묶음: 그 난이도 문제를 주로, 가끔(30%) 더 쉬운 것도
 function poolFor(items, diff) {
@@ -173,14 +266,15 @@ export function makeQuestion(topicKey, diff, format = "input") {
     return { ...q, id: ++seq, topic: topicKey, diff };
   }
   for (let i = 0; i < 20; i++) {
-    q = t.make(diff);
+    q = t.make(diff, format);
     if (!recent.includes(q.text)) break;
   }
   recent.push(q.text);
   if (recent.length > 12) recent.shift();
+  if (q.type !== "number") return { ...q, id: ++seq, topic: topicKey, diff }; // 분수 문제는 이미 객관식·OX
   const r = rnd();
-  if (format === "pick") q = r < 0.65 ? toChoice(q, diff) : toOX(q);
-  else if (format === "mix") q = r < 0.5 ? q : r < 0.8 ? toChoice(q, diff) : toOX(q);
+  if (format === "pick") q = r < 0.65 || t.noOX ? toChoice(q, diff) : toOX(q);
+  else if (format === "mix") q = r < 0.5 ? q : r < 0.8 || t.noOX ? toChoice(q, diff) : toOX(q);
   return { ...q, id: ++seq, topic: topicKey, diff };
 }
 
@@ -190,7 +284,7 @@ function nearMisses(ans) {
   const sw = String(ans).split("").reverse().join("");
   if (sw.length > 1 && sw[0] !== "0") c.add(Number(sw));
   for (const k of [3, 4, 6, 7, 8, 9]) { c.add(ans + k); c.add(ans - k); }
-  return [...c].filter((v) => v >= 0 && v !== ans && Number.isInteger(v));
+  return [...c].filter((v) => (ans > 0 ? v > 0 : v >= 0) && v !== ans && Number.isInteger(v));
 }
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
@@ -228,6 +322,6 @@ export function answerText(q) {
 // 문제 줄에 보일 글자
 export function questionLine(q) {
   if (q.word) return q.text;
-  if (q.type === "ox" || q.text.includes("□")) return q.text;
+  if (q.type === "ox" || q.text.includes("□") || /[가-힣]/.test(q.text)) return q.text;
   return q.text + " =";
 }
