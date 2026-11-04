@@ -133,7 +133,8 @@ function makeSeats(m) {
 function layout() {
   const ph = $("#panel").offsetHeight;
   const top = $("#top").getBoundingClientRect();
-  view.setViewport({ x: 0, y: 0, w: window.innerWidth, h: Math.max(100, window.innerHeight - ph) }, top.height ? top.bottom + 4 : 0);
+  // 전장은 화면 전체에 그리고, 지도는 조작판 위 칸에 맞춤(조작판은 반투명이라 밑으로 숲·바다가 이어져 보임)
+  view.setViewport({ x: 0, y: 0, w: window.innerWidth, h: window.innerHeight }, top.height ? top.bottom + 4 : 0, ph);
   $("#rotate").hidden = !(window.innerHeight > window.innerWidth * 1.05);
 }
 

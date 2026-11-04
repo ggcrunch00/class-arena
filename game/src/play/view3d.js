@@ -133,7 +133,8 @@ export class View3D {
     this.resize();
   }
 
-  setViewport(rect, topPad = 0) { this.view = rect; this.topPad = topPad; this.resize(); }
+  // rect: 그리는 칸(이제 화면 전체), topPad·bottomPad: 지도를 맞춰 넣을 때 피할 위·아래 띠(정보 띠·반투명 조작판)
+  setViewport(rect, topPad = 0, bottomPad = 0) { this.view = rect; this.topPad = topPad; this.bottomPad = bottomPad; this.resize(); }
   // 지도 전체(섬 + 본성·탑 꼭대기)가 화면 칸에 다 들어가게 맞춤
   resize() {
     const W = window.innerWidth, H = window.innerHeight;
@@ -143,11 +144,12 @@ export class View3D {
       [BASES[1][0], BASES[1][1], BASE.height + 2.5], [BASES[-1][0], BASES[-1][1], BASE.height + 2]];
     let x0 = 1e9, x1 = -1e9, u0 = 1e9, u1 = -1e9;
     for (const [x, y, z] of pts) { const u = y * sn + z * cs; x0 = Math.min(x0, x); x1 = Math.max(x1, x); u0 = Math.min(u0, u); u1 = Math.max(u1, u); }
-    const vw = Math.max(1, this.view.w), vh = Math.max(1, this.view.h - (this.topPad || 0));
+    const bp = this.bottomPad || 0;
+    const vw = Math.max(1, this.view.w), vh = Math.max(1, this.view.h - (this.topPad || 0) - bp);
     const k = Math.max((x1 - x0) / vw, (u1 - u0) / vh);       // 1px당 m
     const cx = (x0 + x1) / 2, cu = (u0 + u1) / 2;
-    // 지도는 위쪽 정보 띠(topPad)를 뺀 아래 칸 가운데에 오게
-    const bottom = cu - vh * k / 2;
+    // 지도(길·탑·본성)는 위 정보 띠와 아래 조작판 사이 칸 가운데에. 섬 가장자리·숲은 조작판 밑으로 이어짐
+    const bottom = cu - (bp + vh / 2) * k;
     Object.assign(this.cam, { left: cx - vw * k / 2, right: cx + vw * k / 2, bottom, top: bottom + this.view.h * k });
     this.cam.updateProjectionMatrix();
     this.mPerPx = k;
