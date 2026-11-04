@@ -458,3 +458,8 @@ body.duo #talk { display: none; }
 /* 주제 이름이 긴 경우(분수·소수의 나눗셈 등) 머리줄이 넘치지 않게 */
 .qhead .chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; max-width: 11em; }
 #panel.two .qhead .chip { max-width: 6.5em; }
+/* 아주 긴 문장(사회 문제 등 30글자 넘음): 세 줄까지, 조금 작게 */
+.qtext b.sent.xl { -webkit-line-clamp: 3; font-size: clamp(14px, 1.75vw, 21px); line-height: 1.22; }
+#panel.two .qtext b.sent.xl, #panel.two .qline.tq .qt.sent.xl { font-size: clamp(12px, 1.4vw, 15px); }
+.tiles .tile { line-height: 1; padding: 0; } /* 낮은 화면에서 글자가 칸 위아래로 삐져나오지 않게 */
+.tgroup { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; align-items: stretch; } /* 과목마다 한 줄 */

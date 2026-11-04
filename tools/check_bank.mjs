@@ -20,6 +20,7 @@ const len = (s) => [...String(s)].length;
 const LIMIT = {
   meaning: 22, // 사자성어 뜻(긴 보기 한 줄). 1366×650·둘이서 화면에서 넘치지 않은 최대 길이 근처
   sentence: 24, // 맞춤법 문장(빈칸 포함, 문제 글자 두 줄 안)
+  sentenceLong: 46, // 교과형 문장(세 줄, 30글자 넘으면 작은 글씨)
   word: 6, // 객관식 낱말 보기 한 칸
   tiles: 9, // 글자 타일 수(숫자키 1~9로 누름)
 };
@@ -39,7 +40,7 @@ function checkCommon(bank, items, name) {
     const at = `${name} ${i + 1}번(${it.w || it.r})`;
     if (![0, 1, 2].includes(it.d)) err(at, `난이도 d=${it.d}(0~2만)`);
     if (!(it.g >= g0 && it.g <= g1)) err(at, `학년 g=${it.g}(${g0}~${g1}학년 밖)`);
-    else if (it.g < g0 + it.d) warn(at, `난이도 ${it.d}인데 ${it.g}학년 낱말이에요(보통 d0=3학년, d1=4학년, d2=5학년 이상)`);
+    else if (bank.kind === "단계형" && it.g < g0 + it.d) warn(at, `난이도 ${it.d}인데 ${it.g}학년 낱말이에요(보통 d0=3학년, d1=4학년, d2=5학년 이상)`);
   });
   for (const d of [0, 1, 2]) {
     const c = items.filter((i) => i.d === d).length;
@@ -79,12 +80,13 @@ checkCommon(SAJA, SAJA.items, "사자성어");
   }
 }
 
-// 맞춤법
-checkCommon(SPELL, SPELL.items, "맞춤법");
-{
+// 빈칸 문장 은행(맞춤법·사회 …)
+const BLANKS = Object.values(TOPICS).filter((t) => t.blank).map((t) => t.bank);
+for (const BK of BLANKS) {
+  checkCommon(BK, BK.items, BK.name);
   const seen = new Map();
-  SPELL.items.forEach((it, i) => {
-    const at = `맞춤법 ${i + 1}번(${it.r})`;
+  BK.items.forEach((it, i) => {
+    const at = `${BK.name} ${i + 1}번(${it.r})`;
     const blanks = (it.s.match(/＿/g) || []).length;
     if (blanks !== 1) err(at, `문장에 빈칸(＿)이 ${blanks}개예요(1개여야 해요)`);
     if (!Array.isArray(it.x) || !it.x.length) err(at, "틀리기 쉬운 말(x)이 없어요");
@@ -96,7 +98,9 @@ checkCommon(SPELL, SPELL.items, "맞춤법");
     }
     const full = it.s.replace("＿", it.r);
     if (!HAEYO.test(full) || NOT_HAEYO.test(full)) err(at, `문장이 해요체로 끝나지 않아요: "${full}"`);
-    if (len(it.s) + 1 > LIMIT.sentence) warn(at, `문장이 ${len(it.s) + 1}글자예요(${LIMIT.sentence}글자 넘으면 둘이서 화면에서 잘릴 수 있어요)`);
+    // 교과형(사회 등)은 세 줄까지 작은 글씨로 보여 줌(11-04 밤, 1024 화면·둘이서에서 확인)
+    const lim = BK.kind === "교과형" ? LIMIT.sentenceLong : LIMIT.sentence;
+    if (len(it.s) + 1 > lim) warn(at, `문장이 ${len(it.s) + 1}글자예요(${lim}글자 넘으면 둘이서 화면에서 잘릴 수 있어요)`);
     if (!it.why) err(at, "까닭(why)이 없어요");
     else if (!/요\.$/.test(it.why) || NOT_HAEYO.test(it.why)) err(at, `까닭이 해요체로 끝나지 않아요: "${it.why}"`);
     for (const w of [it.r, ...(it.x || [])]) if (len(w) > LIMIT.word) warn(at, `보기 "${w}"가 ${len(w)}글자예요(${LIMIT.word}글자 넘으면 좁은 칸에서 줄어들어요)`);
@@ -104,14 +108,14 @@ checkCommon(SPELL, SPELL.items, "맞춤법");
     const k = it.r + it.s;
     if (seen.has(k)) err(at, `${seen.get(k)}번과 똑같은 문제`); else seen.set(k, i + 1);
     // 다른 문제의 바른 말이 이 문제의 틀린 말이면 → 문장이 뜻을 가려 줘야 함(사람 확인)
-    for (const o of SPELL.items) if (o !== it && it.x?.includes(o.r) && SPELL.items.indexOf(o) > i) notes.push(`맞춤법 짝: "${it.s.replace("＿", it.r)}" ↔ "${o.s.replace("＿", o.r)}" (문장이 어느 말인지 가려 주는지 보기)`);
+    for (const o of BK.items) if (o !== it && it.x?.includes(o.r) && BK.items.indexOf(o) > i) notes.push(`${BK.name} 짝: "${it.s.replace("＿", it.r)}" ↔ "${o.s.replace("＿", o.r)}" (문장이 어느 말인지 가려 주는지 보기)`);
   });
 }
 
 // ---------- 2. 시판 문장 겹침(선택) ----------
 const allText = [
   ...SAJA.items.map((i) => ["사자성어 " + i.w, i.m]),
-  ...SPELL.items.flatMap((i) => [["맞춤법 " + i.r, i.s.replace("＿", i.r)], ["맞춤법 " + i.r + " 까닭", i.why]]),
+  ...BLANKS.flatMap((B) => B.items.flatMap((i) => [[B.name + " " + i.r, i.s.replace("＿", i.r)], [B.name + " " + i.r + " 까닭", i.why]])),
 ];
 if (AVOID) {
   const lines = fs.readFileSync(AVOID, "utf8").split(/\r?\n/).map((l) => l.replace(/\s/g, "")).filter((l) => len(l) >= 10);
@@ -289,8 +293,8 @@ function checkQ(q, topic, diff, fmt) {
       for (const o of SAJA.items) if (o !== it && (sameGroup(it, o) || o.m === it.m) && formable(o.w, q.tiles)) err(at, `타일로 같은 뜻의 ${o.w}도 만들 수 있어요`);
     }
   }
-  if (topic === "spell") {
-    const it = SPELL.items.find((i) => i.r + i.s === q.key); s.seen.add(q.key);
+  if (TOPICS[topic].blank) {
+    const it = TOPICS[topic].bank.items.find((i) => i.r + i.s === q.key); s.seen.add(q.key);
     if (!it) { err(at, "은행에 없는 맞춤법 문제"); return; }
     if (q.type === "choice") {
       const want = new Set([it.r, ...it.x]);
@@ -323,7 +327,7 @@ for (const topic of Object.keys(TOPICS)) {
 }
 setSeed(null);
 // 은행 낱말이 한 번도 안 나오면 뽑기에 문제가 있는 것
-for (const [topic, keyOf] of [["saja", (i) => i.w], ["spell", (i) => i.r + i.s]]) {
+for (const [topic, keyOf] of [["saja", (i) => i.w], ...Object.keys(TOPICS).filter((k) => TOPICS[k].blank).map((k) => [k, (i) => i.r + i.s])]) {
   const miss = TOPICS[topic].bank.items.filter((i) => !stats[topic]?.seen.has(keyOf(i)));
   if (miss.length) err(TOPICS[topic].name, `${N}번씩 만들어도 한 번도 안 나온 문제 ${miss.length}개: ${miss.map((i) => i.w || i.r).join(", ")}`);
 }
@@ -332,7 +336,7 @@ for (const [topic, keyOf] of [["saja", (i) => i.w], ["spell", (i) => i.r + i.s]]
 const out = [];
 const date = new Date().toISOString().slice(0, 10);
 out.push(`# 문제 자동 검수 보고서 (${date})`, "");
-out.push(`- 문제 은행: 사자성어 ${SAJA.items.length}개, 맞춤법 ${SPELL.items.length}개`);
+out.push(`- 문제 은행: 사자성어 ${SAJA.items.length}개, ${BLANKS.map((B) => `${B.name} ${B.items.length}개`).join(", ")}`);
 out.push(`- 만들어 본 문제: ${made}개 (주제 ${Object.keys(TOPICS).length} × 난이도 3 × 형식 3 × ${N})`);
 out.push(`- 결과: 오류 ${errors.length}개, 알림 ${warns.length}개`, "");
 out.push("## 주제별", "", "| 주제 | 문제 꼴 | 가장 긴 문제 글 | 가장 긴 객관식 보기 | 타일 최대 |", "|---|---|---|---|---|");

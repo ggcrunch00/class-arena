@@ -588,14 +588,17 @@ function buildStart() {
   }));
   for (const [boxId, key] of [["#topicOpts", "topic"], ["#topic2Opts", "topic2"]]) {
     const topicBox = $(boxId);
-    let group = "";
+    let group = "", row = null;
     for (const [k, t] of Object.entries(TOPICS)) {
-      // 과목 묶음 이름(수학·국어)을 묶음 앞에 한 번
-      if (t.group && t.group !== group) { group = t.group; const g = document.createElement("span"); g.className = "ogroup"; g.textContent = group; topicBox.appendChild(g); }
+      // 과목(수학·국어·사회)마다 한 줄: 묶음 이름 + 주제 단추
+      if (!row || (t.group && t.group !== group)) {
+        group = t.group; row = document.createElement("div"); row.className = "tgroup"; topicBox.appendChild(row);
+        const g = document.createElement("span"); g.className = "ogroup"; g.textContent = group || ""; row.appendChild(g);
+      }
       const b = document.createElement("button"); b.className = "opt"; b.dataset.k = k;
       b.innerHTML = `<span>${t.name}</span><small>${t.hint}</small>`;
       b.addEventListener("click", () => { settings[key] = k; remember("classArena." + key, k); drawStart(); });
-      topicBox.appendChild(b);
+      row.appendChild(b);
     }
   }
   const fmtBox = $("#fmtOpts");

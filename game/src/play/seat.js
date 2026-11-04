@@ -152,7 +152,7 @@ export class Seat {
     t.textContent = qt;
     // 낱말 문제는 문장이라 줄바꿈 허용(길이에 따라 글자 크기)
     const wordy = this.q.word || /[가-힣]/.test(qt); // 낱말 문제·낱말이 섞인 수학 문제는 줄바꿈되는 본문 글씨
-    t.className = "qt " + (wordy && qt.length > 8 ? "sent" + (qt.length > (this.q.type === "tiles" ? 12 : 20) ? " long" : "") : qt.length > 16 ? "long" : qt.length > 11 ? "mid" : "");
+    t.className = "qt " + (wordy && qt.length > 8 ? "sent" + (qt.length > (this.q.type === "tiles" ? 12 : 20) ? " long" : "") + (qt.length > 30 ? " xl" : "") : qt.length > 16 ? "long" : qt.length > 11 ? "mid" : "");
     this.$(".qprompt").textContent = this.q.prompt || "";
     const isNum = this.q.type === "number", isTiles = this.q.type === "tiles";
     this.$(".keypad").hidden = !isNum; this.$(".ans").hidden = !isNum && !isTiles;

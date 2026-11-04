@@ -2,6 +2,7 @@
 // 문제 모양: {type: number|choice|ox|tiles, text, prompt, answer, options?, tiles?, reveal?, gk?(골드 종류), word?}
 import SAJA from "./bank/saja.json" with { type: "json" };
 import SPELL from "./bank/spell.json" with { type: "json" };
+import GEO6 from "./bank/geo6.json" with { type: "json" };
 
 // 같은 문제가 바로 다시 나오지 않게 최근 12개는 피함
 const recent = [];
@@ -217,8 +218,10 @@ function makeSaja(diff, format) {
 }
 
 const spellKey = (i) => i.r + i.s;
-function makeSpell(diff, format) {
-  const items = SPELL.items, it = pickItem(items, diff, spellKey);
+// 빈칸 문장 은행(맞춤법·사회 등 r/x/s/why 꼴)으로 문제 만들기: 글자 타일·객관식·OX
+const makeBlank = (BANK, tilePrompt) => (diff, format) => makeSpell(diff, format, BANK, tilePrompt);
+function makeSpell(diff, format, BANK = SPELL, tilePrompt = "빈칸에 들어갈 말을 바르게 만들어요") {
+  const items = BANK.items, it = pickItem(items, diff, spellKey);
   const reveal = `${it.r} · ${it.why}`;
   const blank = it.s.replace("＿", "＿＿");
   const tileable = !/\s/.test(it.r) && syl(it.r).length <= 5;
@@ -229,7 +232,7 @@ function makeSpell(diff, format) {
   const base = { word: true, key: spellKey(it), reveal };
   if (kind === "tiles") {
     const others = items.filter((o) => o !== it).map((o) => o.r);
-    return { ...base, type: "tiles", text: blank, prompt: "빈칸에 들어갈 말을 바르게 만들어요", answer: it.r,
+    return { ...base, type: "tiles", text: blank, prompt: tilePrompt, answer: it.r,
       tiles: makeTiles(it.r, it.x.flatMap(syl), others, diff === 0 ? 2 : 3), options: shuffle([it.r, ...it.x]) };
   }
   if (kind === "choice") {
@@ -241,7 +244,8 @@ function makeSpell(diff, format) {
 }
 
 TOPICS.saja = { name: SAJA.name, group: "국어", hint: SAJA.hint, words: true, make: makeSaja, bank: SAJA };
-TOPICS.spell = { name: SPELL.name, group: "국어", hint: SPELL.hint, words: true, make: makeSpell, bank: SPELL };
+TOPICS.spell = { name: SPELL.name, group: "국어", hint: SPELL.hint, words: true, make: makeBlank(SPELL), bank: SPELL, blank: true };
+TOPICS.geo6 = { name: GEO6.name, group: "사회", hint: GEO6.hint, words: true, make: makeBlank(GEO6, "빈칸에 들어갈 말을 만들어요"), bank: GEO6, blank: true };
 
 function num(text, answer, prompt = "") {
   return { type: "number", text, answer, prompt };
