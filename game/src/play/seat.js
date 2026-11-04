@@ -19,6 +19,7 @@ const TPL = `
     <button>7</button><button>8</button><button>9</button><button>0</button><button data-k="back" aria-label="지우기">지우기</button><button data-k="ok" class="ok">확인</button>
   </div>
   <div class="choices" hidden></div>
+  <div class="tiles" hidden></div>
   <span class="tip tip1" hidden>① 문제를 풀어 골드를 모아요</span>
   <div class="lock" hidden><b class="lockMsg"></b><small class="lockSub"></small><i class="lockbar"><i class="lockBar"></i></i></div>
 </section>
@@ -73,6 +74,8 @@ export class Seat {
     q(".keypad").addEventListener("click", (e) => { const t = e.target.closest("button"); if (t) this.press(t.dataset.k || t.textContent); });
     this.el.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => { if (this.active() && !this.lock) this.setDiff(+b.dataset.d); }));
     this.toastT = 0;
+    // 누른 단추에 초점이 남지 않게(키보드 Enter가 그 단추를 다시 누르는 일 막기)
+    this.el.addEventListener("click", (e) => { const t = e.target.closest("button"); if (t && e.detail > 0) t.blur(); });
   }
 
   active() { return this.ctx.isPlaying() && this.b && this.b.state === "play"; }
@@ -120,13 +123,32 @@ export class Seat {
     this.input = "";
     const qt = questionLine(this.q);
     const t = this.$(".qt");
-    t.textContent = qt; t.className = "qt " + (qt.length > 16 ? "long" : qt.length > 11 ? "mid" : "");
+    t.textContent = qt;
+    // 낱말 문제는 문장이라 줄바꿈 허용(길이에 따라 글자 크기)
+    t.className = "qt " + (this.q.word && qt.length > 8 ? "sent" + (qt.length > (this.q.type === "tiles" ? 12 : 20) ? " long" : "") : qt.length > 16 ? "long" : qt.length > 11 ? "mid" : "");
     this.$(".qprompt").textContent = this.q.prompt || "";
-    const isNum = this.q.type === "number";
-    this.$(".keypad").hidden = !isNum; this.$(".ans").hidden = !isNum;
+    const isNum = this.q.type === "number", isTiles = this.q.type === "tiles";
+    this.$(".keypad").hidden = !isNum; this.$(".ans").hidden = !isNum && !isTiles;
+    this.$(".ans").classList.toggle("slots", isTiles);
+    this.$(".qline").classList.toggle("tq", isTiles);
+    this.picked = [];
+    const tb = this.$(".tiles");
+    tb.hidden = !isTiles; tb.innerHTML = "";
+    if (isTiles) {
+      tb.style.setProperty("--n", Math.ceil(this.q.tiles.length / 2));
+      tb.style.setProperty("--m", this.q.tiles.length);
+      this.q.tiles.forEach((c, i) => {
+        const b = document.createElement("button"); b.className = "tile"; b.textContent = c; b.dataset.i = i;
+        b.addEventListener("click", () => this.tile(i));
+        tb.appendChild(b);
+      });
+      const back = document.createElement("button"); back.className = "tback"; back.textContent = "지우기"; back.setAttribute("aria-label", "한 글자 지우기");
+      back.addEventListener("click", () => this.press("back"));
+      tb.appendChild(back);
+    }
     const box = this.$(".choices");
-    box.hidden = isNum; box.innerHTML = "";
-    box.className = "choices " + (this.q.type === "ox" ? "ox" : "n" + (this.q.options || []).length);
+    box.hidden = isNum || isTiles; box.innerHTML = "";
+    box.className = "choices " + (this.q.type === "ox" ? "ox" : this.q.long ? "long" : "n" + (this.q.options || []).length) + (this.q.word && !this.q.long ? " words" : "");
     const opts = this.q.type === "ox" ? ["O", "X"] : this.q.options || [];
     opts.forEach((o, i) => {
       const b = document.createElement("button");
@@ -140,7 +162,9 @@ export class Seat {
   }
 
   drawAnswer(cls) {
-    this.$(".ansText").textContent = this.input;
+    // 글자 타일: 고른 글자 + 남은 칸(＿)
+    this.$(".ansText").textContent = this.q && this.q.type === "tiles"
+      ? this.input + "＿".repeat(Math.max(0, [...this.q.answer.replace(/\s/g, "")].length - [...this.input].length)) : this.input;
     const box = this.$(".ans");
     box.classList.remove("good", "bad"); void box.offsetWidth;
     if (cls) box.classList.add(cls);
@@ -148,10 +172,26 @@ export class Seat {
 
   press(k) {
     if (!this.active() || this.lock) return;
+    if (this.q.type === "tiles") {
+      if (k !== "back" || !this.picked.length) return;
+      const i = this.picked.pop();
+      this.$(`.tiles .tile[data-i="${i}"]`).disabled = false;
+      this.input = this.picked.map((j) => this.q.tiles[j]).join("");
+      return this.drawAnswer();
+    }
     if (k === "back") this.input = this.input.slice(0, -1);
     else if (k === "ok") return this.submit();
     else if (this.input.length < 6) this.input += k;
     this.drawAnswer();
+  }
+  // 글자 타일 누르기: 칸이 다 차면 바로 확인
+  tile(i) {
+    if (!this.active() || this.lock || this.picked.includes(i)) return;
+    this.picked.push(i);
+    this.$(`.tiles .tile[data-i="${i}"]`).disabled = true;
+    this.input = this.picked.map((j) => this.q.tiles[j]).join("");
+    this.drawAnswer();
+    if (this.picked.length >= [...this.q.answer.replace(/\s/g, "")].length) this.submit();
   }
   pick(v, el) {
     if (!this.active() || this.lock) return;
@@ -161,6 +201,11 @@ export class Seat {
   }
   // 키보드(혼자 하기에서만)
   key(e) {
+    if (this.q && this.q.type === "tiles") {
+      if (e.key === "Backspace") this.press("back");
+      else if (/^[1-9]$/.test(e.key) && this.q.tiles[+e.key - 1]) this.tile(+e.key - 1);
+      return;
+    }
     if (this.q && this.q.type !== "number") {
       const btns = [...this.el.querySelectorAll(".choices button")];
       const k = e.key.toUpperCase();
@@ -177,7 +222,7 @@ export class Seat {
     if (!this.input || !this.active()) return;
     const b = this.b, side = this.side;
     if (checkAnswer(this.q, this.input)) {
-      const g = b.answer(side, "right", this.q.type, this.diff);
+      const g = b.answer(side, "right", this.q.gk || this.q.type, this.diff);
       Sound.play("right"); Sound.play("coin");
       this.goldPop("+" + g);
       this.log.push(1);
@@ -241,7 +286,7 @@ export class Seat {
   goldPop(t) { const p = this.$(".pop"); p.textContent = t; p.classList.remove("go"); void p.offsetWidth; p.classList.add("go"); }
   // 동전이 답 칸에서 골드 칸으로 날아감(최대 8개, 도착하면 골드 칸이 통통)
   flyCoins(g) {
-    const from = (this.q && this.q.type === "number" ? this.$(".ans") : this.$(".choices")).getBoundingClientRect();
+    const from = (this.q && (this.q.type === "number" || this.q.type === "tiles") ? this.$(".ans") : this.$(".choices")).getBoundingClientRect();
     const to = this.$(".gold .coin").getBoundingClientRect();
     const n = Math.min(8, Math.max(3, Math.round(g / 4)));
     for (let i = 0; i < n; i++) {

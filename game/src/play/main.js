@@ -182,6 +182,9 @@ function newGame() {
 function buildKeys() {
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") { if (mode === "play") pause(); else if (mode === "pause") resume(); return; }
+    // 전투 중 Enter·스페이스가 마지막에 누른 단추(병사 카드 등)를 다시 누르지 않게 막음
+    // (크롬북: 카드를 누른 뒤 키보드로 답을 쓰고 Enter → 그 카드가 또 출전하던 문제)
+    if (mode === "play" && (e.key === "Enter" || e.key === " ") && e.target.tagName === "BUTTON") e.preventDefault();
     if (mode !== "play" || e.target.tagName === "INPUT" || isDuo()) return; // 둘이서는 키보드를 나눠 쓸 수 없어 끔
     const s = seats[0];
     if (e.key === "ArrowUp" || e.key === "ArrowDown") { s.moveLane(e.key === "ArrowUp" ? -1 : 1); e.preventDefault(); return; }
@@ -269,7 +272,7 @@ function reviewList(seat, box, scoreEl) {
   const score = () => { scoreEl.textContent = list.length ? `${fixed}/${list.length} 다시 맞힘` : "틀린 문제가 없어요!"; };
   list.forEach((x, i) => {
     const row = document.createElement("label");
-    row.className = "rev";
+    row.className = "rev" + (x.q.word ? " wide" : "");
     const done = () => { row.classList.add("done"); fixed++; score(); Sound.play("right"); row.querySelector(".mine-ans").textContent = "다시 맞혔어요"; };
     if (x.q.type === "number") {
       row.innerHTML = `<span></span><input id="rev${seat.side}_${i}" inputmode="numeric" autocomplete="off"><span class="mine-ans"></span>`;
@@ -390,7 +393,10 @@ function buildStart() {
   }));
   for (const [boxId, key] of [["#topicOpts", "topic"], ["#topic2Opts", "topic2"]]) {
     const topicBox = $(boxId);
+    let group = "";
     for (const [k, t] of Object.entries(TOPICS)) {
+      // 과목 묶음 이름(수학·국어)을 묶음 앞에 한 번
+      if (t.group && t.group !== group) { group = t.group; const g = document.createElement("span"); g.className = "ogroup"; g.textContent = group; topicBox.appendChild(g); }
       const b = document.createElement("button"); b.className = "opt"; b.dataset.k = k;
       b.innerHTML = `<span>${t.name}</span><small>${t.hint}</small>`;
       b.addEventListener("click", () => { settings[key] = k; remember("classArena." + key, k); drawStart(); });

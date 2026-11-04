@@ -1,5 +1,7 @@
-// 문제 만들기. 지금은 저작권 걱정 없는 "계산 문제 자동 출제"만 있음.
-// 나중에 문제 은행(성취기준별 꾸러미)이 생기면 같은 모양({type, text, answer, diff})으로 넣으면 됨.
+// 문제 만들기: 계산 문제 자동 출제 + 문제 은행(bank/*.json, 새로 쓴 낱말 문제).
+// 문제 모양: {type: number|choice|ox|tiles, text, prompt, answer, options?, tiles?, reveal?, gk?(골드 종류), word?}
+import SAJA from "./bank/saja.json" with { type: "json" };
+import SPELL from "./bank/spell.json" with { type: "json" };
 
 // 같은 문제가 바로 다시 나오지 않게 최근 12개는 피함
 const recent = [];
@@ -18,6 +20,7 @@ const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
 export const TOPICS = {
   gugu: {
     name: "곱셈구구",
+    group: "수학",
     hint: "2단~9단",
     make(diff) {
       if (diff === 0) { const a = pick([2, 3, 4, 5]), b = ri(1, 9); return num(`${a} × ${b}`, a * b); }
@@ -29,6 +32,7 @@ export const TOPICS = {
   },
   addsub: {
     name: "덧셈과 뺄셈",
+    group: "수학",
     hint: "두 자리~세 자리",
     make(diff) {
       if (diff === 0) { const a = ri(11, 89), b = ri(2, 9); return rnd() < 0.5 ? num(`${a} + ${b}`, a + b) : num(`${a} − ${b}`, a - b); }
@@ -38,6 +42,7 @@ export const TOPICS = {
   },
   muldiv: {
     name: "곱셈과 나눗셈",
+    group: "수학",
     hint: "구구 범위~세 자리",
     make(diff) {
       if (diff === 0) { const b = ri(2, 9), q = ri(2, 9); return num(`${b * q} ÷ ${b}`, q); }
@@ -48,6 +53,7 @@ export const TOPICS = {
   },
   mixed: {
     name: "혼합 계산",
+    group: "수학",
     hint: "계산 순서 지키기",
     make(diff) {
       if (diff === 0) { const a = ri(2, 20), b = ri(2, 9), c = ri(2, 9); return rnd() < 0.5 ? num(`${a} + ${b} × ${c}`, a + b * c) : num(`${b * c + a} − ${b} × ${c}`, a); }
@@ -57,6 +63,92 @@ export const TOPICS = {
     },
   },
 };
+
+// ---------- 낱말 문제(문제 은행) ----------
+// 난이도에 맞는 묶음: 그 난이도 문제를 주로, 가끔(30%) 더 쉬운 것도
+function poolFor(items, diff) {
+  const exact = items.filter((i) => i.d === diff), lower = items.filter((i) => i.d < diff);
+  return lower.length && (rnd() < 0.3 || !exact.length) ? lower : exact;
+}
+// 최근에 나온 낱말은 피해서 고르기
+function pickItem(items, diff, keyOf) {
+  const pool = poolFor(items, diff);
+  let it;
+  for (let i = 0; i < 20; i++) { it = pick(pool); if (!recent.includes(keyOf(it))) break; }
+  return it;
+}
+const syl = (w) => [...w.replace(/\s/g, "")];
+// 글자 타일: 정답 글자 + 헷갈리는 글자(틀리기 쉬운 말의 글자 먼저) + 다른 낱말 글자
+function makeTiles(answer, extra, others, n) {
+  const ans = syl(answer), set = new Set(ans), dec = [];
+  for (const c of extra) if (!set.has(c) && !dec.includes(c)) dec.push(c);
+  const pool = shuffle(others.flatMap(syl).filter((c) => !set.has(c)));
+  for (const c of pool) { if (dec.length >= n) break; if (!dec.includes(c)) dec.push(c); }
+  return shuffle([...ans, ...dec.slice(0, n)]);
+}
+// 형식에 따라 문제 꼴 고르기: [꼴, 비율]
+function pickKind(table) { let r = rnd(), last; for (const [k, p] of table) { last = k; if ((r -= p) < 0) return k; } return last; }
+
+const sajaKey = (i) => i.w;
+function makeSaja(diff, format) {
+  const items = SAJA.items, it = pickItem(items, diff, sajaKey);
+  const others = items.filter((o) => o.w !== it.w && (!it.same || o.same !== it.same));
+  const reveal = `${it.w}(${it.h}) · ${it.m}`;
+  const kind = format === "input" ? "tiles"
+    : format === "pick" ? pickKind([["m2w", 0.4], ["w2m", 0.25], ["blank", 0.15], ["ox", 0.2]])
+      : pickKind([["tiles", 0.35], ["m2w", 0.2], ["w2m", 0.15], ["blank", 0.1], ["ox", 0.2]]);
+  const nOpt = diff === 0 ? 3 : 4;
+  const wrongWords = (n) => shuffle(others.slice()).slice(0, n).map((o) => o.w);
+  const base = { word: true, key: it.w, reveal };
+  if (kind === "tiles") {
+    return { ...base, type: "tiles", text: it.m, prompt: "뜻에 맞는 사자성어를 만들어요", answer: it.w,
+      tiles: makeTiles(it.w, [], others.map((o) => o.w), diff === 0 ? 2 : 4), options: shuffle([it.w, ...wrongWords(2)]) };
+  }
+  if (kind === "m2w") {
+    return { ...base, type: "choice", text: it.m, prompt: "뜻에 맞는 사자성어를 골라요", answer: it.w, options: shuffle([it.w, ...wrongWords(nOpt - 1)]) };
+  }
+  if (kind === "w2m") {
+    const ms = shuffle(others.slice()).slice(0, 2).map((o) => o.m);
+    return { ...base, type: "choice", long: true, text: it.w, prompt: "이 사자성어의 뜻을 골라요", answer: it.m, options: shuffle([it.m, ...ms]) };
+  }
+  if (kind === "blank") {
+    const ch = syl(it.w), at = Math.floor(rnd() * 4), right = ch[at];
+    const dec = shuffle(others.flatMap((o) => syl(o.w)).filter((c) => !ch.includes(c)));
+    const opts = [right]; for (const c of dec) { if (opts.length >= nOpt) break; if (!opts.includes(c)) opts.push(c); }
+    const shown = ch.map((c, i) => (i === at ? "□" : c)).join("");
+    return { ...base, type: "choice", text: `${shown} · ${it.m}`, prompt: "□에 알맞은 글자를 골라요", answer: right, options: shuffle(opts) };
+  }
+  // OX: 사자성어와 뜻이 맞게 짝지어졌나
+  const right = rnd() < 0.5, m = right ? it.m : pick(others).m;
+  return { ...base, type: "ox", text: `${it.w}: ${m}`, prompt: "뜻이 맞으면 O, 틀리면 X", answer: right ? "O" : "X" };
+}
+
+const spellKey = (i) => i.r + i.s;
+function makeSpell(diff, format) {
+  const items = SPELL.items, it = pickItem(items, diff, spellKey);
+  const reveal = `${it.r} · ${it.why}`;
+  const blank = it.s.replace("＿", "＿＿");
+  const tileable = !/\s/.test(it.r) && syl(it.r).length <= 5;
+  let kind = format === "input" ? "tiles"
+    : format === "pick" ? pickKind([["choice", 0.65], ["ox", 0.35]])
+      : pickKind([["tiles", 0.4], ["choice", 0.35], ["ox", 0.25]]);
+  if (kind === "tiles" && !tileable) kind = "choice";
+  const base = { word: true, key: spellKey(it), reveal };
+  if (kind === "tiles") {
+    const others = items.filter((o) => o !== it).map((o) => o.r);
+    return { ...base, type: "tiles", text: blank, prompt: "빈칸에 들어갈 말을 바르게 만들어요", answer: it.r,
+      tiles: makeTiles(it.r, it.x.flatMap(syl), others, diff === 0 ? 2 : 3), options: shuffle([it.r, ...it.x]) };
+  }
+  if (kind === "choice") {
+    const opts = shuffle([it.r, ...it.x]);
+    return { ...base, type: "choice", text: blank, prompt: "빈칸에 알맞은 말을 골라요", answer: it.r, options: opts, gk: opts.length <= 2 ? "ox" : "choice" };
+  }
+  const right = rnd() < 0.5, w = right ? it.r : pick(it.x);
+  return { ...base, type: "ox", text: it.s.replace("＿", `「${w}」`), prompt: "「 」 안의 말이 바르면 O, 틀리면 X", answer: right ? "O" : "X" };
+}
+
+TOPICS.saja = { name: SAJA.name, group: "국어", hint: SAJA.hint, words: true, make: makeSaja, bank: SAJA };
+TOPICS.spell = { name: SPELL.name, group: "국어", hint: SPELL.hint, words: true, make: makeSpell, bank: SPELL };
 
 function num(text, answer, prompt = "") {
   return { type: "number", text, answer, prompt };
@@ -73,6 +165,13 @@ let seq = 0;
 export function makeQuestion(topicKey, diff, format = "input") {
   const t = TOPICS[topicKey];
   let q;
+  if (t.words) {
+    // 낱말 문제는 형식에 맞는 꼴로 바로 만들어짐(같은 낱말은 최근 12개 안에서 피함)
+    q = t.make(diff, format);
+    recent.push(q.key);
+    if (recent.length > 12) recent.shift();
+    return { ...q, id: ++seq, topic: topicKey, diff };
+  }
   for (let i = 0; i < 20; i++) {
     q = t.make(diff);
     if (!recent.includes(q.text)) break;
@@ -114,6 +213,7 @@ function toOX(q) {
 }
 
 export function checkAnswer(q, input) {
+  if (q.type === "tiles") return String(input).replace(/\s/g, "") === String(q.answer).replace(/\s/g, "");
   if (q.type === "choice" || q.type === "ox") return String(input) === String(q.answer);
   const v = Number(String(input).trim());
   return input !== "" && Number.isFinite(v) && v === q.answer;
@@ -121,11 +221,13 @@ export function checkAnswer(q, input) {
 
 // 틀렸을 때 보여 줄 바른 답
 export function answerText(q) {
+  if (q.reveal) return q.reveal;
   if (q.type === "ox") return q.answer === "O" ? "O(맞는 식)" : `X · 바른 답은 ${q.base ? q.base.answer : ""}`;
   return String(q.answer);
 }
 // 문제 줄에 보일 글자
 export function questionLine(q) {
+  if (q.word) return q.text;
   if (q.type === "ox" || q.text.includes("□")) return q.text;
   return q.text + " =";
 }

@@ -13,7 +13,7 @@ export const MATCH = {
 
 // 골드 규칙
 export const GOLD = {
-  base: { number: 12, choice: 8, ox: 5 },  // 문제 종류별(찍기 어려울수록 많이)
+  base: { number: 12, tiles: 12, choice: 8, ox: 5 },  // 문제 종류별(찍기 어려울수록 많이). 2지선다 객관식은 ox 값(gk)
   diffMult: [1, 1.5, 2],                    // 쉬움·보통·어려움
   streakFrom: 3, streakBonus: 0.2,          // 3연속부터 +20%
   wrongLock: 3, skipLock: 2,                // 틀리면 3초, 넘기면 2초 쉼
