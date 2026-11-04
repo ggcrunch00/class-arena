@@ -108,7 +108,7 @@ for (const BK of BLANKS) {
     const k = it.r + it.s;
     if (seen.has(k)) err(at, `${seen.get(k)}번과 똑같은 문제`); else seen.set(k, i + 1);
     // 다른 문제의 바른 말이 이 문제의 틀린 말이면 → 문장이 뜻을 가려 줘야 함(사람 확인)
-    for (const o of BK.items) if (o !== it && it.x?.includes(o.r) && BK.items.indexOf(o) > i) notes.push(`${BK.name} 짝: "${it.s.replace("＿", it.r)}" ↔ "${o.s.replace("＿", o.r)}" (문장이 어느 말인지 가려 주는지 보기)`);
+    if (BK.kind === "단계형") for (const o of BK.items) if (o !== it && it.x?.includes(o.r) && BK.items.indexOf(o) > i) notes.push(`${BK.name} 짝: "${it.s.replace("＿", it.r)}" ↔ "${o.s.replace("＿", o.r)}" (문장이 어느 말인지 가려 주는지 보기)`);
   });
 }
 
