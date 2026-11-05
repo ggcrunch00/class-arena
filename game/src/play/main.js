@@ -1,8 +1,8 @@
 // 「성문 대전」 연습 대전: 화면 조립, 문제 풀기, 출전 버튼, 시작·설정·결과 화면, 매 프레임 흐름.
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { ROLES, ROLE_INFO, SIDES, AI_LEVELS, QUALITY, QUALITY_ORDER, BASE } from "./config.js";
-import { LANE_LABEL, LANE_NAMES, MAPS, useMap } from "./lanes.js";
+import { ROLES, ROLE_INFO, SIDES, AI_LEVELS, QUALITY, QUALITY_ORDER, BASE, HEROES, HERO_ORDER, HERO_OPEN, TRAIN, TRAIN_ORDER } from "./config.js";
+import { LANE_LABEL, LANE_NAMES, LANES, MAPS, MOOD, useMap } from "./lanes.js";
 import { Battle } from "./battle.js";
 import { ComputerPlayer } from "./ai.js";
 import { View3D } from "./view3d.js";
@@ -11,7 +11,7 @@ import { Sound } from "./sound.js";
 import { Music } from "./music.js";
 import { TOPICS, FORMATS, checkAnswer, questionLine, setSeed } from "./questions.js";
 import { Seat } from "./seat.js";
-import { WORLD, CHARS, CHAPTERS, ENDING, STAGES, stageById, loadProgress, saveProgress, isOpen, chapterStars, chapterCleared } from "./campaign.js";
+import { WORLD, CHARS, CHAPTERS, ENDING, EPILOGUE, ITEMS, STAGES, stageById, loadProgress, saveProgress, isOpen, chapterStars, chapterCleared, starsTotal, starsSpent, heroOpen, heroOf } from "./campaign.js";
 import { StageRunner, stageAI, stageBattle, assistLevel } from "./stage.js";
 
 const $ = (s) => document.querySelector(s);
@@ -113,6 +113,14 @@ async function boot() {
   idle = new Battle(durations);
   makeSeats("cpu");
   buildStart(); buildSettings(); buildKeys();
+  // 전장을 눌러 길 고르기(혼자 할 때): 누른 곳에서 가장 가까운 길
+  $("#stage").addEventListener("pointerdown", (e) => {
+    if (mode !== "play" || isDuo() || !seats[0]) return;
+    const p = view.pickGround(e.clientX, e.clientY); if (!p) return;
+    let best = null, bd = 1e9;
+    for (const n of LANE_NAMES) { const L = LANES[n], q = L.at(L.project(p.x, p.y)), d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; best = n; } }
+    if (best && bd < 4.5 && best !== seats[0].lane) { seats[0].setLane(best); Sound.play("tap"); seats[0].say(`${LANE_LABEL[best]}로 보낼게요`); }
+  });
   window.addEventListener("resize", () => setTimeout(layout, 60));
   layout();
   started = true;
@@ -153,7 +161,7 @@ function makeSeats(m) {
   const panel = $("#panel");
   panel.className = m === "duo" ? "two" : "one";
   document.body.classList.toggle("duo", m === "duo");
-  const ctx = { view, isPlaying: () => mode === "play", toast };
+  const ctx = { view, isPlaying: () => mode === "play", toast, skill: (k, H) => { talk(k, H.line); banner(`${H.name}의 ${H.skill}!`, 1.6); } };
   seats = m === "duo" ? [new Seat(panel, -1, ctx), new Seat(panel, 1, ctx)] : [new Seat(panel, -1, ctx)];
   view.setLane(null, 1);
   setTimeout(layout, 0);
@@ -196,13 +204,17 @@ async function newGame(stage = null) {
     for (const s of ["#titleScreen", "#startScreen", "#resultScreen", "#pauseScreen", "#setScreen", "#campScreen", "#storyScreen"]) $(s).hidden = true;
     if ((seats.length === 2) !== duo) makeSeats(duo ? "duo" : "cpu");
     await switchMap(stage ? stage.map : mapOpen(settings.map) ? settings.map : "diag");
+    view.setMood(stage && stage.chapter.mood ? { ...MOOD, ...stage.chapter.mood } : MOOD); // 장마다 빛(등대섬은 해 질 녘)
     Music.intense(false); Music.duck(false); Music.start();
     document.body.classList.remove("menu");
     layout();
     view.clear();
     const losses = stage ? (camp.loss && camp.loss[stage.id]) || 0 : 0;
     const hard = !!(stage && camp.hard);
-    const battle = new Battle(durations, stage ? stageBattle(stage, losses, hard) : {});
+    const bopts = stage ? stageBattle(stage, losses, hard) : {};
+    // 영웅은 혼자 하는 판 모두(둘이서 빼고), 훈련소 단련은 원정·연습 대전에만
+    if (!duo) { bopts.hero = { [-1]: heroOf(camp) }; if (stage || !daily) bopts.train = { [-1]: camp.train }; }
+    const battle = new Battle(durations, bopts);
     const level = stage ? stageAI(stage, losses, hard) : daily ? "knight" : settings.ai;
     G = { battle, duo, daily, stage, ai: duo ? null : new ComputerPlayer(battle, CPU, level), endT: -1 };
     if (stage) G.runner = new StageRunner(battle, stage, G.ai, { talk: (w, t) => talk(w, t), boss: (w, t) => talk(w, t, true) }, hard ? 0 : assistLevel(losses));
@@ -213,17 +225,35 @@ async function newGame(stage = null) {
     $("#blueSub").textContent = duo ? "왼쪽" : "나";
     $("#redSub").textContent = duo ? "오른쪽" : stage ? `${stage.id} ${stage.boss ? CHARS[stage.boss].name : stage.name}` : "컴퓨터 " + AI_LEVELS[daily ? "knight" : settings.ai].name;
     $("#banner").hidden = true; talkQ.length = 0; talkLog.length = 0;
-    document.querySelectorAll(".confetti").forEach((c) => c.remove()); // 앞 판 색종이 지우기 $("#talk").hidden = true; talkT = 0;
-    if (daily) setTimeout(() => banner(`${daily.label} 오늘의 도전, ${TOPICS[daily.topic].name}`, 2.2), 300);
-    if (stage) setTimeout(() => banner((hard ? "도전 모드! " : "") + "목표: " + stage.goal.replace(/요$/, "요!"), 2.4), 300);
-    if (stage && stage.unlock && !camp.stars[stage.id]) setTimeout(() => { if (G && G.stage === stage) banner(stage.unlock, 2.4); }, 2900);
+    document.querySelectorAll(".confetti").forEach((c) => c.remove()); // 앞 판 색종이 지우기
+    $("#talk").hidden = true; talkT = 0;
+    // 시작 뒤에 띄울 알림(카운트다운이 끝나면)
+    G.after = [];
+    if (daily) G.after.push(() => banner(`${daily.label} 오늘의 도전, ${TOPICS[daily.topic].name}`, 2.2));
+    if (stage) G.after.push(() => banner((hard ? "도전 모드! " : "") + "목표: " + stage.goal.replace(/요$/, "요!"), 2.4));
+    if (stage && stage.unlock && !camp.stars[stage.id]) G.after.push(() => setTimeout(() => { if (G && G.stage === stage) banner(stage.unlock, 2.4); }, 2600));
     quality.reset();
-    mode = "play";
+    // 준비 → 3 → 2 → 1 → 시작! (실제 시간 기준, 그동안 전투·문제는 멈춤)
+    mode = "count"; G.countAt = performance.now(); G.countStep = -1; document.body.classList.add("counting");
     updateHud(true);
   } catch (e) { toast("전장을 열지 못했어요: " + ((e && e.message) || e)); showStart(); }
   finally { busy = false; }
 }
 let busy = false;
+
+// ---------- 시작 카운트다운 ----------
+const COUNT = [["준비", 0], ["3", 0.75], ["2", 1.45], ["1", 2.15], ["시작!", 2.85]];
+function tickCount() {
+  const t = (performance.now() - G.countAt) / 1000, el = $("#count");
+  let k = -1; COUNT.forEach(([, at], i) => { if (t >= at) k = i; });
+  if (k !== G.countStep && k >= 0) {
+    G.countStep = k; el.hidden = false; el.textContent = COUNT[k][0];
+    el.className = k === COUNT.length - 1 ? "go" : k === 0 ? "ready" : "";
+    el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
+    Sound.play(k === COUNT.length - 1 ? "horn" : "tap");
+    if (k === COUNT.length - 1) { mode = "play"; document.body.classList.remove("counting"); for (const f of G.after || []) f(); setTimeout(() => { el.hidden = true; }, 650); }
+  }
+}
 
 // ---------- 전투 중 말풍선(인물 대사·보스가 읽은 버릇) ----------
 const talkQ = [], talkLog = []; let talkT = 0;
@@ -506,7 +536,7 @@ const nextStage = () => STAGES.find((x) => !camp.stars[x.id]) || STAGES[STAGES.l
 let campSel = 1;
 function showCamp(stageId) {
   mode = "menu"; G = null;
-  document.body.classList.add("menu");
+  document.body.classList.add("menu"); document.body.classList.remove("counting"); $("#count").hidden = true;
   if (!demo) startDemo();
   for (const s of ["#titleScreen", "#startScreen", "#resultScreen", "#pauseScreen", "#storyScreen"]) $(s).hidden = true;
   $("#talk").hidden = true; talkQ.length = 0;
@@ -519,9 +549,10 @@ function drawCamp() {
   const nodes = $("#cNodes"); nodes.innerHTML = "";
   const nx = nextStage();
   for (const ch of CHAPTERS) {
+    if (ch.after && !chapterCleared(camp, ch.id - 1)) continue; // 등대섬: 다섯 섬을 마친 뒤에 지도에 나타남
     const open = isOpen(camp, ch.stages[0].id), stars = chapterStars(camp, ch);
     const b = document.createElement("button");
-    b.className = "cnode" + (ch.id === campSel ? " on" : "") + (open ? "" : " locked") + (nx.chapter.id === ch.id && !camp.done ? " next" : "");
+    b.className = "cnode" + (ch.id === campSel ? " on" : "") + (open ? "" : " locked") + (nx.chapter.id === ch.id && !camp.stars[nx.id] ? " next" : "");
     b.style.left = ch.pos[0] + "%"; b.style.top = ch.pos[1] + "%";
     b.innerHTML = `<span class="num">${ch.id}</span><b>${ch.name}</b><small>${open ? "★".repeat(stars) + "☆".repeat(ch.stages.length * 3 - stars) : "잠김"}</small>`;
     b.addEventListener("click", () => { campSel = ch.id; Sound.play("tap"); drawCamp(); });
@@ -566,7 +597,10 @@ function drawCamp() {
 function startStage(st) {
   Sound.unlock(); Music.start();
   const ch = st.chapter;
-  playStory(st.intro, { art: ch.art, card: { kick: `${ch.id}장 ${ch.name}`, title: `${st.id} ${st.name}`, goal: "목표: " + st.goal } }, () => wipe(() => newGame(st)));
+  // 장에 처음 들어갈 때 한 번: 그 섬 이야기(장 머리말)
+  const pro = ch.prologue && !camp.seenCh[ch.id] ? ch.prologue : [];
+  if (pro.length) { camp.seenCh = { ...camp.seenCh, [ch.id]: 1 }; saveProgress(camp); }
+  playStory(pro.concat(st.intro), { art: ch.art, card: { kick: `${ch.id}장 ${ch.name}`, title: `${st.id} ${st.name}`, goal: "목표: " + st.goal } }, () => wipe(() => newGame(st)));
 }
 // 이야기 → 전투로 넘어갈 때 한 번: 양피지 막이 쓸고 지나감(한곳에만 쓰는 큰 움직임)
 function wipe(next) {
@@ -579,32 +613,114 @@ function wipe(next) {
 function afterWin(st) {
   if (!st) return showStart();
   $("#resultScreen").hidden = true;
-  playStory(st.win, { art: st.chapter.art }, () => {
+  // 이 스테이지를 깨면 함께할 수 있게 되는 영웅이 있으면 그 인물이 한마디(기사단 막사 안내)
+  const joins = HERO_ORDER.filter((k) => HERO_OPEN[k] === st.id).map((k) => ({ who: k, text: HEROES[k].join }));
+  playStory(st.win.concat(joins), { art: st.chapter.art }, () => {
     if (st.final) {
-      playStory(ENDING, { art: "ending", card: { kick: "원정 완료", title: "안개가 걷혔어요", goal: "모든 장의 지도가 자유 대전에 열렸어요" } }, () => { camp.done = true; saveProgress(camp); drawStart(); showCamp(st.id); });
+      playStory(ENDING, { art: "ending", card: { kick: "원정 완료", title: "안개가 걷혔어요", goal: "모든 장의 지도가 자유 대전에 열렸어요" } }, () => { camp.done = true; saveProgress(camp); drawStart(); showCamp(nextStage().id); });
+    } else if (st.epilogue) {
+      playStory(EPILOGUE, { art: st.chapter.art, card: { kick: "모든 원정 완료", title: "등대에 불이 켜졌어요", goal: "도전 모드와 별 3개에도 도전해 보세요" } }, () => { camp.done2 = true; saveProgress(camp); drawStart(); showCamp(st.id); });
     } else { drawStart(); showCamp(nextStage().id); }
   });
 }
 
 // 인물 도감: 기사단은 처음 만나는 스테이지가 열리면, 해골 쪽은 그 스테이지를 깨면 들어옴
-function openDex() {
+// 원정 도감: 인물(기사단은 처음 만나는 스테이지가 열리면, 해골 쪽은 그 스테이지를 깨면) · 장소(장이 열리면) · 물건
+let dexTab = "who";
+const ICON = {
+  gem: '<path d="M12 3 20 9 12 21 4 9Z M4 9h16 M9 9l3 12 3-12 M9 9l3-6 3 6"/>',
+  rune: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 2v4 M12 18v4 M2 12h4 M18 12h4"/>',
+  cloud: '<path d="M6 17h11a4 4 0 0 0 0-8 6 6 0 0 0-11-1 4 4 0 0 0 0 9Z"/>',
+  ring: '<path d="M12 4a8 8 0 0 1 8 8 M20 12a8 8 0 0 1-8 8 M12 20a8 8 0 0 1-8-8 M4 12a8 8 0 0 1 8-8"/><path d="M18 9l2 3 2-3 M15 18l-3 2 3 2"/>',
+  pick: '<path d="M4 9c4-5 12-5 16 0 M12 6v15"/>',
+  ball: '<circle cx="11" cy="13" r="6"/><path d="M15 9l4-4 M18 3l3 3"/>',
+  skull: '<path d="M5 11a7 7 0 0 1 14 0v4h-3v3H8v-3H5Z"/><circle cx="9.5" cy="11.5" r="1.5"/><circle cx="14.5" cy="11.5" r="1.5"/>',
+  flame: '<path d="M12 3c3 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-4 3-7 1 2 2 3 3 3 0-3 0-5 0-7Z"/>',
+};
+function openDex(tab) {
+  if (tab) dexTab = tab;
+  document.querySelectorAll(".dtabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === dexTab));
   const box = $("#dexList"); box.innerHTML = "";
   let got = 0, all = 0;
-  for (const [k, c] of Object.entries(CHARS)) {
-    if (!c.lore) continue;
-    all++;
-    const open = c.side === 1 ? (camp.stars[c.meet] || 0) > 0 : isOpen(camp, c.meet);
-    if (open) got++;
-    const st = stageById(c.meet);
-    const d = document.createElement("div");
-    d.className = "dexcard" + (c.side === 1 ? " foe" : "") + (open ? "" : " unknown");
-    d.innerHTML = `<img src="assets/faces/${k}.webp" alt=""><b></b><p></p>`;
-    d.querySelector("b").textContent = open ? c.name : "아직 못 만난 인물";
-    d.querySelector("p").textContent = open ? c.lore : `${st.chapter.id}장 「${st.chapter.name}」에서 만나요.`;
+  const card = (cls, img, title, text) => {
+    const d = document.createElement("div"); d.className = "dexcard " + cls;
+    d.innerHTML = img + "<b></b><p></p>"; d.querySelector("b").textContent = title; d.querySelector("p").textContent = text;
     box.appendChild(d);
+  };
+  if (dexTab === "who") {
+    for (const [k, c] of Object.entries(CHARS)) {
+      if (!c.lore) continue;
+      all++;
+      const open = c.side === 1 ? (camp.stars[c.meet] || 0) > 0 : isOpen(camp, c.meet);
+      if (open) got++;
+      const st = stageById(c.meet);
+      card((c.side === 1 ? "foe" : "") + (open ? "" : " unknown"), `<img src="assets/faces/${k}.webp" alt="">`,
+        open ? c.name : "아직 못 만난 인물", open ? c.lore : `${st.chapter.id}장 「${st.chapter.name}」에서 만나요.`);
+    }
+    $("#dexNote").textContent = `만난 인물 ${got}명, 남은 인물 ${all - got}명`;
+  } else if (dexTab === "place") {
+    for (const ch of CHAPTERS) {
+      if (ch.after && !chapterCleared(camp, ch.id - 1)) continue;
+      all++;
+      const open = isOpen(camp, ch.stages[0].id);
+      if (open) got++;
+      card("place" + (open ? "" : " unknown"), `<img src="assets/story/${ch.art}.webp" alt="">`,
+        open ? `${ch.id}장 ${ch.name}` : "아직 가 보지 못한 곳", open ? (ch.prologue || []).map((x) => x.text).join(" ") : "앞 장을 마치면 갈 수 있어요.");
+    }
+    $("#dexNote").textContent = `가 본 곳 ${got}곳` + (all - got ? `, 남은 곳 ${all - got}곳` : "");
+  } else {
+    for (const it of ITEMS) {
+      all++;
+      const open = isOpen(camp, it.open);
+      if (open) got++;
+      card("item" + (open ? "" : " unknown"), `<svg class="dicon" viewBox="0 0 24 24" aria-hidden="true">${ICON[it.icon] || ""}</svg>`,
+        open ? it.name : "아직 모르는 물건", open ? it.text : `${it.open} 스테이지가 열리면 알게 돼요.`);
+    }
+    $("#dexNote").textContent = `알게 된 물건 ${got}개, 남은 물건 ${all - got}개`;
   }
-  $("#dexNote").textContent = `만난 인물 ${got}명, 남은 인물 ${all - got}명`;
   $("#campScreen").hidden = true; $("#dexScreen").hidden = false;
+}
+
+// 기사단 막사: 함께할 영웅(원정에서 만나면 열림) + 훈련소(별로 단련, 되돌리기 없음)
+let barBack = "#titleScreen";
+function heroLock(k) { const at = HERO_OPEN[k]; return at ? `원정 ${at} 「${stageById(at).name}」 스테이지를 깨면 함께해요` : ""; }
+function openBar(back) {
+  if (back) barBack = back;
+  camp.hero = heroOf(camp);
+  const hb = $("#barHeroes"); hb.innerHTML = "";
+  for (const k of HERO_ORDER) {
+    const H = HEROES[k], open = heroOpen(camp, k);
+    const b = document.createElement("button");
+    b.className = "herocard" + (k === camp.hero ? " on" : "") + (open ? "" : " locked");
+    b.innerHTML = `<img src="assets/faces/${H.face}.webp" alt=""><span><small></small><b></b><em></em><i></i></span>`;
+    b.querySelector("small").textContent = H.title + " " + H.name;
+    b.querySelector("b").textContent = H.skill;
+    b.querySelector("em").textContent = open ? H.desc : heroLock(k);
+    b.querySelector("i").textContent = open ? `정답 ${Math.max(3, H.need - (camp.train.stone || 0))}개마다` : "";
+    b.disabled = !open;
+    b.addEventListener("click", () => { camp.hero = k; saveProgress(camp); Sound.play("tap"); openBar(); });
+    hb.appendChild(b);
+  }
+  const left = starsTotal(camp) - starsSpent(camp);
+  $("#barStars").textContent = `남은 별 ★${left}`;
+  const tb = $("#barTrain"); tb.innerHTML = "";
+  for (const k of TRAIN_ORDER) {
+    const T = TRAIN[k], lv = camp.train[k] || 0, cost = lv < T.max ? T.cost[lv] : 0;
+    const row = document.createElement("div"); row.className = "trow";
+    row.innerHTML = `<span class="tname"><b></b><small></small></span><span class="tpips">${Array.from({ length: T.max }, (_, i) => `<i class="${i < lv ? "on" : ""}"></i>`).join("")}</span><button class="go small"></button>`;
+    row.querySelector("b").textContent = T.name;
+    row.querySelector("small").textContent = `${T.desc} ${T.unit} (단계마다)`;
+    const btn = row.querySelector("button");
+    btn.textContent = cost ? `★${cost}로 단련` : "모두 단련함";
+    btn.disabled = !cost || left < cost;
+    btn.addEventListener("click", () => {
+      if (!cost || starsTotal(camp) - starsSpent(camp) < cost) return;
+      camp.train = { ...camp.train, [k]: lv + 1 }; saveProgress(camp); Sound.play("mine"); openBar();
+    });
+    tb.appendChild(row);
+  }
+  for (const s of ["#campScreen", "#titleScreen", "#startScreen"]) $(s).hidden = true;
+  $("#barScreen").hidden = false;
 }
 
 // 이야기 보여 주기: 배경 그림 + (제목 카드) + 대사 한 줄씩. 누르거나 Enter·스페이스로 넘김
@@ -621,7 +737,7 @@ function playStory(lines, opt, done) {
   } else { $("#sCard").hidden = true; storyNext(); }
 }
 // 대사 한 줄: 큰 초상화(말하는 사람이 바뀌면 옆에서 미끄러져 들어옴) + 글자가 한 자씩(누르면 한 번에)
-const FACES = new Set(["haram", "sol", "saebyeok", "uru", "deolkeok", "sallang", "hoesaek", "cheolgol", "moro"]);
+const FACES = new Set(["haram", "sol", "saebyeok", "uru", "deolkeok", "sallang", "hoesaek", "cheolgol", "moro", "geurimja"]);
 const reduceMotion = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 function storyNext() {
   if (!story) return;
@@ -726,13 +842,19 @@ function buildStart() {
   $("#nextBtn").addEventListener("click", () => afterWin(G.stage));
   $("#cBack").addEventListener("click", () => { Sound.play("tap"); showStart(); });
   $("#cDex").addEventListener("click", () => { Sound.play("tap"); openDex(); });
+  $("#cBar").addEventListener("click", () => { Sound.play("tap"); openBar("#campScreen"); });
+  $("#barBtn").addEventListener("click", () => { Sound.unlock(); Sound.play("tap"); openBar("#titleScreen"); });
+  $("#barClose").addEventListener("click", () => { $("#barScreen").hidden = true; $(barBack).hidden = false; if (barBack === "#campScreen") drawCamp(); });
+  document.querySelectorAll(".dtabs button").forEach((b) => b.addEventListener("click", () => { Sound.play("tap"); openDex(b.dataset.t); }));
   $("#dexClose").addEventListener("click", () => { $("#dexScreen").hidden = true; $("#campScreen").hidden = false; });
   // 이야기 다시 보기: 처음 이야기 + 고른 장에서 깬 스테이지 이야기(시작·끝)
   $("#cStory").addEventListener("click", () => {
     const ch = CHAPTERS[campSel - 1];
     const lines = ch.id === 1 ? [...WORLD.intro] : [];
     for (const st of ch.stages) if (camp.stars[st.id]) lines.push(...st.intro, ...st.win);
+    if (ch.prologue && lines.length) lines.unshift(...ch.prologue);
     if (ch.stages.some((x) => x.final) && camp.done) lines.push(...ENDING);
+    if (ch.stages.some((x) => x.epilogue) && camp.done2) lines.push(...EPILOGUE);
     if (!lines.length) { toast("이 장은 아직 이야기가 없어요. 먼저 출전해요!"); return; }
     playStory(lines, { art: ch.id === 1 && !camp.stars["1-1"] ? "world" : ch.art }, () => showCamp(ch.stages[0].id));
   });
@@ -771,12 +893,22 @@ function drawStart() {
     b.addEventListener("click", () => { settings.map = k; remember("classArena.map", k); drawStart(); });
     mapBox.appendChild(b);
   }
+  $("#heroPick").hidden = duo;
+  const heroBox = $("#heroOpts"); heroBox.innerHTML = ""; camp.hero = heroOf(camp);
+  for (const k of HERO_ORDER) {
+    const H = HEROES[k], open = heroOpen(camp, k);
+    const b = document.createElement("button"); b.className = "opt hopt" + (k === camp.hero ? " on" : ""); b.disabled = !open;
+    b.innerHTML = `<img src="assets/faces/${H.face}.webp" alt=""><span></span><small></small>`;
+    b.querySelector("span").textContent = H.name + "의 " + H.skill; b.querySelector("small").textContent = open ? H.desc : heroLock(k);
+    b.addEventListener("click", () => { camp.hero = k; saveProgress(camp); drawStart(); });
+    heroBox.appendChild(b);
+  }
   const lock = Object.keys(MAPS).filter((k) => !mapOpen(k)).length;
   if (lock) { const n = document.createElement("span"); n.className = "note"; n.textContent = `원정에서 열 지도 ${lock}개`; mapBox.appendChild(n); }
 }
 function showStart() {
   mode = "menu"; G = null;
-  document.body.classList.add("menu");
+  document.body.classList.add("menu"); document.body.classList.remove("counting"); $("#count").hidden = true;
   layout();
   startDemo();
   for (const s of ["#resultScreen", "#pauseScreen", "#setScreen", "#startScreen", "#campScreen", "#storyScreen"]) $(s).hidden = true;
@@ -840,6 +972,7 @@ function frame(now) {
   if (hitstop > 0) { hitstop -= dt; simDt = 0; }
   if (dangerT > 0) dangerT -= dt;
   $("#vignette").classList.toggle("danger", dangerT > 0 && mode === "play");
+  if (G && mode === "count") tickCount();
   if (G && playing) {
     G.battle.update(simDt);
     if (mode === "play") { if (G.ai) G.ai.update(simDt); for (const st of seats) st.tick(dt); }
@@ -885,7 +1018,7 @@ function exposeTestHook() {
       }
       return { time: b.time, talks: talkLog.slice(), state: b.state, mode: G.ai && G.ai.mode && G.ai.mode.type };
     },
-    setCamp(p) { camp = { stars: {}, seenIntro: false, done: false, ...p }; saveProgress(camp); drawStart(); drawLastSet(); }, get story() { return story; }, storyNext, get G() { return G; },
+    setCamp(p) { camp = { stars: {}, hstars: {}, loss: {}, seenIntro: false, done: false, hard: false, hero: "haram", train: {}, seenCh: {}, ...p }; saveProgress(camp); drawStart(); drawLastSet(); }, get story() { return story; }, storyNext, get G() { return G; },
   };
 }
 

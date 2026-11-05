@@ -47,6 +47,7 @@
       <button class="go big" id="campBtn">원정 떠나기</button>
       <span class="sub"><button class="ghost" id="quickBtn">자유 대전 바로 시작</button>
       <button class="ghost" id="prepBtn">전투 준비</button>
+      <button class="ghost" id="barBtn">기사단 막사</button>
       <button class="ghost" id="setBtn0">설정</button></span>
     </div>
     <p class="lastset" id="lastSet"></p>
@@ -75,6 +76,7 @@
       <div class="pick" id="aiPick"><h3>컴퓨터 상대</h3><div class="opts" id="aiOpts"></div></div>
       <div class="pick"><h3>지도 <small class="note">원정에서 장을 깨면 그 지도가 열려요</small></h3><div class="opts" id="mapOpts"></div></div>
     </div>
+    <div class="pickrow"><div class="pick" id="heroPick"><h3>함께할 영웅 <small class="note">원정에서 만나면 함께할 수 있어요</small></h3><div class="opts" id="heroOpts"></div></div></div>
     <div class="how">
       <div class="ring" id="ring" aria-label="병사 상성: 방패병은 돌격병에, 돌격병은 궁수에, 궁수는 마법사에, 마법사는 방패병에 강함"></div>
       <ol>
@@ -83,6 +85,7 @@
         <li><b>보낼 길</b>(윗길·가운뎃길·아랫길)을 고르고 카드를 눌러요. 그 길의 적 탑을 부숴야 본성에 닿아요.</li>
         <li>화살표 방향으로 <b>강해요</b>. 상대를 보고 골라요.</li>
         <li>5번 연속 정답이면 <b>성 대포</b>가 충전돼요.</li>
+        <li>맞힐 때마다 <b>영웅 기술</b>이 차요. 다 차면 영웅 얼굴 단추를 눌러요.</li>
       </ol>
     </div>
     <div class="actions"><button class="ghost" id="backBtn">뒤로</button><button class="ghost" id="setBtn1">설정</button><button class="go" id="startBtn">전투 시작</button></div>
@@ -98,15 +101,27 @@
       <div class="cstages" id="cStages"></div>
       <div class="cprob"><label>문제 주제 <select id="cTopic"></select></label><label>형식 <select id="cFmt"></select></label>
         <label class="hardtog"><input type="checkbox" id="cHard"> 도전 모드 <small>문제를 빨리 푸는 친구용: 해골이 더 빠르고 영리해요</small></label></div>
-      <div class="cact"><button class="ghost" id="cBack">처음으로</button><button class="ghost" id="cStory">이야기 다시 보기</button><button class="ghost" id="cDex">인물 도감</button></div>
+      <div class="cact"><button class="ghost" id="cBack">처음으로</button><button class="ghost" id="cStory">이야기 다시 보기</button><button class="ghost" id="cDex">원정 도감</button><button class="ghost" id="cBar">기사단 막사</button></div>
     </aside>
   </div>
 </div>
 
 <!-- 인물 도감: 원정에서 만난 인물 -->
 <div class="screen" id="dexScreen" hidden>
-  <div class="sheet"><h2>인물 도감</h2><p class="note" id="dexNote"></p><div class="dex" id="dexList"></div>
+  <div class="sheet"><h2>원정 도감</h2>
+    <div class="dtabs" role="tablist"><button data-t="who" class="on" role="tab">인물</button><button data-t="place" role="tab">장소</button><button data-t="item" role="tab">물건</button></div>
+    <p class="note" id="dexNote"></p><div class="dex" id="dexList"></div>
     <div class="actions"><button class="go" id="dexClose">원정 지도로</button></div></div>
+</div>
+
+<!-- 기사단 막사: 함께할 영웅 고르기 + 훈련소(원정 별로 단련) -->
+<div class="screen" id="barScreen" hidden>
+  <div class="sheet barrack"><header class="title"><small>아라 군도 기사단</small><h2>기사단 막사</h2></header>
+    <h3 class="bh">함께할 영웅 <small class="note">전투에서 문제를 맞힐 때마다 깨침돌 기운이 차요. 다 차면 영웅 단추(또는 Q 키)로 기술을 써요.</small></h3>
+    <div class="heroes" id="barHeroes"></div>
+    <h3 class="bh">훈련소 <span class="purse" id="barStars"></span> <small class="note">원정과 연습 대전에서만 쓰여요(둘이서·오늘의 도전은 모두 같은 조건).</small></h3>
+    <div class="train" id="barTrain"></div>
+    <div class="actions"><button class="go" id="barClose">돌아가기</button></div></div>
 </div>
 
 <!-- 이야기(대화) -->
@@ -153,6 +168,7 @@
 </div>
 
 <div id="wipe" hidden></div>
+<div id="count" hidden></div>
 <div id="talk" hidden><img alt=""><div><b></b><p></p></div></div>
 <div id="fps" hidden>-- fps</div>
 <div id="rotate" hidden><b>가로로 돌려 주세요</b><small>태블릿·크롬북 가로 화면에 맞춘 게임이에요</small></div>

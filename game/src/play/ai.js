@@ -42,11 +42,24 @@ export class ComputerPlayer {
       const near = Math.max(...Object.values(threat).map((v) => v.n));
       if (near >= (this.L.cannonAt ?? 3) && this.L.cannon !== false) b.fireCannon(this.side);
     }
+    if (S.hero && b.canSkill(this.side)) this.skill(threat);
     if (this.habits.length) this.read(dt);
     if (this.mode && b.time > this.mode.until) this.mode = null;
     if (!this.plan) this.plan = this.choose(threat);
     if (b.canDeploy(this.side, this.plan.role) === "") { b.deploy(this.side, this.plan.role, this.plan.lane); this.plan = null; }
     else if (S.cooldown[this.plan.role] > 0) this.plan = null;
+  }
+
+  // 영웅 기술(학생 흉내·시험용): 함성은 우리 병사가 3명 넘게 싸울 때, 화살비·폭발은 적이 가장 많은 길에
+  skill(threat) {
+    const b = this.b, k = b.sides[this.side].hero, lanes = Object.entries(threat);
+    if (k === "haram" || k === "uru") {
+      const mine = lanes.reduce((a, [, v]) => a + v.mine, 0), foe = lanes.reduce((a, [, v]) => a + v.foe, 0);
+      if (mine >= 3 && foe >= 2) b.useSkill(this.side, lanes[0][0]);
+      return;
+    }
+    const [lane, v] = lanes.sort((x, y) => y[1].foe - x[1].foe)[0];
+    if (v.foe >= 2 || b.time > 60) b.useSkill(this.side, lane);
   }
 
   // 길마다: 내 건물(탑, 없으면 본성) 9m 안으로 들어온 적 수와 가장 앞선 적
@@ -81,7 +94,7 @@ export class ComputerPlayer {
       const other = LANE_NAMES.filter((n) => n !== M.lane).sort((a, c) => threat[a].foe - threat[c].foe)[0];
       return { lane: other, role: this.randomRole() };
     }
-    if (M && M.type === "cannon" && Math.random() < 0.7) { M.i = (M.i || 0) + 1; return { lane: LANE_NAMES[M.i % LANE_NAMES.length], role: this.randomRole() }; }
+    if (M && (M.type === "cannon" || M.type === "skill") && Math.random() < 0.7) { M.i = (M.i || 0) + 1; return { lane: LANE_NAMES[M.i % LANE_NAMES.length], role: this.randomRole() }; }
     // 1) 막아야 할 길
     const danger = LANE_NAMES.filter((n) => threat[n].n > 0).sort((a, c) => threat[c].n - threat[a].n);
     if (danger.length && Math.random() < 0.35 + L.counter * 0.6) {
@@ -113,6 +126,15 @@ export class ComputerPlayer {
       if (e.type === "spawn" && e.unit.side === -this.side && !e.free) this.log.push({ t: this.b.time, lane: e.unit.lane, role: e.unit.role });
       else if (e.type === "cannon" && e.side === -this.side) this.cannonT = this.b.time;
       else if (e.type === "mine" && e.side === -this.side) this.mineT = this.b.time;
+      else if (e.type === "skill" && e.side === -this.side) this.skillT = this.b.time;
+      // 따라 하기(6장 보스): 학생이 보낸 병사의 천적을 같은 길로 바로 보냄
+      if (e.type === "spawn" && e.unit.side === -this.side && !e.free && this.habits.includes("mirror") && Math.random() < (this.L.mirror ?? 0.4)) {
+        const counter = BEATEN_BY[e.unit.role];
+        if (counter && this.roles.includes(counter)) {
+          this.plan = { lane: e.unit.lane, role: counter };
+          if (this.b.time - (this.mirrorSaid ?? -99) > 45) { this.mirrorSaid = this.b.time; this.onTalk("mirror", { lane: e.unit.lane, role: e.unit.role, counter }); }
+        }
+      }
     }
   }
   read(dt) {
@@ -134,6 +156,7 @@ export class ComputerPlayer {
       if (n / recent.length >= 0.6 && BEATEN_BY[role] && this.roles.includes(BEATEN_BY[role])) return react("role", { role }, { role, counter: BEATEN_BY[role] });
     }
     if (has("cannon") && this.cannonT && now - this.cannonT < 8) { this.cannonT = 0; return react("cannon", {}, {}); }
+    if (has("skill") && this.skillT && now - this.skillT < 8) { this.skillT = 0; return react("skill", {}, {}); }
     // 모아 두기: 골드를 많이 쌓아 두거나 금광에 일찍 투자 → 보스가 바로 밀고 들어옴(무리 3명)
     const S = b.sides[-this.side];
     if (has("hoard") && (S.gold >= 260 || (this.mineT && !this.mineSaid && now < 120))) {

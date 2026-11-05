@@ -50,6 +50,8 @@ export function stageAI(stage, losses = 0, hard = false) {
 export function stageBattle(stage, losses = 0, hard = false) {
   const o = { ...stage.battle }, k = hard ? 0 : assistLevel(losses);
   if (hard) o.baseHp = { ...(o.baseHp || {}), 1: ((o.baseHp && o.baseHp[1]) || 1) * 1.15 };
+  // 버티기 판은 해골 본성을 줄여도 소용없으니 우리 본성 체력을 늘림(도움 단계마다 +12%)
+  if (k && o.objective && o.objective.type === "survive") o.baseHp = { ...(o.baseHp || {}), [-1]: ((o.baseHp && o.baseHp[-1]) || 1) * (1 + 0.12 * k) };
   if (k) {
     o.baseHp = { ...(o.baseHp || {}), 1: ((o.baseHp && o.baseHp[1]) || 1) * (1 - 0.06 * k) };
     o.towerHp = { ...(o.towerHp || {}), 1: ((o.towerHp && o.towerHp[1]) || 1) * (1 - 0.06 * k) };

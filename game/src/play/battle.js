@@ -1,6 +1,6 @@
 // 전투 규칙(그림과 상관없는 부분). 3갈래 길: 병사는 고른 길을 따라 걷고, 그 길의 적 탑을 부숴야 본성에 닿음.
 // 화면(view3d.js)과 컴퓨터 상대(ai.js)가 이 규칙을 씀. 그림 없이 node로도 돌릴 수 있음(tests/balance_play.mjs).
-import { LANE, MATCH, GOLD, MINE, CANNON, TOWER, BASE, ROLE_INFO, COUNTER_MULT, SIDES, SPECIAL } from "./config.js";
+import { LANE, MATCH, GOLD, MINE, CANNON, TOWER, BASE, ROLE_INFO, COUNTER_MULT, SIDES, SPECIAL, HEROES, TRAIN } from "./config.js";
 import { LANES, LANE_NAMES, BASES, TOWERS } from "./lanes.js";
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -9,6 +9,7 @@ export class Battle {
   // durations: { 모형이름: { walk, attack, death, cheer, spawn? } } (초)
   // opts(캠페인): time 판 길이, baseHp/towerHp {[-1]: 배율, [1]: 배율}, gold {[-1]: 시작 골드, [1]: …},
   //   objective { type: "base" | "towers" | "survive", n } — towers: 적 탑 n개를 무너뜨리면 승리, survive: 시간 끝까지 본성을 지키면 승리
+  //   hero {[side]: 영웅 이름}, train {[side]: {armor, blade, purse, stone}} — 훈련소 단계
   constructor(durations, opts = {}) {
     this.dur = durations;
     this.opts = opts;
@@ -25,8 +26,12 @@ export class Battle {
     this.sides = {};
     this.structs = [];
     for (const s of [-1, 1]) {
+      const tr = (opts.train && opts.train[s]) || {}, hero = (opts.hero && HEROES[opts.hero[s]]) ? opts.hero[s] : null;
       this.sides[s] = {
-        gold: (opts.gold && opts.gold[s]) ?? GOLD.start, mine: 1, streak: 0, bestStreak: 0, cannon: 0,
+        gold: ((opts.gold && opts.gold[s]) ?? GOLD.start) + (tr.purse || 0) * TRAIN.purse.gold, mine: 1, streak: 0, bestStreak: 0, cannon: 0,
+        hero, skill: 0, need: hero ? Math.max(3, HEROES[hero].need - (tr.stone || 0) * TRAIN.stone.skill) : 0, skillUsed: 0,
+        buff: { guard: 0, rally: 0 }, volleys: [],
+        mul: { hp: 1 + (tr.armor || 0) * TRAIN.armor.hp, dmg: 1 + (tr.blade || 0) * TRAIN.blade.dmg },
         cooldown: { shield: 0, rusher: 0, archer: 0, mage: 0 },
         stats: { right: 0, wrong: 0, skip: 0, goldEarned: 0, deployed: 0 },
       };
@@ -62,6 +67,7 @@ export class Battle {
     }
     S.stats.right++; S.streak++; S.bestStreak = Math.max(S.bestStreak, S.streak);
     if (S.cannon < CANNON.charge) S.cannon++;
+    if (S.hero && S.skill < S.need) S.skill++;
     let g = (GOLD.base[qtype] || GOLD.base.number) * GOLD.diffMult[diff];
     if (S.streak >= GOLD.streakFrom) g *= 1 + GOLD.streakBonus;
     g *= 1 + MINE.bonus * (S.mine - 1);
@@ -92,7 +98,7 @@ export class Battle {
     const spawnLen = this.dur[model].spawn ? this.dur[model].spawn / 2 : 0.35; // 해골 등장은 2배속
     const u = {
       id: this.nextId++, side, role, model, lane, dir: -side, s: side < 0 ? LANE.spawn : L.length - LANE.spawn,
-      off: rand(-LANE.halfWidth, LANE.halfWidth), hp: R.hp, maxHp: R.hp,
+      off: rand(-LANE.halfWidth, LANE.halfWidth), hp: Math.round(R.hp * S.mul.hp), maxHp: Math.round(R.hp * S.mul.hp),
       state: "spawn", anim: this.dur[model].spawn ? "spawn" : "walk", animT: 0, stateT: 0, spawnLen, hitDone: false, flash: 0,
       x: 0, y: 0, fx: 0, fy: 0,
     };
@@ -134,6 +140,57 @@ export class Battle {
     S.gold -= c; S.mine++;
     this.events.push({ type: "mine", side, level: S.mine });
     return true;
+  }
+
+  // ---------- 영웅 기술 ----------
+  // 고른 길에서 우리 쪽으로 가장 많이 다가온 적(없으면 그 길의 적 탑, 탑이 없으면 적 본성)
+  frontTarget(side, lane) {
+    let best = null, bv = -1e9;
+    for (const e of this.units) {
+      if (e.side === side || e.lane !== lane || e.state === "death") continue;
+      const v = side < 0 ? -e.s : e.s;
+      if (v > bv) { bv = v; best = e; }
+    }
+    if (best) return { unit: best, x: best.x, y: best.y };
+    const foe = this.sides[-side], tw = foe.towers[lane], st = tw && tw.alive ? tw : foe.base;
+    return st.alive ? { struct: st, x: st.x, y: st.y } : null;
+  }
+  canSkill(side) { const S = this.sides[side]; return this.state === "play" && !!S.hero && S.skill >= S.need; }
+  useSkill(side, lane) {
+    if (!this.canSkill(side) || !LANES[lane]) return false;
+    const S = this.sides[side], H = HEROES[S.hero];
+    S.skill = 0; S.skillUsed++;
+    if (H.kind === "guard") {
+      S.buff.guard = H.time;
+      for (const u of this.units) if (u.side === side && u.state !== "death") u.hp = Math.min(u.maxHp, u.hp + Math.round(u.maxHp * H.heal));
+    } else if (H.kind === "rally") S.buff.rally = H.time;
+    else if (H.kind === "volley") for (let i = 0; i < H.n; i++) S.volleys.push({ at: this.time + i * 0.55, lane });
+    else if (H.kind === "blast") {
+      const t = this.frontTarget(side, lane);
+      if (t) {
+        const b = S.base;
+        this.addProjectile({ kind: "orb", big: true, side, from: { side, role: null }, target: t.unit || null, sx: b.x, sy: b.y, sz: 7, tx: t.x, ty: t.y, tz: 0.4,
+          time: Math.max(0.7, Math.hypot(t.x - b.x, t.y - b.y) / 20), arc: 6, dmg: H.dmg, splash: H.splash,
+          blastStruct: t.struct || this.frontStruct(side, lane), structDmg: H.struct });
+      }
+    }
+    this.events.push({ type: "skill", side, hero: S.hero, kind: H.kind, lane });
+    return true;
+  }
+  frontStruct(side, lane) { const foe = this.sides[-side], tw = foe.towers[lane]; return tw && tw.alive ? tw : foe.base; }
+  volley(side, lane) {
+    const H = HEROES[this.sides[side].hero] || HEROES.saebyeok, t = this.frontTarget(side, lane);
+    if (!t) return;
+    for (let k = 0; k < 4; k++) {
+      const tx = t.x + rand(-1.1, 1.1), ty = t.y + rand(-1.1, 1.1);
+      this.addProjectile({ kind: "arrow", side, from: { side, role: null }, struct: t.unit ? null : t.struct, sx: tx - 2.5, sy: ty - 1, sz: 11,
+        tx, ty, tz: t.unit ? 0.6 : 2.4, time: 0.5 + k * 0.06, arc: 0, dmg: H.dmg, splash: t.unit ? H.splash : 0, rain: true });
+    }
+  }
+  // 우리 병사 공격 배율(훈련소 × 돌격 함성)
+  dmgMul(u) {
+    const S = this.sides[u.side];
+    return S.mul.dmg * (S.buff.rally > 0 ? HEROES.uru.dmg : 1);
   }
 
   myStructs(side) { return this.structs.filter((t) => t.side === side && t.alive); }
@@ -186,6 +243,7 @@ export class Battle {
     if (t.state === "death") return;
     const counter = !!(from && ROLE_INFO[from.role] && ROLE_INFO[from.role].beats === t.role);
     if (t.special) raw *= 0.85; // 거인은 조금 단단함
+    if (this.sides[t.side].buff.guard > 0) raw *= HEROES.haram.cut; // 방패 함성
     const dmg = Math.round(raw * (counter ? COUNTER_MULT : 1));
     t.hp -= dmg; t.flash = 1;
     this.events.push({ type: "hit", target: t, x: t.x, y: t.y, z: 1.5, dmg, counter, side: from ? from.side : 0 });
@@ -278,6 +336,11 @@ export class Battle {
         }
       }
       for (const s of [-1, 1]) for (const r in this.sides[s].cooldown) this.sides[s].cooldown[r] = Math.max(0, this.sides[s].cooldown[r] - dt);
+      for (const s of [-1, 1]) {
+        const S = this.sides[s];
+        S.buff.guard = Math.max(0, S.buff.guard - dt); S.buff.rally = Math.max(0, S.buff.rally - dt);
+        while (S.volleys.length && S.volleys[0].at <= this.time) this.volley(s, S.volleys.shift().lane);
+      }
       for (const st of this.structs) if (st.alive) this.guard(st, dt);
     }
 
@@ -291,7 +354,7 @@ export class Battle {
       const inRange = tg && tg.d <= R.range;
       if (u.state === "walk") {
         if (inRange) this.setState(u, "attack");
-        else { u.s = Math.max(0, Math.min(LANES[u.lane].length, u.s + u.dir * R.speed * dt)); this.place(u); }
+        else { const sp = R.speed * (this.sides[u.side].buff.rally > 0 ? HEROES.uru.speed : 1); u.s = Math.max(0, Math.min(LANES[u.lane].length, u.s + u.dir * sp * dt)); this.place(u); }
       } else if (u.state === "attack") {
         if (tg) { // 공격할 땐 상대를 바라봄
           const tx = tg.kind === "unit" ? tg.unit.x : tg.struct.x, ty = tg.kind === "unit" ? tg.unit.y : tg.struct.y;
@@ -301,7 +364,7 @@ export class Battle {
           u.hitDone = true;
           const t = this.findTarget(u);
           if (t && t.d <= R.range + 0.3) {
-            const dmg = Math.round(R.dmg * rand(0.9, 1.1));
+            const dmg = Math.round(R.dmg * rand(0.9, 1.1) * this.dmgMul(u));
             if (R.shot) this.shoot(u, t, dmg);
             else if (t.kind === "unit") this.damageUnit(t.unit, dmg, u);
             else this.damageStruct(t.struct, dmg);
@@ -326,6 +389,7 @@ export class Battle {
 
   land(p) {
     this.events.push({ type: "land", proj: p });
+    if (p.blastStruct && p.blastStruct.alive && Math.hypot(p.blastStruct.x - p.x, p.blastStruct.y - p.y) <= p.splash + p.blastStruct.radius + 1) this.damageStruct(p.blastStruct, p.structDmg);
     if (p.struct) { this.damageStruct(p.struct, p.dmg); return; }
     if (p.splash) {
       for (const e of this.units) {

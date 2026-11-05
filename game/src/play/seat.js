@@ -1,7 +1,7 @@
 // 조작판 한 자리: 문제 풀기 + 출전(길 고르기·병사 카드·금광·성 대포).
 // 혼자 하기에서는 한 자리(기사단), 둘이서 하기에서는 두 자리(왼쪽 기사단, 오른쪽 해골 군단).
-import { ROLES, ROLE_INFO, SIDES, MINE, CANNON, GOLD } from "./config.js";
-import { LANE_NAMES, LANE_LABEL } from "./lanes.js";
+import { ROLES, ROLE_INFO, SIDES, MINE, CANNON, GOLD, HEROES } from "./config.js";
+import { LANE_NAMES, LANE_LABEL, LANES, BOUNDS, BASES } from "./lanes.js";
 import { Sound } from "./sound.js";
 import { TOPICS, makeQuestion, checkAnswer, answerText, questionLine } from "./questions.js";
 
@@ -27,6 +27,7 @@ const TPL = `
   <div class="ahead">
     <div class="gold"><i class="coin"></i><b class="goldN">60</b><span class="pop"></span></div>
     <button class="mine"><span>금광 <b class="mineLv">Lv1</b></span><small class="mineCost">120골드로 강화</small></button>
+    <button class="hero" hidden disabled><img alt=""><span class="hinfo"><b class="hskill"></b><i class="hgauge"><i></i></i></span></button>
     <button class="cannon" disabled><span>성 대포</span><span class="pips"><i></i><i></i><i></i><i></i><i></i></span></button>
   </div>
   <div class="lanes" role="radiogroup" aria-label="보낼 길">
@@ -70,6 +71,7 @@ export class Seat {
       if (this.b.upgradeMine(side)) { Sound.play("mine"); this.say(`금광 Lv${this.b.sides[side].mine}! 문제당 골드 +${Math.round(MINE.bonus * 100)}%`); }
     });
     q(".cannon").addEventListener("click", () => { if (this.active() && this.b.fireCannon(side)) this.say("성 대포 발사!"); });
+    q(".hero").addEventListener("click", () => this.useSkill());
     q(".skip").addEventListener("click", () => this.skip());
     q(".keypad").addEventListener("click", (e) => { const t = e.target.closest("button"); if (t) this.press(t.dataset.k || t.textContent); });
     // 난이도: 올리기만 직접(골드 ×1·×2·×4). 내리기는 2번 틀리면 자동 → "쉬운 문제만 빨리 풀기"를 막음(11-04 A안)
@@ -88,9 +90,20 @@ export class Seat {
 
   // 지도에 있는 길만 단추로(길이 하나면 길 줄을 숨김), 길 이름도 지도에 맞춤
   setLanes() {
+    // 단추마다 지금 지도의 작은 그림: 모든 길은 흐리게, 그 길만 굵게(내 본성 → 적 본성)
+    const [bx, by] = BOUNDS, W = 60, H = Math.max(18, Math.round(60 * by / bx));
+    const px = (x, y) => [((x + bx) / (2 * bx)) * (W - 8) + 4, ((by - y) / (2 * by)) * (H - 8) + 4];
+    const path = (n) => LANES[n].pts.map((p, i) => (i ? "L" : "M") + px(p[0], p[1]).map((v) => v.toFixed(1)).join(" ")).join(" ");
+    const mine = this.side < 0 ? BASES[-1] : BASES[1], foe = this.side < 0 ? BASES[1] : BASES[-1];
     this.el.querySelectorAll(".lanes button").forEach((b) => {
-      b.hidden = !LANE_NAMES.includes(b.dataset.lane);
-      b.querySelector("span").textContent = LANE_LABEL[b.dataset.lane];
+      const n = b.dataset.lane, on = LANE_NAMES.includes(n);
+      b.hidden = !on;
+      b.querySelector("span").textContent = LANE_LABEL[n];
+      if (!on) return;
+      const [mx, my] = px(...mine), [fx, fy] = px(...foe);
+      b.querySelector("svg").outerHTML = `<svg class="mini" viewBox="0 0 ${W} ${H}" aria-hidden="true">` +
+        LANE_NAMES.map((k) => `<path d="${path(k)}" class="${k === n ? "me" : "other"}"/>`).join("") +
+        `<circle cx="${mx}" cy="${my}" r="3.6" class="home"/><circle cx="${fx}" cy="${fy}" r="3.6" class="foe"/></svg>`;
     });
     this.$(".lanes").hidden = LANE_NAMES.length < 2;
     this.el.classList.toggle("onelane", LANE_NAMES.length < 2);
@@ -113,6 +126,15 @@ export class Seat {
     this.log = [];            // 맞힘(1)·틀림(0) 순서(기록 카드의 ■□ 줄)
     this.shownGold = battle.sides[this.side].gold; this.wasReady = {};
     this.$(".chip").textContent = TOPICS[topic].name;
+    const hero = battle.sides[this.side].hero, hb = this.$(".hero");
+    hb.hidden = !hero;
+    if (hero) {
+      const H = HEROES[hero];
+      hb.querySelector("img").src = `assets/faces/${H.face}.webp`;
+      hb.querySelector(".hskill").textContent = H.skill;
+      hb.title = `${H.title} ${H.name}: ${H.desc}`;
+      hb.setAttribute("aria-label", `${H.skill}, ${H.desc}`);
+    }
     this.$(".lock").hidden = true;
     this.setLane(this.lane);
     this.setDiff(0);
@@ -121,6 +143,14 @@ export class Seat {
     this.tipStep = seen ? 9 : 1;
     this.showTips();
     this.update(true);
+  }
+  // 영웅 기술: 깨침돌 기운이 다 차면 고른 길에 씀
+  useSkill() {
+    if (!this.active() || !this.b.useSkill(this.side, this.lane)) return false;
+    const H = HEROES[this.b.sides[this.side].hero];
+    Sound.play("horn");
+    if (this.ctx.skill) this.ctx.skill(this.b.sides[this.side].hero, H); else this.say(H.skill + "!");
+    return true;
   }
   showTips() {
     const st = this.tipStep;
@@ -228,6 +258,7 @@ export class Seat {
   }
   // 키보드(혼자 하기에서만)
   key(e) {
+    if (e.key === "q" || e.key === "Q" || e.key === "ㅂ") { this.useSkill(); return; } // 영웅 기술
     if (this.q && this.q.type === "tiles") {
       if (e.key === "Backspace") this.press("back");
       else if (/^[1-9]$/.test(e.key) && this.q.tiles[+e.key - 1]) this.tile(+e.key - 1);
@@ -355,6 +386,12 @@ export class Seat {
     for (let i = 0; i < pips.length; i++) pips[i].classList.toggle("on", i < S.cannon);
     const ready = S.cannon >= CANNON.charge && !!b.cannonTarget(this.side);
     const cb = this.$(".cannon"); cb.disabled = !ready; cb.classList.toggle("ready", ready);
+    if (S.hero) {
+      const hb = this.$(".hero"), ok = b.canSkill(this.side);
+      hb.disabled = !ok; hb.classList.toggle("ready", ok);
+      hb.querySelector(".hgauge i").style.width = (S.skill / S.need * 100).toFixed(0) + "%";
+      hb.classList.toggle("live", S.buff.guard > 0 || S.buff.rally > 0);
+    }
     const st = this.$(".streak");
     if (st.dataset.n !== String(S.streak)) {
       st.dataset.n = S.streak; st.hidden = S.streak < 2; st.textContent = S.streak + "연속!";

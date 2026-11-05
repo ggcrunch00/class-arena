@@ -718,3 +718,78 @@ body.duo #talk { display: none; }
 #wipe.out { animation: wipeout .42s cubic-bezier(.6,0,.4,1) both; }
 @keyframes wipein { from { clip-path: polygon(0 0, 0 0, -20% 100%, 0 100%); } to { clip-path: polygon(0 0, 120% 0, 100% 100%, 0 100%); } }
 @keyframes wipeout { from { clip-path: polygon(0 0, 120% 0, 100% 100%, 0 100%); } to { clip-path: polygon(120% 0, 120% 0, 100% 100%, 100% 100%); } }
+/* 시작 카운트다운 */
+#count { position: fixed; left: 50%; top: 40%; z-index: 7; transform: translate(-50%, -50%); pointer-events: none; font-family: var(--display); font-weight: 900;
+  font-size: clamp(70px, 13vw, 150px); color: var(--parch); -webkit-text-stroke: 8px #2a170b; paint-order: stroke fill; text-shadow: 0 10px 0 #2a170b;
+  animation: countpop .6s cubic-bezier(.2,1.6,.4,1); white-space: nowrap; }
+#count.ready { font-size: clamp(48px, 8vw, 96px); color: var(--brass-l); }
+#count.go { color: var(--stone); text-shadow: 0 10px 0 #2a170b, 0 0 40px rgba(70,224,207,.7); }
+body.counting #panel { pointer-events: none; filter: saturate(.6) brightness(.8); transition: filter .3s; }
+@keyframes countpop { from { transform: translate(-50%, -50%) scale(1.8); opacity: 0; } 60% { opacity: 1; } }
+/* 이야기 초상화: 대화창 글을 가리지 않게 크기를 줄이고, 상자 왼쪽 위로 올려 세움 */
+.sbox { --bust: clamp(140px, 24vh, 220px); }
+.sbust { height: var(--bust); bottom: 10px; left: 12px; }
+.sbox.has-bust { padding-left: calc(var(--bust) + 26px); min-height: calc(var(--bust) * .62); }
+.sbox.foe .sbust { left: auto; right: 12px; }
+.sbox.foe.has-bust { padding-left: 24px; padding-right: calc(var(--bust) + 26px); }
+/* 보낼 길 단추: 지도 그림 + 길 이름 */
+.lanes button { gap: 7px; }
+.lanes button svg.mini { width: 46px; height: auto; max-height: 26px; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+.lanes svg.mini .other { stroke: rgba(241,227,194,.28); stroke-width: 2.4; }
+.lanes svg.mini .me { stroke: #f3d38a; stroke-width: 4.2; }
+.lanes svg.mini .home { fill: #5cc4ff; stroke: none; } .lanes svg.mini .foe { fill: #c4bce8; stroke: none; }
+.lanes button.on svg.mini .me { stroke: #2a1d10; }
+.lanes button.on svg.mini .other { stroke: rgba(42,29,16,.3); }
+#panel.two .lanes button svg.mini { width: 30px; }
+
+/* 영웅 기술 단추(조작판 위 줄, 11-05): 얼굴 + 기술 이름 + 깨침돌 기운 막대 */
+.hero { margin-left: auto; display: flex; align-items: center; gap: 7px; padding: 3px 10px 3px 3px; border-radius: 6px; min-width: 0;
+  background: linear-gradient(#2c5553, #1b3836); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 3px 0 #0b1d1c; color: var(--ink); font-size: 13px; line-height: 1.2; }
+.hero:not([hidden]) + .cannon { margin-left: 0; }
+.hero img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; object-position: 50% 15%; border: 2px solid var(--brass); background: #10202c; flex: none; }
+.hero .hinfo { display: grid; gap: 4px; min-width: 70px; text-align: left; }
+.hero .hskill { font-weight: 700; white-space: nowrap; }
+.hero .hgauge { display: block; height: 6px; border-radius: 3px; background: rgba(0,0,0,.5); overflow: hidden; }
+.hero .hgauge i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #22a596, var(--stone)); transition: width .3s; }
+.hero[disabled] { cursor: default; }
+.hero.ready { background: linear-gradient(#3fd0bf, #1e7f73); color: #04201c; box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 3px 0 #0b3a34, 0 0 16px rgba(70,224,207,.8); animation: glow 1s ease-in-out infinite alternate; }
+.hero.live img { box-shadow: 0 0 0 3px var(--stone), 0 0 12px var(--stone); }
+.hero:active { transform: scale(.94); }
+@media (prefers-reduced-motion: reduce) { .hero.ready { animation: none; } }
+
+/* 기사단 막사 */
+.sheet.barrack { width: min(940px, 100%); max-height: 94vh; overflow-y: auto; }
+.bh { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.purse { font-family: var(--display); color: var(--brass-l); font-size: 17px; }
+.heroes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.herocard { display: flex; gap: 10px; align-items: flex-start; text-align: left; padding: 10px; border-radius: 8px; color: var(--ink);
+  background: rgba(8,18,28,.55); box-shadow: inset 0 0 0 1px rgba(243,211,138,.16); }
+.herocard img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; object-position: 50% 15%; border: 2px solid var(--brass); background: #10202c; flex: none; }
+.herocard > span { display: grid; gap: 2px; }
+.herocard small { color: var(--brass-l); font-size: 12px; }
+.herocard b { font-family: var(--display); font-size: 18px; }
+.herocard em { font-style: normal; font-size: 12.5px; opacity: .85; line-height: 1.4; }
+.herocard i { font-style: normal; font-size: 12px; color: var(--stone); }
+.herocard.on { background: rgba(217,164,65,.18); box-shadow: inset 0 0 0 2px var(--brass-l), 0 0 14px rgba(243,211,138,.3); }
+.herocard.locked { opacity: .6; cursor: default; } .herocard.locked img { filter: grayscale(1) brightness(.6); }
+.train { display: grid; gap: 8px; }
+.trow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 14px; align-items: center; padding: 8px 12px; border-radius: 8px; background: rgba(8,18,28,.45); }
+.trow .tname { display: grid; } .trow .tname small { opacity: .8; font-size: 12.5px; }
+.tpips { display: flex; gap: 6px; } .tpips i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--brass); }
+.tpips i.on { background: var(--brass-l); box-shadow: 0 0 8px rgba(243,211,138,.6); }
+.go.small { font-size: 15px; padding: 7px 14px; }
+.go[disabled] { filter: grayscale(.7) brightness(.75); cursor: default; }
+.hopt { grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; }
+.hopt img { grid-row: span 2; width: 30px; height: 30px; border-radius: 50%; object-fit: cover; object-position: 50% 15%; border: 1.5px solid var(--brass); }
+.hopt[disabled] { opacity: .5; } .hopt[disabled] img { filter: grayscale(1); }
+
+/* 원정 도감 쪽 나누기(인물·장소·물건) */
+.dtabs { display: flex; gap: 6px; }
+.dtabs button { padding: 6px 16px; border-radius: 6px; background: rgba(8,18,28,.55); color: var(--ink); box-shadow: inset 0 0 0 1px rgba(243,211,138,.2); font-weight: 700; }
+.dtabs button.on { background: linear-gradient(#f6dc96, #d9a441 52%, #b07a28); color: var(--ink-d); box-shadow: 0 0 0 2px #2a170b; }
+.dexcard.place { grid-template-columns: 112px minmax(0, 1fr); }
+.dexcard.place img { width: 112px; height: 74px; border-radius: 4px; }
+.dexcard.place.unknown img { filter: grayscale(1) brightness(.35); }
+.dexcard .dicon { grid-row: 1 / span 2; width: 56px; height: 56px; padding: 10px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #23506a, #13283a);
+  box-shadow: 0 0 0 2px var(--brass), 0 0 0 4px #2a170b; fill: none; stroke: var(--stone); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.dexcard.unknown .dicon { stroke: #5d6b78; background: #1a2430; }

@@ -44,6 +44,38 @@ export const SPECIAL = {
   giant: { name: "안개 거인", model: "skel_warrior", scale: 1.75, tint: 0x9a90c0, hp: 1100, dmg: 42, range: 1.7, speed: 0.95, hitAt: 0.42, beats: null },
 };
 
+// 영웅(11-05): 기사단 넷 가운데 한 명이 지휘관으로 함께해요(둘이서 하기 빼고).
+// 맞힌 문제마다 깨침돌 기운이 한 칸씩 차고(틀려도 줄지 않음), 다 차면 기술을 한 번 써요.
+//   guard: 정해진 시간 동안 우리 병사가 받는 피해를 cut배로, 쓰는 순간 체력 heal만큼 회복
+//   volley: 고른 길 맨 앞 적에게 화살비 n번(한 번에 화살 4개, 화살마다 dmg, 둘레 splash)
+//   rally: 정해진 시간 동안 우리 병사 빠르기·공격 배율
+//   blast: 고른 길 맨 앞 적 무리에 큰 깨침돌 빛(병사 dmg, 둘레 splash, 그 길 탑·본성에 struct)
+export const HEROES = {
+  haram: { name: "하람", title: "기사단장", face: "haram", skill: "방패 함성", need: 6, kind: "guard", time: 8, cut: 0.5, heal: 0.3,
+    desc: "8초 동안 우리 병사가 받는 피해가 절반, 바로 체력도 조금 회복", line: "방패를 들어요! 한 걸음도 물러서지 마요!" },
+  saebyeok: { name: "새벽", title: "정찰병", face: "saebyeok", skill: "화살비", need: 6, kind: "volley", n: 3, dmg: 24, splash: 1.5,
+    desc: "고른 길 맨 앞의 적에게 화살비가 세 번 쏟아져요", line: "저기예요! 화살비, 쏴요!",
+    join: "다음 전투부터 저도 지휘관 곁에 설게요. 기사단 막사에서 저를 고르면 화살비를 보여 드릴게요!" },
+  uru: { name: "우루", title: "돌격대장", face: "uru", skill: "돌격 함성", need: 6, kind: "rally", time: 8, speed: 1.4, dmg: 1.3,
+    desc: "8초 동안 우리 병사가 더 빠르고(+40%) 더 세게(+30%) 싸워요", line: "으랏차! 다 같이 앞으로!",
+    join: "다음엔 저를 데려가요! 기사단 막사에서 고르면 돌격 함성으로 모두 힘이 펄펄 나게 해 줄게요." },
+  sol: { name: "솔", title: "궁정 마법사", face: "sol", skill: "깨침돌 폭발", need: 7, kind: "blast", dmg: 150, splash: 3.4, struct: 150,
+    desc: "고른 길 맨 앞 적 무리에 큰 빛이 터져요(탑에도 피해)", line: "깨침돌아, 모은 빛을 보여 줘!",
+    join: "깨침돌의 빛을 한데 모으는 법을 알아냈어요. 기사단 막사에서 저와 함께하면 깨침돌 폭발을 쓸 수 있어요." },
+};
+export const HERO_ORDER = ["haram", "saebyeok", "uru", "sol"];
+// 이 스테이지를 깨면 그 영웅과 함께할 수 있음(null: 처음부터)
+export const HERO_OPEN = { haram: null, saebyeok: "1-1", uru: "1-2", sol: "2-2" };
+
+// 훈련소(11-05): 원정에서 모은 별로 기사단을 단련. 원정과 혼자 연습(컴퓨터와 대전)에만 쓰고, 둘이서·오늘의 도전에는 안 씀
+export const TRAIN = {
+  armor: { name: "단단한 갑옷", desc: "병사 체력", unit: "+6%", max: 3, cost: [2, 3, 4], hp: 0.06 },
+  blade: { name: "날 선 무기", desc: "병사 공격", unit: "+6%", max: 3, cost: [2, 3, 4], dmg: 0.06 },
+  purse: { name: "넉넉한 군자금", desc: "시작 골드", unit: "+20", max: 3, cost: [1, 2, 3], gold: 20 },
+  stone: { name: "깨침돌 연마", desc: "영웅 기술에 필요한 정답", unit: "−1", max: 2, cost: [3, 5], skill: 1 },
+};
+export const TRAIN_ORDER = ["armor", "blade", "purse", "stone"];
+
 // 진영별 모형(파일 이름 = game/models/*.js)
 export const SIDES = {
   [-1]: { name: "기사단", models: { shield: "knight", rusher: "barbarian", archer: "rogue", mage: "mage" }, color: 0x9fd8ff },

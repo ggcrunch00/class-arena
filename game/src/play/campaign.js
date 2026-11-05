@@ -2,6 +2,8 @@
 // 이야기 글은 학생이 보는 글이라 해요체. 인물 관계는 단순하게(기사단 넷 + 장마다 해골 대장 하나 + 안개 군주).
 // 스테이지 규칙은 stage.js(StageRunner)가 읽고, 화면은 main.js가 그림. node로도 읽을 수 있음(tests/campaign_balance.mjs).
 
+import { TRAIN, HERO_OPEN } from "./config.js";
+
 export const WORLD = {
   name: "아라 군도",
   intro: [
@@ -33,6 +35,8 @@ export const CHARS = {
     lore: "아이들에게 글을 가르치던 선생님이었어요. 주문처럼 외던 말은 사실 옛 수업 내용이었어요." },
   cheolgol: { name: "해골 장군 철골", img: "skel_warrior", side: 1, meet: "4-2",
     lore: "산길 요새의 문지기였어요. 골드를 쌓아 두기만 하는 사람을 보면 참지 못해요." },
+  geurimja: { name: "안개 그림자", img: "geurimja", side: 1, meet: "6-2",
+    lore: "모로가 잊으려 했던 마음이 안개로 남은 모습이에요. 남을 보고 그대로 따라 하지만, 스스로 무언가를 깨치지는 못해요." },
   moro: { name: "안개 군주 모로", img: "moro", side: 1, meet: "5-2",
     lore: "옛 왕립 도서관의 사서예요. 슬픈 이야기를 잊게 하려다 안개를 불렀지만, 이제 다시 기억하는 법을 배우고 있어요." },
 };
@@ -62,6 +66,7 @@ const ai = (o) => ({ answerEvery: 7, accuracy: 0.8, diff: 0, counter: 0.2, mineT
 export const CHAPTERS = [
   {
     id: 1, name: "바닷가 초소", art: "ch1", map: "shore", pos: [43, 77],
+    prologue: [{ who: "narr", text: "아라 군도 남쪽 끝, 바닷가 초소는 배가 드나드는 첫 관문이에요. 이곳 깨침돌은 군도에서 가장 오래되었어요." }],
     teach: "문제를 풀어 골드를 벌고, 병사를 불러요",
     stages: [
       {
@@ -77,6 +82,7 @@ export const CHAPTERS = [
         ],
         script: [
           { at: 25, talk: ["sol", "방패병은 달려드는 돌격병에게 강해요. 카드 아래 ‘▶ 돌격병에 강함’을 보세요."] },
+          { at: 55, talk: ["haram", "문제를 맞힐 때마다 오른쪽 위 제 얼굴 단추에 빛이 차요. 다 차면 눌러서 방패 함성을 써요!"] },
           { at: 90, talk: ["haram", "적 탑을 무너뜨려야 본성에 닿을 수 있어요. 조금만 더!"] },
         ],
         win: [
@@ -112,6 +118,7 @@ export const CHAPTERS = [
   },
   {
     id: 2, name: "두 갈래 숲길", art: "ch2", map: "twin", pos: [29, 47],
+    prologue: [{ who: "narr", text: "초소 북쪽에는 호수를 품은 숲이 있어요. 길은 호수를 사이에 두고 둘로 갈라져요." }, { who: "narr", text: "옛 숲지기들은 두 길을 번갈아 걸으며 숲을 살폈대요. 한 길만 걷는 사람은 다른 길의 소식을 놓치니까요." }],
     teach: "길을 골라 보내요. 돌격병이 합류해요",
     stages: [
       {
@@ -161,6 +168,7 @@ export const CHAPTERS = [
   },
   {
     id: 3, name: "강 건너 다리", art: "ch3", map: "bridge", pos: [70, 55],
+    prologue: [{ who: "narr", text: "숲을 지나면 세 줄기 강이 흐르는 들판이 나와요. 강 위에는 돌다리 셋이 놓여 있어요." }, { who: "narr", text: "들판 마을 사람들은 다리 앞 깨침돌에서 글과 셈을 배웠어요. 다리가 막히면 배움도 멈춰요." }],
     teach: "마법사가 합류해 상성 고리가 완성돼요",
     stages: [
       {
@@ -210,6 +218,7 @@ export const CHAPTERS = [
   },
   {
     id: 4, name: "산길 요새", art: "ch4", map: "pass", pos: [67, 22],
+    prologue: [{ who: "narr", text: "들판 북쪽, 눈 덮인 산 사이로 요새가 서 있어요. 요새 아래에는 군도의 금광이 있어요." }, { who: "narr", text: "요새로 가는 길은 짧은 지름길과 굽은 산길로 나뉘어요. 빠른 길이 늘 좋은 길은 아니에요." }],
     teach: "금광과 성 대포로 작전을 세워요",
     stages: [
       {
@@ -263,6 +272,7 @@ export const CHAPTERS = [
   },
   {
     id: 5, name: "안개 성채", art: "ch5", map: "citadel", pos: [31, 9],
+    prologue: [{ who: "narr", text: "모든 안개가 시작된 곳, 북쪽 바다 위의 성채예요." }, { who: "narr", text: "본래는 군도의 이야기를 모아 둔 왕립 도서관이었어요. 지금은 짙은 안개에 잠겨 책장 넘기는 소리도 들리지 않아요." }],
     teach: "배운 것을 모두 걸고 마지막 싸움에 나서요",
     stages: [
       {
@@ -317,12 +327,107 @@ export const CHAPTERS = [
       },
     ],
   },
+  {
+    id: 6, name: "잊힌 등대섬", art: "ch6", map: "wide", pos: [13, 80], after: true,
+    // 해 질 녘 빛(지도 분위기를 덮어씀)
+    mood: { sun: [1.0, 0.58, 0.4], sunI: 2.7, hemiSky: [0.6, 0.52, 0.88], hemiI: 1.0, bg: "#1e1830" },
+    prologue: [
+      { who: "narr", text: "안개가 걷히고 몇 달이 지났어요. 그런데 서쪽 바다 끝 등대섬에서만은 여전히 잿빛 안개가 피어올라요." },
+      { who: "narr", text: "등대는 깨침돌을 군도에 처음 들여온 사람들이 세운 곳이에요. 불이 꺼진 지 아주 오래되었지요." },
+      { who: "moro", text: "저 안개는 제가 부른 게 아니에요. 제가 잊으려던 마음이 그림자가 되어 남았어요. 그 그림자는 보는 대로 따라 해요." },
+    ],
+    teach: "영웅과 함께, 배운 모든 것을 시험해요",
+    stages: [
+      {
+        id: "6-1", name: "꺼진 등대", map: "wide",
+        goal: "4분 동안 본성을 지켜 등대 불씨를 살려요",
+        rules: { roles: ALL },
+        battle: { time: 240, objective: { type: "survive" }, gold: { [-1]: 160, [1]: 90 }, baseHp: { [-1]: 1.2 } },
+        ai: ai({ answerEvery: 6.0, accuracy: 0.84, counter: 0.55, mineTo: 2, cannonAt: 3, roles: ALL }),
+        intro: [
+          { who: "saebyeok", text: "등대 아래에 해골 무리가 몰려 있어요. 그런데 대장이 보이지 않아요." },
+          { who: "sol", text: "꺼진 등대에 불씨를 다시 지피려면 시간이 필요해요. 4분만 본성을 지켜 줘요." },
+          { who: "haram", text: "이번엔 영웅의 힘도 함께해요. 기술은 무리나 거인이 몰려올 때 아껴 써요." },
+        ],
+        script: [
+          { at: 50, wave: { roles: ["rusher", "rusher", "shield"], lane: "auto" }, talk: ["saebyeok", "무리가 몰려와요! 영웅 기술을 쓸 때예요!"] },
+          { at: 110, giant: "auto", talk: ["moro", "그림자가 거인을 빚어 보냈어요. 힘을 모아 막아요!"] },
+          { at: 165, wave: { roles: ["mage", "archer", "archer"], lane: "auto" } },
+          { at: 200, giant: "auto", talk: ["sol", "불씨가 거의 살아났어요! 조금만 더 버텨요!"] },
+        ],
+        win: [
+          { who: "sol", text: "등대에 불이 붙었어요! 빛이 안개를 조금씩 밀어내요." },
+          { who: "saebyeok", text: "저기, 안개 속에 누가 서 있어요. 망토를 두른 모습이… 꼭 우리 지휘관 같아요." },
+          { who: "moro", text: "안개 그림자예요. 지휘관이 싸우는 모습을 지켜보며 그대로 흉내 내는 법을 배웠어요." },
+        ],
+        hint: "버티기 판이에요. 탑 근처에 병사를 세워 두고, 영웅 기술은 무리나 거인이 올 때 써요.",
+      },
+      {
+        id: "6-2", name: "안개 그림자", map: "diag", boss: "geurimja", epilogue: true,
+        goal: "안개 그림자의 본성을 무너뜨려요",
+        rules: { roles: ALL },
+        battle: { time: 420, baseHp: { 1: 1.3 }, towerHp: { 1: 1.2 } },
+        ai: ai({ answerEvery: 5.3, accuracy: 0.86, counter: 0.65, mineTo: 3, cannonAt: 3, roles: ALL, habits: ["lane", "role", "hoard", "cannon", "skill", "mirror"], mirror: 0.4 }),
+        lines: {
+          lane: "{lane}… 또 그 길이군요. 이번엔 내가 먼저 막아 둘게요.",
+          role: "{role}만 고르는군요. 나는 {counter}로 맞설게요.",
+          hoard: "골드를 쌓아 두는 버릇, 나도 배웠어요. {lane}로 한꺼번에 가요!",
+          cannon: "대포 소리를 들었어요. 모두 흩어져요!",
+          skill: "영웅의 힘이군요. 나도 흉내 내고 싶은데… 우선 흩어져요!",
+          mirror: "{role}을 보냈군요. 그럼 나는 {counter}로 받을게요.",
+        },
+        intro: [
+          { who: "geurimja", text: "지휘관, 당신이 하는 대로 나도 할게요. 보낸 길도, 고른 병사도 다 보고 있었어요." },
+          { who: "haram", text: "따라 하는 상대에게는 같은 수가 오래 통하지 않아요. 계속 바꿔 가며 싸워요." },
+          { who: "sol", text: "그림자는 따라 할 수는 있어도 문제를 풀어 깨칠 수는 없어요. 그게 우리 힘이에요." },
+        ],
+        script: [
+          { at: 90, giant: "auto", talk: ["geurimja", "거인도 따라 빚을 수 있어요."] },
+          { at: 200, giant: "auto" },
+          { at: 320, giant: "auto", talk: ["geurimja", "왜 자꾸 달라지나요? 따라 할 수가 없어요…"] },
+        ],
+        win: [
+          { who: "geurimja", text: "따라 할수록 더 모르겠어요. 당신은 매번 새로 생각하는군요." },
+          { who: "moro", text: "그림자야, 이제 함께 돌아가자. 잊지 않고 기억하는 법은 내가 알려 줄게." },
+          { who: "haram", text: "지휘관, 등대가 다시 빛나요. 이 빛이면 어떤 안개가 와도 길을 잃지 않을 거예요." },
+        ],
+        hint: "같은 길, 같은 병사만 보내면 그림자가 바로 따라 막아요. 자주 바꾸고, 영웅 기술은 무리가 모였을 때!",
+      },
+    ],
+  },
 ];
 
 export const ENDING = [
   { who: "narr", text: "잿빛 안개가 걷히고, 아라 군도에 다시 아침이 왔어요." },
   { who: "narr", text: "깨침돌은 오늘도 반짝여요. 누군가 문제 하나를 풀어 낼 때마다요." },
-  { who: "narr", text: "원정 완료! 이제 자유 대전에서 원정 지도를 모두 쓸 수 있어요. 별 3개와 도전 모드에도 도전해 보세요." },
+  { who: "narr", text: "다섯 섬의 원정을 마쳤어요! 이제 자유 대전에서 원정 지도를 모두 쓸 수 있어요." },
+  { who: "narr", text: "그런데 서쪽 바다 끝, 등대섬에만은 아직 잿빛 안개가 남아 있어요…" },
+];
+// 6장(등대섬)을 마친 뒤 맺음 이야기
+export const EPILOGUE = [
+  { who: "narr", text: "등대의 빛이 군도의 밤바다를 비춰요. 배들이 다시 서쪽 바다를 오가요." },
+  { who: "narr", text: "깨침돌은 남을 따라 하는 사람보다, 스스로 생각해 낸 사람에게 가장 밝게 빛나요." },
+  { who: "narr", text: "모든 원정을 마쳤어요! 도전 모드와 별 3개, 기사단 막사의 훈련도 모두 채워 보세요." },
+];
+
+// 도감 물건(open: 이 스테이지가 열리면 도감에 들어옴, icon: 화면이 그리는 작은 그림 이름)
+export const ITEMS = [
+  { key: "stone", name: "깨침돌", icon: "gem", open: "1-1",
+    text: "성문마다 세워 둔 신비한 돌이에요. 누군가 문제를 풀어 깨달음을 얻으면 반짝이며 골드를 내놓아요. 스스로 생각해 낸 답일수록 더 밝게 빛나요." },
+  { key: "circle", name: "출전 마법진", icon: "rune", open: "1-1",
+    text: "골드를 바치면 병사를 불러오는 둥근 무늬예요. 기사단 병사들은 이 마법진을 지나 전장에 나가요." },
+  { key: "fog", name: "잿빛 안개", icon: "cloud", open: "1-1",
+    text: "닿은 것의 기억을 흐리게 하는 안개예요. 안개 속 해골들은 자신이 누구였는지 잊고 길을 헤매요." },
+  { key: "ring", name: "상성 고리", icon: "ring", open: "3-1",
+    text: "방패병은 돌격병을, 돌격병은 궁수를, 궁수는 마법사를, 마법사는 방패병을 이겨요. 한 가지 병사만으로는 이길 수 없다는 기사단의 오랜 가르침이에요." },
+  { key: "mine", name: "금광", icon: "pick", open: "4-1",
+    text: "산길 요새 아래의 금광이에요. 골드를 들여 키우면 문제 하나를 풀 때마다 더 많은 골드가 나와요. 키우는 동안에는 병사를 덜 부르게 되니 때를 잘 골라요." },
+  { key: "cannon", name: "성 대포", icon: "ball", open: "4-1",
+    text: "본성 꼭대기의 큰 대포예요. 다섯 문제를 연달아 맞히면 깨침돌의 힘이 모여 한 번 쏠 수 있어요." },
+  { key: "giant", name: "안개 거인", icon: "skull", open: "5-1",
+    text: "안개가 뭉쳐 생긴 커다란 해골이에요. 느리지만 아주 튼튼해서 여러 병사가 함께 막아야 해요." },
+  { key: "flame", name: "등대 불씨", icon: "flame", open: "6-1",
+    text: "깨침돌을 처음 들여온 사람들이 남긴 불씨예요. 등대에 다시 불이 켜지면 밤바다에서도 길을 잃지 않아요." },
 ];
 
 export const STAGES = CHAPTERS.flatMap((c) => c.stages.map((s) => ({ ...s, chapter: c })));
@@ -331,8 +436,8 @@ export const stageById = (id) => STAGES.find((s) => s.id === id);
 // ---------- 진행 저장(이 기기에만, localStorage) ----------
 const KEY = "classArena.campaign";
 export function loadProgress() {
-  try { const p = JSON.parse(localStorage.getItem(KEY) || "{}"); return { stars: p.stars || {}, hstars: p.hstars || {}, loss: p.loss || {}, seenIntro: !!p.seenIntro, done: !!p.done, hard: !!p.hard }; }
-  catch { return { stars: {}, hstars: {}, loss: {}, seenIntro: false, done: false, hard: false }; }
+  try { const p = JSON.parse(localStorage.getItem(KEY) || "{}"); return { stars: p.stars || {}, hstars: p.hstars || {}, loss: p.loss || {}, seenIntro: !!p.seenIntro, done: !!p.done, hard: !!p.hard, hero: p.hero || "haram", train: p.train || {}, seenCh: p.seenCh || {}, done2: !!p.done2 }; }
+  catch { return { stars: {}, hstars: {}, loss: {}, seenIntro: false, done: false, hard: false, hero: "haram", train: {}, seenCh: {} }; }
 }
 export function saveProgress(p) { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* 저장 못 해도 게임은 계속 */ } }
 // 앞 스테이지를 깼으면 열림(첫 스테이지는 처음부터)
@@ -342,3 +447,10 @@ export function isOpen(p, id) {
 }
 export function chapterStars(p, ch) { return ch.stages.reduce((a, s) => a + (p.stars[s.id] || 0), 0); }
 export function chapterCleared(p, n) { const ch = CHAPTERS[n - 1]; return !!ch && ch.stages.every((s) => (p.stars[s.id] || 0) > 0); }
+
+// ---------- 영웅·훈련소 ----------
+// 별 주머니: 원정 별 + 도전 모드 별 − 훈련에 쓴 별
+export function starsTotal(p) { return [p.stars, p.hstars].reduce((a, o) => a + Object.values(o || {}).reduce((x, y) => x + y, 0), 0); }
+export function starsSpent(p) { return Object.entries(p.train || {}).reduce((a, [k, lv]) => a + (TRAIN[k] ? TRAIN[k].cost.slice(0, lv).reduce((x, y) => x + y, 0) : 0), 0); }
+export function heroOpen(p, k) { const at = HERO_OPEN[k]; return at === null || (at !== undefined && (p.stars[at] || 0) > 0); }
+export function heroOf(p) { return heroOpen(p, p.hero) ? p.hero : "haram"; }
