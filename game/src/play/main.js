@@ -67,7 +67,7 @@ if (!["cpu", "duo", "daily"].includes(settings.mode)) settings.mode = "cpu";
 function today() {
   const d = new Date(), key = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
   const days = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
-  const topics = Object.keys(TOPICS);
+  const topics = Object.keys(TOPICS).filter((k) => !TOPICS[k].noDaily); // 한자 5·4급처럼 어려운 꾸러미는 오늘의 도전에서 뺌
   return { key, label: `${d.getMonth() + 1}월 ${d.getDate()}일`, topic: topics[days % topics.length] };
 }
 if (!FORMATS[settings.format]) settings.format = "input";

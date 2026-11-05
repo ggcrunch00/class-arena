@@ -6,6 +6,15 @@ import GEO5 from "./bank/geo5.json" with { type: "json" };
 import GEO6 from "./bank/geo6.json" with { type: "json" };
 import HIST6 from "./bank/hist6.json" with { type: "json" };
 import CIVIC6 from "./bank/civic6.json" with { type: "json" };
+import HANJA from "./bank/hanja.json" with { type: "json" };
+import SOKDAM from "./bank/sokdam.json" with { type: "json" };
+import LAND5 from "./bank/land5.json" with { type: "json" };
+import LAW5 from "./bank/law5.json" with { type: "json" };
+import OLD5 from "./bank/old5.json" with { type: "json" };
+import CHANGE5 from "./bank/change5.json" with { type: "json" };
+import COLONY5 from "./bank/colony5.json" with { type: "json" };
+import ECON6 from "./bank/econ6.json" with { type: "json" };
+import WORLD6 from "./bank/world6.json" with { type: "json" };
 
 // 같은 문제가 바로 다시 나오지 않게 최근 12개는 피함
 const recent = [];
@@ -252,6 +261,78 @@ TOPICS.geo5 = { name: GEO5.name, group: "사회", hint: GEO5.hint, words: true, 
 TOPICS.hist6 = { name: HIST6.name, group: "사회", hint: HIST6.hint, words: true, make: makeBlank(HIST6, "빈칸에 들어갈 말을 만들어요"), bank: HIST6, blank: true };
 TOPICS.civic6 = { name: CIVIC6.name, group: "사회", hint: CIVIC6.hint, words: true, make: makeBlank(CIVIC6, "빈칸에 들어갈 말을 만들어요"), bank: CIVIC6, blank: true };
 TOPICS.geo6 = { name: GEO6.name, group: "사회", hint: GEO6.hint, words: true, make: makeBlank(GEO6, "빈칸에 들어갈 말을 만들어요"), bank: GEO6, blank: true };
+// 11-05: 선생님이 모은 단원 정리의 개념만 참고해 새로 쓴 단원 은행(5-1 1·3, 5-2 1·2·3, 6-2 2·3)
+TOPICS.land5 = { name: LAND5.name, group: "사회", hint: LAND5.hint, words: true, make: makeBlank(LAND5, "빈칸에 들어갈 말을 만들어요"), bank: LAND5, blank: true };
+TOPICS.law5 = { name: LAW5.name, group: "사회", hint: LAW5.hint, words: true, make: makeBlank(LAW5, "빈칸에 들어갈 말을 만들어요"), bank: LAW5, blank: true };
+TOPICS.old5 = { name: OLD5.name, group: "사회", hint: OLD5.hint, words: true, make: makeBlank(OLD5, "빈칸에 들어갈 말을 만들어요"), bank: OLD5, blank: true };
+TOPICS.change5 = { name: CHANGE5.name, group: "사회", hint: CHANGE5.hint, words: true, make: makeBlank(CHANGE5, "빈칸에 들어갈 말을 만들어요"), bank: CHANGE5, blank: true };
+TOPICS.colony5 = { name: COLONY5.name, group: "사회", hint: COLONY5.hint, words: true, make: makeBlank(COLONY5, "빈칸에 들어갈 말을 만들어요"), bank: COLONY5, blank: true };
+TOPICS.econ6 = { name: ECON6.name, group: "사회", hint: ECON6.hint, words: true, make: makeBlank(ECON6, "빈칸에 들어갈 말을 만들어요"), bank: ECON6, blank: true };
+TOPICS.world6 = { name: WORLD6.name, group: "사회", hint: WORLD6.hint, words: true, make: makeBlank(WORLD6, "빈칸에 들어갈 말을 만들어요"), bank: WORLD6, blank: true };
+
+// ---------- 속담 ----------
+// 뜻 → 속담, 속담 → 뜻, 빈칸 낱말, OX. 직접 입력이면 빈칸 낱말을 글자 타일로
+function makeSokdam(diff, format) {
+  const items = SOKDAM.items, it = pickItem(items, diff, (i) => i.p);
+  const others = items.filter((o) => o !== it && (!it.same || o.same !== it.same) && o.m !== it.m);
+  const nOpt = diff === 0 ? 3 : 4;
+  const tileable = !/\s/.test(it.b) && syl(it.b).length <= 4;
+  let kind = format === "input" ? "tiles"
+    : format === "pick" ? pickKind([["m2p", 0.35], ["p2m", 0.2], ["blank", 0.25], ["ox", 0.2]])
+      : pickKind([["tiles", 0.3], ["m2p", 0.25], ["p2m", 0.1], ["blank", 0.15], ["ox", 0.2]]);
+  if (kind === "tiles" && !tileable) kind = "blank";
+  const base = { word: true, key: it.p, reveal: `${it.p} · ${it.m}` };
+  const shown = it.p.replace(it.b, "＿＿");
+  if (kind === "tiles") {
+    return { ...base, type: "tiles", text: shown, prompt: "빈칸에 들어갈 말을 만들어요", answer: it.b,
+      tiles: makeTiles(it.b, [], others.map((o) => o.b), diff === 0 ? 2 : 3), options: [it.b] };
+  }
+  if (kind === "blank") {
+    const opts = [it.b]; for (const o of shuffle(others.slice())) { if (opts.length >= nOpt) break; if (!opts.includes(o.b)) opts.push(o.b); }
+    return { ...base, type: "choice", text: shown, prompt: "빈칸에 알맞은 말을 골라요", answer: it.b, options: shuffle(opts) };
+  }
+  if (kind === "m2p") return { ...base, type: "choice", long: true, text: it.m, prompt: "뜻에 맞는 속담을 골라요", answer: it.p, options: shuffle([it.p, ...shuffle(others.slice()).slice(0, 2).map((o) => o.p)]) };
+  if (kind === "p2m") return { ...base, type: "choice", long: true, text: it.p, prompt: "이 속담의 뜻을 골라요", answer: it.m, options: shuffle([it.m, ...shuffle(others.slice()).slice(0, 2).map((o) => o.m)]) };
+  const right = rnd() < 0.5, m = right ? it.m : pick(others).m;
+  return { ...base, type: "ox", text: `${it.p}: ${m}`, prompt: "뜻이 맞으면 O, 틀리면 X", answer: right ? "O" : "X" };
+}
+TOPICS.sokdam = { name: SOKDAM.name, group: "국어", hint: SOKDAM.hint, words: true, make: makeSokdam, bank: SOKDAM };
+
+// ---------- 한자(급수별 훈음) ----------
+// 쉬움: 한자 → 훈음 3지, 보통: 4지 + 훈음 → 한자, 어려움: 모양이 헷갈리는 한자를 오답으로. 직접 입력이면 훈음 글자 타일
+const makeHanja = (levels) => (diff, format) => {
+  const items = HANJA.items.filter((i) => levels.includes(i.lv));
+  let it; for (let k = 0; k < 20; k++) { it = pick(items); if (!recent.includes(it.c)) break; }
+  const others = items.filter((o) => o.c !== it.c && (!it.same || o.same !== it.same) && o.h !== it.h);
+  const look = it.x.map((c) => others.find((o) => o.c === c)).filter(Boolean); // 모양이 헷갈리는 한자
+  const nOpt = diff === 0 ? 3 : 4;
+  const wrong = (n, first = []) => { const out = [...first]; for (const o of shuffle(others.slice())) { if (out.length >= n) break; if (!out.includes(o)) out.push(o); } return out.slice(0, n); };
+  const kind = format === "input" ? "tiles"
+    : pickKind(format === "pick" ? [["c2h", diff === 0 ? 0.6 : 0.4], ["h2c", diff === 0 ? 0.15 : 0.35], ["ox", 0.25]]
+      : [["tiles", 0.3], ["c2h", 0.3], ["h2c", 0.2], ["ox", 0.2]]);
+  const base = { word: true, key: it.c, reveal: `${it.c} ${it.h} (${it.lv})` };
+  if (kind === "tiles") {
+    return { ...base, type: "tiles", text: it.c, big: true, prompt: "이 한자의 훈과 음을 만들어요", answer: it.h,
+      tiles: makeTiles(it.h, [], others.map((o) => o.h), Math.min(diff === 0 ? 2 : 4, 9 - syl(it.h).length)), options: shuffle([it.h, ...wrong(2).map((o) => o.h)]) };
+  }
+  if (kind === "c2h") return { ...base, type: "choice", text: it.c, big: true, prompt: "이 한자의 훈과 음을 골라요", answer: it.h, options: shuffle([it.h, ...wrong(nOpt - 1, diff === 2 ? look : []).map((o) => o.h)]) };
+  if (kind === "h2c") return { ...base, type: "choice", text: it.h, prompt: "훈과 음에 맞는 한자를 골라요", answer: it.c, hanjaOpts: true, options: shuffle([it.c, ...wrong(nOpt - 1, diff >= 1 ? look : []).map((o) => o.c)]) };
+  const right = rnd() < 0.5, h = right ? it.h : (diff === 2 && look.length ? pick(look) : pick(others)).h;
+  return { ...base, type: "ox", text: `${it.c} : ${h}`, prompt: "훈과 음이 맞으면 O, 틀리면 X", answer: right ? "O" : "X" };
+};
+TOPICS.hanja87 = { name: "한자 8·7급", group: "한자", hint: "150자 · 훈과 음", words: true, make: makeHanja(["8급", "7급"]), bank: HANJA, hanja: true };
+TOPICS.hanja6 = { name: "한자 6급", group: "한자", hint: "150자 · 훈과 음", words: true, make: makeHanja(["6급"]), bank: HANJA, hanja: true };
+TOPICS.hanja5 = { name: "한자 5급", group: "한자", hint: "200자 · 훈과 음", words: true, make: makeHanja(["5급"]), bank: HANJA, hanja: true, noDaily: true };
+TOPICS.hanja4 = { name: "한자 4급", group: "한자", hint: "500자 · 4급Ⅱ 포함", words: true, make: makeHanja(["4급Ⅱ", "4급"]), bank: HANJA, hanja: true, noDaily: true };
+
+// 고르기 화면에서 과목끼리 붙어 나오게 순서 정리(수학 → 국어 → 사회 → 한자)
+{
+  const order = ["수학", "국어", "사회", "한자"], g = (t) => (t.group ? order.indexOf(t.group) : 0);
+  // 사회는 학년·학기 차례로
+  const soc = ["land5", "geo5", "law5", "old5", "change5", "colony5", "hist6", "civic6", "geo6", "econ6", "world6"], si = (k) => (soc.includes(k) ? soc.indexOf(k) : 99);
+  const keys = Object.keys(TOPICS).map((k, i) => [k, i]).sort((a, b) => g(TOPICS[a[0]]) - g(TOPICS[b[0]]) || si(a[0]) - si(b[0]) || a[1] - b[1]).map(([k]) => k);
+  const copy = { ...TOPICS }; for (const k of keys) delete TOPICS[k]; for (const k of keys) TOPICS[k] = copy[k];
+}
 
 function num(text, answer, prompt = "") {
   return { type: "number", text, answer, prompt };
