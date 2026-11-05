@@ -280,7 +280,7 @@ export class Seat {
     this.b.answer(this.side, "skip");
     Sound.play("skip");
     this.wrongs.push({ q: this.q, given: "", kind: "skip" });
-    this.lockFor(GOLD.skipLock, "skip", "넘겼어요 · 정답은 " + answerText(this.q), () => this.next());
+    this.lockFor(GOLD.skipLock, "skip", "넘겼어요. 정답은 " + answerText(this.q), () => this.next());
   }
   lockFor(sec, kind, msg, then) {
     this.lock = { t: sec, total: sec, then };

@@ -45,7 +45,7 @@ function parseGLB(name) {
 }
 function fontsReady() {
   if (!document.fonts) return Promise.resolve();
-  return Promise.race([Promise.all([document.fonts.load("40px 'Black Han Sans'"), document.fonts.load("16px 'Gowun Dodum'")]),
+  return Promise.race([Promise.all([document.fonts.load("800 40px 'Hahmlet'"), document.fonts.load("16px 'Gowun Dodum'")]),
     new Promise((r) => setTimeout(r, 2500))]).catch(() => {});
 }
 function remember(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { return null; } return null; }
@@ -211,11 +211,11 @@ async function newGame(stage = null) {
     seats[0].start(battle, daily ? daily.topic : settings.topic, daily ? "input" : settings.format, stage ? stage.rules : undefined);
     if (duo) seats[1].start(battle, settings.topic2, settings.format);
     $("#blueSub").textContent = duo ? "왼쪽" : "나";
-    $("#redSub").textContent = duo ? "오른쪽" : stage ? `${stage.id} ${stage.boss ? CHARS[stage.boss].name : stage.name}` : "컴퓨터 · " + AI_LEVELS[daily ? "knight" : settings.ai].name;
+    $("#redSub").textContent = duo ? "오른쪽" : stage ? `${stage.id} ${stage.boss ? CHARS[stage.boss].name : stage.name}` : "컴퓨터 " + AI_LEVELS[daily ? "knight" : settings.ai].name;
     $("#banner").hidden = true; talkQ.length = 0; talkLog.length = 0;
     document.querySelectorAll(".confetti").forEach((c) => c.remove()); // 앞 판 색종이 지우기 $("#talk").hidden = true; talkT = 0;
-    if (daily) setTimeout(() => banner(`오늘의 도전 · ${daily.label} · ${TOPICS[daily.topic].name}`, 2.2), 300);
-    if (stage) setTimeout(() => banner((hard ? "도전 모드 · " : "") + "목표: " + stage.goal.replace(/요$/, "요!"), 2.4), 300);
+    if (daily) setTimeout(() => banner(`${daily.label} 오늘의 도전, ${TOPICS[daily.topic].name}`, 2.2), 300);
+    if (stage) setTimeout(() => banner((hard ? "도전 모드! " : "") + "목표: " + stage.goal.replace(/요$/, "요!"), 2.4), 300);
     if (stage && stage.unlock && !camp.stars[stage.id]) setTimeout(() => { if (G && G.stage === stage) banner(stage.unlock, 2.4); }, 2900);
     quality.reset();
     mode = "play";
@@ -285,7 +285,7 @@ function updateHud(force) {
   $("#clock b").textContent = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
   $("#clock").classList.toggle("ot", b.overtime);
   const ob = b.objective;
-  $("#clockSub").textContent = b.overtime ? "총력전 · 골드 2배"
+  $("#clockSub").textContent = b.overtime ? "총력전, 골드 2배"
     : ob.type === "towers" ? `목표: 탑 ${Object.values(b.sides[CPU].towers).filter((t) => !t.alive).length}/${ob.n}`
       : ob.type === "survive" ? "목표: 끝까지 버티기" : "남은 시간";
 }
@@ -379,6 +379,7 @@ function showResult() {
     $("#resWhy").textContent = b.endWhy === "base" ? `${sideName(-w)}의 본성이 무너졌어요.` : "시간이 끝나서 본성과 탑이 더 튼튼한 쪽이 이겼어요.";
   } else {
     $("#resTitle").textContent = w === PLAYER ? "승리!" : w === CPU ? "아쉬운 패배" : "무승부";
+    $("#resultScreen").classList.toggle("lose", w !== PLAYER);
     $("#resWhy").textContent = b.endWhy === "towers" ? "목표한 탑을 모두 무너뜨렸어요!"
       : b.endWhy === "survive" ? "끝까지 본성을 지켜 냈어요!"
         : b.endWhy === "base"
@@ -458,9 +459,9 @@ function saveCard() {
   const gr = g.createLinearGradient(0, 0, 0, 1080); gr.addColorStop(0, "#1f3a2b"); gr.addColorStop(1, "#0d1712");
   g.fillStyle = gr; g.fillRect(0, 0, 1080, 1080);
   g.strokeStyle = "#c9a45c"; g.lineWidth = 10; g.strokeRect(30, 30, 1020, 1020);
-  g.textAlign = "center"; g.fillStyle = "#fff3d6"; g.font = "120px 'Black Han Sans', sans-serif"; g.fillText("성문 대전", 540, 200);
+  g.textAlign = "center"; g.fillStyle = "#fff3d6"; g.font = "800 120px 'Hahmlet', serif"; g.fillText("성문 대전", 540, 200);
   const lines = $("#shareText").textContent.split("\n");
-  g.fillStyle = "#ffd36b"; g.font = "52px 'Black Han Sans', sans-serif"; g.fillText(lines[0].replace("성문 대전 · ", ""), 540, 320);
+  g.fillStyle = "#ffd36b"; g.font = "800 52px 'Hahmlet', serif"; g.fillText(lines[0].replace("성문 대전 · ", ""), 540, 320);
   g.fillStyle = "#f6efe0"; g.font = "40px 'Gowun Dodum', sans-serif";
   let y = 430;
   for (const ln of lines.slice(1)) {
@@ -513,7 +514,7 @@ function drawCamp() {
     nodes.appendChild(b);
   }
   const ch = CHAPTERS[campSel - 1];
-  $("#cKicker").textContent = `원정 · ${ch.id}장`;
+  $("#cKicker").textContent = `${ch.id}장`;
   $("#cTitle").textContent = ch.name;
   $("#cTeach").textContent = ch.teach;
   const box = $("#cStages"); box.innerHTML = "";
@@ -522,8 +523,8 @@ function drawCamp() {
     const row = document.createElement("div");
     row.className = "cstage" + (st.boss ? " boss" : "") + (open ? "" : " locked");
     const hs = (camp.hstars && camp.hstars[st.id]) || 0;
-    row.innerHTML = `<span class="t"><i>${st.id}</i>${st.name}</span><span class="st">${"★".repeat(stars)}${"☆".repeat(3 - stars)}${hs ? ` <b class="hs" title="도전 모드 별">도전 ${"★".repeat(hs)}</b>` : ""}</span>` +
-      `<span class="g">${open ? st.goal : "앞 스테이지를 깨면 열려요"}${st.boss ? " · 보스" : ""}</span>`;
+    row.innerHTML = `<span class="t"><i>${st.id}</i>${st.name}${st.boss ? '<span class="badge">보스</span>' : ""}</span><span class="st">${"★".repeat(stars)}${"☆".repeat(3 - stars)}${hs ? ` <b class="hs" title="도전 모드 별">도전 ${"★".repeat(hs)}</b>` : ""}</span>` +
+      `<span class="g">${open ? st.goal : "앞 스테이지를 깨면 열려요"}</span>`;
     const go = document.createElement("button"); go.className = "go"; go.textContent = stars ? "다시" : "출전"; go.disabled = !open;
     go.addEventListener("click", () => startStage(stageById(st.id)));
     row.appendChild(go);
@@ -532,7 +533,12 @@ function drawCamp() {
   // 문제 주제·형식(원정에서도 고를 수 있게)
   const tSel = $("#cTopic"), fSel = $("#cFmt");
   if (!tSel.options.length) {
-    for (const [k, t] of Object.entries(TOPICS)) tSel.add(new Option(`${t.group ? t.group + " · " : ""}${t.name}`, k));
+    const groups = {};
+    for (const [k, t] of Object.entries(TOPICS)) {
+      const g = t.group || "그 밖";
+      if (!groups[g]) { groups[g] = document.createElement("optgroup"); groups[g].label = g; tSel.appendChild(groups[g]); }
+      groups[g].appendChild(new Option(t.name, k));
+    }
     for (const [k, f] of Object.entries(FORMATS)) fSel.add(new Option(f.name, k));
     tSel.addEventListener("change", () => { settings.topic = tSel.value; remember("classArena.topic", tSel.value); drawStart(); });
     fSel.addEventListener("change", () => { settings.format = fSel.value; remember("classArena.format", fSel.value); drawStart(); });
@@ -545,7 +551,7 @@ function drawCamp() {
 function startStage(st) {
   Sound.unlock(); Music.start();
   const ch = st.chapter;
-  playStory(st.intro, { art: ch.art, card: { kick: `${ch.id}장 · ${ch.name}`, title: `${st.id} ${st.name}`, goal: "목표: " + st.goal } }, () => newGame(st));
+  playStory(st.intro, { art: ch.art, card: { kick: `${ch.id}장 ${ch.name}`, title: `${st.id} ${st.name}`, goal: "목표: " + st.goal } }, () => newGame(st));
 }
 // 이긴 뒤: 이야기 → (마지막이면 맺음 이야기) → 군도 지도(다음 스테이지)
 function afterWin(st) {
@@ -676,7 +682,7 @@ function drawStart() {
   $("#topic2Pick").hidden = !duo; $("#aiPick").hidden = duo || daily;
   for (const id of ["#topicOpts", "#fmtOpts"]) $(id).closest(".pick").hidden = daily;
   $("#dailyNote").hidden = !daily;
-  if (daily) { const t = today(); $("#dailyNote").textContent = `오늘(${t.label})의 도전: ${TOPICS[t.topic].name} · 직접 입력 · 컴퓨터 기사. 반 친구들 모두 같은 문제가 같은 순서로 나와요. 끝나고 기록을 복사해 비교해 보세요!`; }
+  if (daily) { const t = today(); $("#dailyNote").textContent = `${t.label} 오늘의 도전은 ${TOPICS[t.topic].name}이에요. 직접 입력으로 컴퓨터 기사와 겨뤄요. 반 친구들 모두 같은 문제가 같은 순서로 나와요. 끝나고 기록을 복사해 비교해 보세요!`; }
   $("#topicLabel").textContent = duo ? "왼쪽(기사단) 문제 주제" : "문제 주제";
   document.querySelectorAll("#topicOpts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.topic));
   document.querySelectorAll("#topic2Opts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.topic2));
@@ -707,9 +713,10 @@ function showStart() {
 function drawLastSet() {
   const duo = settings.mode === "duo";
   const mapName = MAPS[mapOpen(settings.map) ? settings.map : "diag"].name;
-  if (settings.mode === "daily") { const t = today(); $("#lastSet").textContent = `자유 대전: 오늘의 도전 · ${t.label} · ${TOPICS[t.topic].name} · ${mapName} 지도`; return; }
-  $("#lastSet").textContent = "자유 대전: " + (duo ? "둘이서 대전 · " + TOPICS[settings.topic].name + " / " + TOPICS[settings.topic2].name
-    : "연습 대전 · " + TOPICS[settings.topic].name + " · 컴퓨터 " + AI_LEVELS[settings.ai].name) + " · " + FORMATS[settings.format].name + " · " + mapName + " 지도";
+  // 바로 시작하면 무엇으로 하는지 한 문장으로(자유 대전 바로 시작 단추 아래)
+  if (settings.mode === "daily") { const t = today(); $("#lastSet").textContent = `바로 시작: ${t.label} 오늘의 도전, ${TOPICS[t.topic].name}, ${mapName} 지도`; }
+  else $("#lastSet").textContent = "바로 시작: " + (duo ? `둘이서 대전, ${TOPICS[settings.topic].name} 대 ${TOPICS[settings.topic2].name}`
+    : `연습 대전, ${TOPICS[settings.topic].name}, 컴퓨터 ${AI_LEVELS[settings.ai].name}`) + `, ${FORMATS[settings.format].name}, ${mapName} 지도`;
   const n = STAGES.filter((x) => camp.stars[x.id]).length;
   $("#campBtn").textContent = n === 0 ? "원정 떠나기" : camp.done ? "원정 지도" : `원정 이어 하기 (${n}/${STAGES.length})`;
 }
