@@ -247,7 +247,7 @@ export const CHAPTERS = [
           { who: "haram", text: "이제 안개 성채만 남았어요. 안개 군주 모로가 거기 있어요." },
           { who: "sol", text: "모로… 옛 왕립 도서관의 사서 이름과 같아요. 설마…" },
         ],
-        hint: "골드를 200 넘게 쌓지 말고 바로바로 써요. 거인은 여러 병사로 함께 막아요.",
+        hint: "골드를 250 넘게 쌓지 말고 바로바로 써요. 거인은 여러 병사로 함께 막아요.",
       },
     ],
   },
@@ -312,7 +312,7 @@ export const CHAPTERS = [
 export const ENDING = [
   { who: "narr", text: "잿빛 안개가 걷히고, 아라 군도에 다시 아침이 왔어요." },
   { who: "narr", text: "깨침돌은 오늘도 반짝여요. 누군가 문제 하나를 풀어 낼 때마다요." },
-  { who: "narr", text: "원정 완료! 자유 대전에서 캠페인 지도를 모두 쓸 수 있어요. 별 3개에 도전해 보세요." },
+  { who: "narr", text: "원정 완료! 이제 자유 대전에서 원정 지도를 모두 쓸 수 있어요. 별 3개와 도전 모드에도 도전해 보세요." },
 ];
 
 export const STAGES = CHAPTERS.flatMap((c) => c.stages.map((s) => ({ ...s, chapter: c })));
