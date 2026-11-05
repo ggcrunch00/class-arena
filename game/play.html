@@ -98,9 +98,15 @@
       <div class="cstages" id="cStages"></div>
       <div class="cprob"><label>문제 주제 <select id="cTopic"></select></label><label>형식 <select id="cFmt"></select></label>
         <label class="hardtog"><input type="checkbox" id="cHard"> 도전 모드 <small>문제를 빨리 푸는 친구용: 해골이 더 빠르고 영리해요</small></label></div>
-      <div class="cact"><button class="ghost" id="cBack">처음으로</button><button class="ghost" id="cStory">이야기 다시 보기</button></div>
+      <div class="cact"><button class="ghost" id="cBack">처음으로</button><button class="ghost" id="cStory">이야기 다시 보기</button><button class="ghost" id="cDex">인물 도감</button></div>
     </aside>
   </div>
+</div>
+
+<!-- 인물 도감: 원정에서 만난 인물 -->
+<div class="screen" id="dexScreen" hidden>
+  <div class="sheet"><h2>인물 도감</h2><p class="note" id="dexNote"></p><div class="dex" id="dexList"></div>
+    <div class="actions"><button class="go" id="dexClose">원정 지도로</button></div></div>
 </div>
 
 <!-- 이야기(대화) -->

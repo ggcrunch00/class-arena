@@ -688,3 +688,18 @@ body.duo #talk { display: none; }
 .cstage .bface { grid-row: 1 / span 3; grid-column: 1; width: 46px; height: 46px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px var(--fog), 0 0 0 4px #2b2846; }
 .cstage.withface .t, .cstage.withface .st, .cstage.withface .g { grid-column: 2; }
 .cstage.withface .go { grid-column: 3; grid-row: 1 / span 3; }
+/* 인물 도감 */
+.dex { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; max-height: 62vh; overflow-y: auto; }
+.dexcard { display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 2px 10px; align-items: start; padding: 10px; border-radius: 6px;
+  background: var(--parchment); color: var(--ink-d); box-shadow: 0 0 0 2px #6b4a22; }
+.dexcard.foe { background: var(--grain), radial-gradient(ellipse at 28% 18%, #ece8f6, #d4cfe6); box-shadow: 0 0 0 2px #4c4870; }
+.dexcard img { grid-row: 1 / span 2; width: 64px; height: 64px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px var(--brass), 0 0 0 4px #2a170b; }
+.dexcard.foe img { box-shadow: 0 0 0 2px var(--fog), 0 0 0 4px #2b2846; }
+.dexcard b { font-family: var(--display); font-weight: 800; font-size: 16px; }
+.dexcard p { margin: 0; font-size: 13.5px; line-height: 1.45; word-break: keep-all; }
+.dexcard.unknown img { filter: brightness(0) opacity(.55); }
+.dexcard.unknown b { color: #7a5c35; }
+/* 성능: 조작판·정보 띠를 따로 떼어 그려서(합성 층), 밑의 3D가 매 프레임 바뀌어도 나무·양피지 재질을 다시 칠하지 않게 */
+#panel, #top, .team, #clock { will-change: transform; }
+#panel { contain: layout paint; }
+.quiz, .army { contain: layout paint; }

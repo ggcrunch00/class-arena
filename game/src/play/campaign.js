@@ -16,15 +16,25 @@ export const WORLD = {
 // 말하는 인물: 얼굴 그림(assets/portraits/*.webp)과 이름. side: 1이면 해골 군단 쪽(말풍선 색이 붉음)
 export const CHARS = {
   narr: { name: "", img: null },
-  haram: { name: "하람 기사단장", img: "knight", note: "기사단을 이끄는 든든한 단장" },
-  sol: { name: "궁정 마법사 솔", img: "mage", note: "깨침돌을 연구하는 마법사" },
-  saebyeok: { name: "정찰병 새벽", img: "rogue", note: "눈이 밝은 궁수" },
-  uru: { name: "돌격대장 우루", img: "barbarian", note: "힘이 세고 웃음이 많은 돌격병" },
-  deolkeok: { name: "해골 대장 덜컥", img: "skel_minion", side: 1 },
-  sallang: { name: "해골 척후대장 살랑", img: "skel_rogue", side: 1 },
-  hoesaek: { name: "해골 주술사 회색깃", img: "skel_mage", side: 1 },
-  cheolgol: { name: "해골 장군 철골", img: "skel_warrior", side: 1 },
-  moro: { name: "안개 군주 모로", img: "moro", side: 1 },
+  // meet: 도감에 들어오는 때(기사단은 그 스테이지가 열리면, 해골 쪽은 그 스테이지를 깨면), lore: 도감 글
+  haram: { name: "하람 기사단장", img: "knight", note: "기사단을 이끄는 든든한 단장", meet: "1-1",
+    lore: "기사단을 이끄는 단장이에요. 말수는 적지만 어려운 순간에는 가장 먼저 앞에 서요." },
+  sol: { name: "궁정 마법사 솔", img: "mage", note: "깨침돌을 연구하는 마법사", meet: "1-1",
+    lore: "깨침돌을 연구하는 궁정 마법사예요. 문제 하나가 풀릴 때마다 돌이 내는 빛을 공책에 적어요." },
+  saebyeok: { name: "정찰병 새벽", img: "rogue", note: "눈이 밝은 궁수", meet: "1-1",
+    lore: "눈이 밝은 정찰병이에요. 멀리서 다가오는 해골 무리를 누구보다 먼저 알아채요." },
+  uru: { name: "돌격대장 우루", img: "barbarian", note: "힘이 세고 웃음이 많은 돌격병", meet: "1-2",
+    lore: "힘이 세고 웃음이 많은 돌격대장이에요. 도끼보다 큰 목소리로 기사단의 기운을 북돋워요." },
+  deolkeok: { name: "해골 대장 덜컥", img: "skel_minion", side: 1, meet: "1-2",
+    lore: "바닷가 초소를 지키던 병사였어요. 안개 속에서 모든 걸 잊고 '덜컥' 소리만 기억했어요." },
+  sallang: { name: "해골 척후대장 살랑", img: "skel_rogue", side: 1, meet: "2-2",
+    lore: "숲을 지키던 정찰병이었어요. 남의 버릇을 읽는 눈은 기억을 잃어도 그대로였어요." },
+  hoesaek: { name: "해골 주술사 회색깃", img: "skel_mage", side: 1, meet: "3-2",
+    lore: "아이들에게 글을 가르치던 선생님이었어요. 주문처럼 외던 말은 사실 옛 수업 내용이었어요." },
+  cheolgol: { name: "해골 장군 철골", img: "skel_warrior", side: 1, meet: "4-2",
+    lore: "산길 요새의 문지기였어요. 골드를 쌓아 두기만 하는 사람을 보면 참지 못해요." },
+  moro: { name: "안개 군주 모로", img: "moro", side: 1, meet: "5-2",
+    lore: "옛 왕립 도서관의 사서예요. 슬픈 이야기를 잊게 하려다 안개를 불렀지만, 이제 다시 기억하는 법을 배우고 있어요." },
 };
 
 const LANE_WORD = { top: "윗길", mid: "가운뎃길", bot: "아랫길" };

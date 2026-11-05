@@ -55,6 +55,8 @@ export const AI_LEVELS = {
   recruit: { name: "신병", answerEvery: 6.6, accuracy: 0.8, diff: 0, counter: 0.15, mineTo: 1, cannonAt: 4 },
   knight: { name: "기사", answerEvery: 5.8, accuracy: 0.84, diff: 1, counter: 0.5, mineTo: 2, cannonAt: 3 },
   general: { name: "장군", answerEvery: 4.7, accuracy: 0.88, diff: 1, counter: 0.85, mineTo: 3, cannonAt: 2 },
+  // 대장군(11-05): 문제를 아주 빨리 푸는 학생용. 해골도 어려운 문제(골드 ×4)를 풀고 거의 늘 상성을 노림
+  warlord: { name: "대장군", answerEvery: 5.0, accuracy: 0.9, diff: 2, counter: 0.95, mineTo: 3, cannonAt: 2 },
 };
 
 // 화질 단계(설정 메뉴에서 고르거나 자동)

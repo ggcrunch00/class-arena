@@ -16,7 +16,7 @@ const KINDS = {
 };
 const KIND = process.argv[4] || "보통"; console.log("학생:", KIND, JSON.stringify(KINDS[KIND]));
 AI_LEVELS.student = { name: "학생", adaptive: KINDS[KIND], counter: 0.35, mineTo: 2, cannonAt: 2 };
-for (const lv of ["recruit", "knight", "general"]) {
+for (const lv of (process.env.LV || "recruit,knight,general,warlord").split(",")) {
   let win = 0, lose = 0, draw = 0, lens = [], dep = [0, 0], timeEnd = 0, towers = [0, 0], gold = [0, 0], dsum = [0, 0, 0];
   for (let i = 0; i < N; i++) {
     const b = new Battle(dur), me = new ComputerPlayer(b, -1, "student"), cpu = new ComputerPlayer(b, 1, lv);

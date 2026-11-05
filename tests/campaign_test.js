@@ -16,7 +16,8 @@ const { chromium } = require('playwright');
   await page.waitForSelector('#storyScreen:not([hidden])');
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${out}/c1_story_world.png` });
-  for (let i = 0; i < 5; i++) await page.click('#sBox', { force: true });
+  // 대사는 글자가 한 자씩 나와서 첫 누름은 "한 번에 보이기" → 이야기가 끝날 때까지 누름
+  for (let i = 0; i < 20 && await page.isVisible('#storyScreen'); i++) { await page.click('#sBox', { force: true }); await page.waitForTimeout(60); }
   await page.waitForSelector('#campScreen:not([hidden])');
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${out}/c2_camp.png` });

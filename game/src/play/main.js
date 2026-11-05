@@ -566,6 +566,27 @@ function afterWin(st) {
   });
 }
 
+// 인물 도감: 기사단은 처음 만나는 스테이지가 열리면, 해골 쪽은 그 스테이지를 깨면 들어옴
+function openDex() {
+  const box = $("#dexList"); box.innerHTML = "";
+  let got = 0, all = 0;
+  for (const [k, c] of Object.entries(CHARS)) {
+    if (!c.lore) continue;
+    all++;
+    const open = c.side === 1 ? (camp.stars[c.meet] || 0) > 0 : isOpen(camp, c.meet);
+    if (open) got++;
+    const st = stageById(c.meet);
+    const d = document.createElement("div");
+    d.className = "dexcard" + (c.side === 1 ? " foe" : "") + (open ? "" : " unknown");
+    d.innerHTML = `<img src="assets/faces/${k}.webp" alt=""><b></b><p></p>`;
+    d.querySelector("b").textContent = open ? c.name : "아직 못 만난 인물";
+    d.querySelector("p").textContent = open ? c.lore : `${st.chapter.id}장 「${st.chapter.name}」에서 만나요.`;
+    box.appendChild(d);
+  }
+  $("#dexNote").textContent = `만난 인물 ${got}명, 남은 인물 ${all - got}명`;
+  $("#campScreen").hidden = true; $("#dexScreen").hidden = false;
+}
+
 // 이야기 보여 주기: 배경 그림 + (제목 카드) + 대사 한 줄씩. 누르거나 Enter·스페이스로 넘김
 let story = null;
 function playStory(lines, opt, done) {
@@ -657,7 +678,7 @@ function buildStart() {
     fmtBox.appendChild(b);
   }
   // 지도 단추는 drawStart가 그림(원정에서 장을 깨면 늘어남)
-  const aiBox = $("#aiOpts"), desc = { recruit: "천천히 풀어요", knight: "가끔 상성을 노려요", general: "빠르고 영리해요" };
+  const aiBox = $("#aiOpts"), desc = { recruit: "천천히 풀어요", knight: "가끔 상성을 노려요", general: "빠르고 영리해요", warlord: "어려운 문제를 푸는 강적" };
   for (const [k, a] of Object.entries(AI_LEVELS)) {
     const b = document.createElement("button"); b.className = "opt"; b.dataset.k = k;
     b.innerHTML = `<span>${a.name}</span><small>${desc[k]}</small>`;
@@ -684,6 +705,8 @@ function buildStart() {
   $("#campMapBtn").addEventListener("click", () => showCamp(G && G.stage ? G.stage.id : null));
   $("#nextBtn").addEventListener("click", () => afterWin(G.stage));
   $("#cBack").addEventListener("click", () => { Sound.play("tap"); showStart(); });
+  $("#cDex").addEventListener("click", () => { Sound.play("tap"); openDex(); });
+  $("#dexClose").addEventListener("click", () => { $("#dexScreen").hidden = true; $("#campScreen").hidden = false; });
   // 이야기 다시 보기: 처음 이야기 + 고른 장에서 깬 스테이지 이야기(시작·끝)
   $("#cStory").addEventListener("click", () => {
     const ch = CHAPTERS[campSel - 1];
@@ -813,6 +836,8 @@ function frame(now) {
   if (talkT > 0 && mode === "play") { talkT -= dt; if (talkT <= 0) nextTalk(); }
   if (mode !== "play") for (const st of seats) if (st.toastT > 0) st.tick(0);
   if (quality.showFps && now - fpsShown > 500) { fpsShown = now; $("#fps").textContent = Math.round(quality.fps) + " fps · " + QUALITY[quality.level].name; }
+  // 이야기·원정 지도·도감이 화면을 덮고 있으면 3D를 그리지 않음(밑에서 계속 그리면 느린 기기가 버벅임)
+  if (!$("#storyScreen").hidden || !$("#campScreen").hidden || !$("#dexScreen").hidden) return;
   const cap = quality.preset.cap;
   if (cap) { renderAcc += dt; if (renderAcc < 1 / cap - 0.004) return; renderAcc = 0; }
   view.render();
