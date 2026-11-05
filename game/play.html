@@ -144,6 +144,7 @@
 <!-- 결과 -->
 <div class="screen" id="resultScreen" hidden>
   <div class="sheet"><div class="stars" id="stars"><i></i><i></i><i></i></div><h2 id="resTitle">승리!</h2><p class="note" id="resWhy"></p>
+    <div class="resline" id="resLine" hidden><img alt=""><p></p></div>
     <div id="resBody"></div>
     <div class="share" id="shareBox"><pre id="shareText"></pre><div class="shareact"><button class="ghost" id="copyBtn">기록 복사</button><button class="ghost" id="cardBtn">기록 카드 저장</button></div></div>
     <p class="reshint" id="resHint" hidden></p>
@@ -151,10 +152,11 @@
   </div>
 </div>
 
+<div id="wipe" hidden></div>
 <div id="talk" hidden><img alt=""><div><b></b><p></p></div></div>
 <div id="fps" hidden>-- fps</div>
 <div id="rotate" hidden><b>가로로 돌려 주세요</b><small>태블릿·크롬북 가로 화면에 맞춘 게임이에요</small></div>
-<div id="loading"><span class="ltitle">성문 대전</span><span class="lbar"><i id="lbar"></i></span><b>0%</b><small class="ltip" id="ltip">팁: 화살표 방향으로 강해요. 방패병은 돌격병을 막아요!</small></div>
+<div id="loading"><img class="lcrest" src="assets/crest.webp" alt="" onerror="this.remove()"><span class="ltitle">성문 대전</span><span class="lbar"><i id="lbar"></i></span><b>0%</b><small class="ltip" id="ltip">팁: 화살표 방향으로 강해요. 방패병은 돌격병을 막아요!</small></div>
 <div id="vignette"></div>
 <div id="cardView" hidden><img alt="기록 카드"><small>그림을 길게 눌러 저장할 수 있어요. 누르면 닫혀요.</small></div>
 

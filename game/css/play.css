@@ -703,3 +703,18 @@ body.duo #talk { display: none; }
 #panel, #top, .team, #clock { will-change: transform; }
 #panel { contain: layout paint; }
 .quiz, .army { contain: layout paint; }
+/* 불러오기: 문장 + 제목 */
+#loading .lcrest { width: clamp(90px, 14vh, 140px); filter: drop-shadow(0 8px 14px rgba(0,0,0,.5)); animation: crest 3.6s ease-in-out infinite; }
+/* 결과: 인물 한마디 */
+.resline { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; align-items: center; padding: 8px 12px; border-radius: 6px;
+  background: var(--parchment); color: var(--ink-d); box-shadow: 0 0 0 2px #6b4a22; }
+.resline.foe { background: var(--grain), radial-gradient(ellipse at 28% 18%, #ece8f6, #d4cfe6); box-shadow: 0 0 0 2px #4c4870; }
+.resline img { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px var(--brass), 0 0 0 4px #2a170b; }
+.resline.foe img { box-shadow: 0 0 0 2px var(--fog), 0 0 0 4px #2b2846; }
+.resline p { margin: 0; font-size: 15px; word-break: keep-all; }
+/* 이야기 → 전투 화면 전환: 양피지 막 */
+#wipe { position: fixed; inset: 0; z-index: 50; pointer-events: none; background: var(--parchment); }
+#wipe.in { animation: wipein .38s cubic-bezier(.6,0,.4,1) both; }
+#wipe.out { animation: wipeout .42s cubic-bezier(.6,0,.4,1) both; }
+@keyframes wipein { from { clip-path: polygon(0 0, 0 0, -20% 100%, 0 100%); } to { clip-path: polygon(0 0, 120% 0, 100% 100%, 0 100%); } }
+@keyframes wipeout { from { clip-path: polygon(0 0, 120% 0, 100% 100%, 0 100%); } to { clip-path: polygon(120% 0, 120% 0, 100% 100%, 100% 100%); } }

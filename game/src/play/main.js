@@ -418,6 +418,19 @@ function showResult() {
     saveProgress(camp);
     if (!won && !G.hard && assistLevel(camp.loss[st.id]) > assistLevel(camp.loss[st.id] - 1)) toast("다음 판부터 해골 군단이 조금 약해져요. 힘내요!");
   }
+  // 원정: 인물 한마디(이기면 기사단, 지면 보스가 놀리고 하람이 다독임)
+  const rl = $("#resLine");
+  rl.hidden = !st;
+  if (st) {
+    // 이긴 뒤 한마디는 인물마다 말투가 다름(누가 말할지는 장·별 수로 돌아가며)
+    const CHEER = [["haram", "잘했어요, 지휘관. 이 섬의 안개가 걷히고 있어요."], ["sol", "좋았어요! 깨침돌이 환하게 빛나요."],
+      ["saebyeok", "해골들이 흩어졌어요. 문제를 정말 잘 풀었어요!"], ["uru", "하하, 이 정도면 안개도 겁먹겠어요!"]];
+    const [who, say] = won ? CHEER[(stars + st.chapter.id) % 4]
+      : st.boss ? [st.boss, "다음엔 다른 작전으로 와 보세요. 기다릴게요!"] : ["haram", "괜찮아요. 작전 도움말을 보고 다시 도전해요."];
+    rl.className = "resline" + (CHARS[who].side === 1 ? " foe" : "");
+    rl.querySelector("img").src = `assets/faces/${who}.webp`;
+    rl.querySelector("p").textContent = `${CHARS[who].name}: ${say}`;
+  }
   $("#resHint").hidden = !st || won;
   if (st && !won) $("#resHint").textContent = "작전 도움말: " + st.hint;
   $("#nextBtn").hidden = !st || !won;
@@ -553,7 +566,14 @@ function drawCamp() {
 function startStage(st) {
   Sound.unlock(); Music.start();
   const ch = st.chapter;
-  playStory(st.intro, { art: ch.art, card: { kick: `${ch.id}장 ${ch.name}`, title: `${st.id} ${st.name}`, goal: "목표: " + st.goal } }, () => newGame(st));
+  playStory(st.intro, { art: ch.art, card: { kick: `${ch.id}장 ${ch.name}`, title: `${st.id} ${st.name}`, goal: "목표: " + st.goal } }, () => wipe(() => newGame(st)));
+}
+// 이야기 → 전투로 넘어갈 때 한 번: 양피지 막이 쓸고 지나감(한곳에만 쓰는 큰 움직임)
+function wipe(next) {
+  const w = $("#wipe");
+  if (reduceMotion()) { next(); return; }
+  w.hidden = false; w.className = "in";
+  setTimeout(() => { next(); w.className = "out"; setTimeout(() => { w.hidden = true; w.className = ""; }, 420); }, 380);
 }
 // 이긴 뒤: 이야기 → (마지막이면 맺음 이야기) → 군도 지도(다음 스테이지)
 function afterWin(st) {
