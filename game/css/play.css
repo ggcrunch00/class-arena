@@ -676,3 +676,15 @@ body.duo #talk { display: none; }
 #talk.foe b { color: #4c4870; }
 #talk img { border-color: var(--brass); background: #1d3347; }
 #talk.foe img { border-color: var(--fog); background: #2b2846; }
+/* 이야기 큰 초상화(Codex 그림): 대화 상자 왼쪽(해골 쪽은 오른쪽)에서 위로 솟음, 가장자리는 흐리게 */
+.sbust { position: absolute; bottom: 0; left: 4px; height: clamp(190px, 38vh, 340px); aspect-ratio: 1; object-fit: cover; pointer-events: none;
+  -webkit-mask-image: radial-gradient(ellipse 62% 70% at 50% 46%, #000 60%, transparent 76%); mask-image: radial-gradient(ellipse 62% 70% at 50% 46%, #000 60%, transparent 76%);
+  filter: drop-shadow(0 8px 14px rgba(0,0,0,.4)); }
+.sbox.has-bust { padding-left: clamp(170px, 31vh, 280px); min-height: clamp(110px, 18vh, 150px); }
+.sbox.foe .sbust { left: auto; right: 4px; }
+.sbox.foe.has-bust { padding-left: 24px; padding-right: clamp(170px, 31vh, 280px); }
+.sbox .snext { animation: none; }
+.cstage.withface { grid-template-columns: auto minmax(0, 1fr) auto; }
+.cstage .bface { grid-row: 1 / span 3; grid-column: 1; width: 46px; height: 46px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px var(--fog), 0 0 0 4px #2b2846; }
+.cstage.withface .t, .cstage.withface .st, .cstage.withface .g { grid-column: 2; }
+.cstage.withface .go { grid-column: 3; grid-row: 1 / span 3; }

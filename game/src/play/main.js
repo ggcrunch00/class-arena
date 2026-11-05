@@ -237,7 +237,8 @@ function nextTalk() {
   const t = talkQ.shift(), el = $("#talk");
   if (!t) { el.hidden = true; talkT = 0; return; }
   el.className = t.foe ? "foe" : "";
-  el.querySelector("img").src = `assets/portraits/${t.c.img || "knight"}.webp`;
+  const key = Object.keys(CHARS).find((k) => CHARS[k] === t.c);
+  el.querySelector("img").src = FACES.has(key) ? `assets/faces/${key}.webp` : `assets/portraits/${t.c.img || "knight"}.webp`;
   el.querySelector("b").textContent = t.c.name;
   el.querySelector("p").textContent = t.text;
   el.hidden = false; el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
@@ -523,7 +524,8 @@ function drawCamp() {
     const row = document.createElement("div");
     row.className = "cstage" + (st.boss ? " boss" : "") + (open ? "" : " locked");
     const hs = (camp.hstars && camp.hstars[st.id]) || 0;
-    row.innerHTML = `<span class="t"><i>${st.id}</i>${st.name}${st.boss ? '<span class="badge">보스</span>' : ""}</span><span class="st">${"★".repeat(stars)}${"☆".repeat(3 - stars)}${hs ? ` <b class="hs" title="도전 모드 별">도전 ${"★".repeat(hs)}</b>` : ""}</span>` +
+    if (st.boss && FACES.has(st.boss)) row.classList.add("withface");
+    row.innerHTML = (st.boss && FACES.has(st.boss) ? `<img class="bface" src="assets/faces/${st.boss}.webp" alt="">` : "") + `<span class="t"><i>${st.id}</i>${st.name}${st.boss ? '<span class="badge">보스</span>' : ""}</span><span class="st">${"★".repeat(stars)}${"☆".repeat(3 - stars)}${hs ? ` <b class="hs" title="도전 모드 별">도전 ${"★".repeat(hs)}</b>` : ""}</span>` +
       `<span class="g">${open ? st.goal : "앞 스테이지를 깨면 열려요"}</span>`;
     const go = document.createElement("button"); go.className = "go"; go.textContent = stars ? "다시" : "출전"; go.disabled = !open;
     go.addEventListener("click", () => startStage(stageById(st.id)));
@@ -577,21 +579,51 @@ function playStory(lines, opt, done) {
     $("#sCard").hidden = false; $("#sBox").hidden = true; story.i = -2;
   } else { $("#sCard").hidden = true; storyNext(); }
 }
+// 대사 한 줄: 큰 초상화(말하는 사람이 바뀌면 옆에서 미끄러져 들어옴) + 글자가 한 자씩(누르면 한 번에)
+const FACES = new Set(["haram", "sol", "saebyeok", "uru", "deolkeok", "sallang", "hoesaek", "cheolgol", "moro"]);
+const reduceMotion = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 function storyNext() {
   if (!story) return;
+  if (story.typing) { finishTyping(); return; }
   if (story.i === -2) { story.i = -1; $("#sCard").hidden = true; }
   story.i++;
   if (story.i >= story.lines.length) return storyEnd();
   const L = story.lines[story.i], c = CHARS[L.who] || CHARS.narr, box = $("#sBox");
+  const face = FACES.has(L.who) && !story.noFace, foe = c.side === 1;
   box.hidden = false;
-  box.className = "sbox" + (c.side === 1 ? " foe" : "") + (c.img ? "" : " narr");
-  $("#sFace").hidden = !c.img;
-  if (c.img) $("#sFace").src = `assets/portraits/${c.img}.webp`;
+  box.className = "sbox" + (foe ? " foe" : "") + (c.img ? "" : " narr") + (face ? " has-bust" : "");
+  $("#sFace").hidden = !c.img || face;
+  if (c.img && !face) $("#sFace").src = `assets/portraits/${c.img}.webp`;
+  const bust = $("#sBust");
+  bust.hidden = !face;
+  if (face) {
+    const changed = story.who !== L.who;
+    bust.onerror = () => { story && (story.noFace = true); bust.hidden = true; box.classList.remove("has-bust"); $("#sFace").hidden = false; $("#sFace").src = `assets/portraits/${c.img}.webp`; };
+    bust.src = `assets/faces/${L.who}.webp`;
+    if (changed && !reduceMotion()) bust.animate([{ opacity: 0, transform: `translateX(${foe ? 40 : -40}px)` }, { opacity: 1, transform: "none" }], { duration: 260, easing: "cubic-bezier(.2,.9,.3,1)" });
+  }
+  story.who = L.who;
   $("#sName").textContent = c.name; $("#sName").hidden = !c.name;
-  $("#sText").textContent = L.text;
-  box.animate([{ opacity: 0.4, transform: "translate(-50%, 6px)" }, { opacity: 1, transform: "translate(-50%, 0)" }], 220);
+  typeText(L.text);
+}
+function typeText(text) {
+  const el = $("#sText");
+  clearInterval(story.timer);
+  if (reduceMotion()) { el.textContent = text; story.typing = false; return; }
+  const chars = [...text]; let n = 0;
+  el.textContent = ""; story.typing = true; story.full = text;
+  story.timer = setInterval(() => {
+    n += 2; el.textContent = chars.slice(0, n).join("");
+    if (n % 6 === 0) Sound.play("tick");
+    if (n >= chars.length) finishTyping();
+  }, 34);
+}
+function finishTyping() {
+  if (!story) return;
+  clearInterval(story.timer); story.typing = false; $("#sText").textContent = story.full || $("#sText").textContent;
 }
 function storyEnd() {
+  if (story) clearInterval(story.timer);
   const d = story && story.done; story = null;
   $("#storyScreen").hidden = true;
   if (d) d();

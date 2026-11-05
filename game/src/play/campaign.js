@@ -102,10 +102,10 @@ export const CHAPTERS = [
   },
   {
     id: 2, name: "두 갈래 숲길", art: "ch2", map: "twin", pos: [29, 47],
-    teach: "길을 골라 보내요 · 돌격병 합류",
+    teach: "길을 골라 보내요. 돌격병이 합류해요",
     stages: [
       {
-        id: "2-1", name: "갈림길", map: "twin", unlock: "새 병사: 돌격병 합류! · 길을 골라 보내요",
+        id: "2-1", name: "갈림길", map: "twin", unlock: "돌격병 합류! 이제 길을 골라 보내요",
         goal: "적 탑 2개를 무너뜨려요",
         rules: { roles: ["shield", "rusher", "archer"], mine: false, cannon: false },
         battle: { time: 330, objective: { type: "towers", n: 2 }, gold: { [-1]: 80 } },
@@ -151,10 +151,10 @@ export const CHAPTERS = [
   },
   {
     id: 3, name: "강 건너 다리", art: "ch3", map: "bridge", pos: [70, 55],
-    teach: "상성 고리 완성 · 마법사 합류",
+    teach: "마법사가 합류해 상성 고리가 완성돼요",
     stages: [
       {
-        id: "3-1", name: "다리를 지켜라", map: "bridge", unlock: "새 병사: 마법사 합류! · 상성 고리 완성",
+        id: "3-1", name: "다리를 지켜라", map: "bridge", unlock: "마법사 합류! 상성 고리 완성",
         goal: "4분 동안 본성을 지켜요",
         rules: { roles: ALL, mine: false, cannon: false },
         battle: { time: 240, objective: { type: "survive" }, gold: { [-1]: 140, [1]: 80 }, baseHp: { [-1]: 1.2 } },
@@ -200,10 +200,10 @@ export const CHAPTERS = [
   },
   {
     id: 4, name: "산길 요새", art: "ch4", map: "pass", pos: [67, 22],
-    teach: "금광·성 대포로 작전 세우기",
+    teach: "금광과 성 대포로 작전을 세워요",
     stages: [
       {
-        id: "4-1", name: "금광을 지켜라", map: "pass", unlock: "새 기능: 금광 강화 · 성 대포",
+        id: "4-1", name: "금광을 지켜라", map: "pass", unlock: "금광 강화와 성 대포가 열렸어요",
         goal: "해골 군단의 본성을 무너뜨려요",
         rules: { roles: ALL },
         battle: { time: 360, towerHp: { 1: 1.1 } },
@@ -253,7 +253,7 @@ export const CHAPTERS = [
   },
   {
     id: 5, name: "안개 성채", art: "ch5", map: "citadel", pos: [31, 9],
-    teach: "모든 것을 걸고 마지막 싸움",
+    teach: "배운 것을 모두 걸고 마지막 싸움에 나서요",
     stages: [
       {
         id: "5-1", name: "안개 속으로", map: "citadel",

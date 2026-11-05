@@ -67,6 +67,16 @@ export class View3D {
     }
     this.blobGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
     this.blobMat = new THREE.MeshBasicMaterial({ map: this.T_BLOB, transparent: true, depthWrite: false });
+    // 병사 발밑 팀 색 고리(11-05): 화질과 상관없이 늘 보여서 어느 편인지 한눈에
+    this.T_TEAM = (() => {
+      const c = document.createElement("canvas"); c.width = c.height = 64;
+      const g = c.getContext("2d"), gr = g.createRadialGradient(32, 32, 14, 32, 32, 31);
+      gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(0.55, "rgba(255,255,255,0.25)"); gr.addColorStop(0.8, "rgba(255,255,255,0.95)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+      g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
+    this.teamMat = { [-1]: new THREE.MeshBasicMaterial({ map: this.T_TEAM, color: 0x5cc4ff, transparent: true, opacity: 0.7, depthWrite: false }),
+      [1]: new THREE.MeshBasicMaterial({ map: this.T_TEAM, color: 0xc4bce8, transparent: true, opacity: 0.6, depthWrite: false }) };
 
     this.parts = [];
     this.rings = [];
@@ -105,6 +115,15 @@ export class View3D {
       });
     }
     scene.add(field);
+    // 바다에 잔물결 무늬(천천히 흐름) — 판판한 파랑 대신
+    this.seaTex = this.seaTex || (() => {
+      const c = document.createElement("canvas"); c.width = c.height = 128;
+      const g = c.getContext("2d"); g.fillStyle = "#ffffff"; g.fillRect(0, 0, 128, 128);
+      g.strokeStyle = "rgba(20,60,90,0.18)"; g.lineWidth = 2;
+      for (let y = 8; y < 128; y += 16) { g.beginPath(); for (let x = 0; x <= 128; x += 4) g.lineTo(x, y + Math.sin((x / 128) * Math.PI * 4 + y) * 3); g.stroke(); }
+      const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(40, 40); t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
+    field.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) if (m.name === "Sea" && !m.map) { m.map = this.seaTex; m.needsUpdate = true; } });
     // 본성·탑(무너지면 폐허로 바꿔 끼움)
     this.nodes = {};
     for (const side of [-1, 1]) {
@@ -264,7 +283,10 @@ export class View3D {
     this.scene.add(blob);
     const bar = document.createElement("div"); bar.className = "bar " + (u.side < 0 ? "b" : "r") + (u.special ? " big" : ""); bar.innerHTML = "<i></i>";
     this.overlay.appendChild(bar);
-    v = { obj, mixer, actions, mats, anim: null, bar, blob, pop: 0, sc };
+    const team = new THREE.Mesh(this.blobGeo, this.teamMat[u.side]);
+    team.scale.set(1.3 * (u.scale || 1), 1, 1.3 * (u.scale || 1)); team.renderOrder = 1;
+    this.scene.add(team);
+    v = { obj, mixer, actions, mats, anim: null, bar, blob, team, pop: 0, sc };
     this.views.set(u.id, v);
     return v;
   }
@@ -280,7 +302,7 @@ export class View3D {
   }
   removeUnit(id) {
     const v = this.views.get(id); if (!v) return;
-    this.scene.remove(v.obj, v.blob); v.blob.material.dispose(); v.bar.remove(); this.views.delete(id);
+    this.scene.remove(v.obj, v.blob, v.team); v.blob.material.dispose(); v.bar.remove(); this.views.delete(id);
   }
   clear() {
     for (const id of [...this.views.keys()]) this.removeUnit(id);
@@ -325,7 +347,12 @@ export class View3D {
   // ---------- 사건 처리 ----------
   handle(events, b) {
     for (const e of events) {
-      if (e.type === "spawn") {
+      if (e.type === "answer" && e.right && b && b.sides) {
+        // 정답: 그 편 본성의 깨침돌에서 청록 빛이 솟음(문제를 풀면 깨침돌이 빛난다는 이야기와 맞춤)
+        const base = b.sides[e.side].base, top = V(base.x, base.y, BASE.height + 0.6);
+        this.puff({ p: top, tint: 0x46e0cf, add: true, life: 0.7, s0: 1.2, s1: 3.2, a0: 0.9 });
+        this.burst(top, 6, { tint: 0x9ffff3, add: true, speed: 1.6, up: 1.2, life: 0.8, s0: 0.35, s1: 0.05 });
+      } else if (e.type === "spawn") {
         const p = V(e.unit.x, e.unit.y, 0.3);
         this.ring(e.unit.x, e.unit.y, SIDES[e.unit.side].color);
         if (e.unit.side > 0) this.burst(p, 14, { tex: this.T_SMOKE, tint: 0x9dff8a, add: true, speed: 1.4, up: 0.6, life: 0.9, s0: 0.9, s1: 1.8, a0: 0.5 });
@@ -389,6 +416,7 @@ export class View3D {
 
   // ---------- 매 프레임 ----------
   update(dt, b) {
+    if (this.seaTex) { this.seaTex.offset.x += dt * 0.006; this.seaTex.offset.y += dt * 0.002; }
     for (let i = this.rings.length - 1; i >= 0; i--) {
       const r = this.rings[i]; r.t += dt;
       const k = r.t / 0.7;
@@ -420,6 +448,7 @@ export class View3D {
       v.obj.rotation.y += d * Math.min(1, dt * 10);
       if (u.anim === "walk" && v.actions.walk) v.actions.walk.timeScale = Math.min(1.6, (ROLE_INFO[u.role] || SPECIAL[u.role]).speed / 1.3);
       v.blob.position.copy(V(u.x, u.y, 0.03));
+      v.team.position.copy(V(u.x, u.y, 0.05)); v.team.visible = u.state !== "death";
       let a = 1;
       if (u.state === "spawn" && u.anim === "walk") a = Math.min(1, u.stateT / 0.35);
       if (u.state === "death") a = 1 - Math.max(0, Math.min(1, (u.stateT - b.dur[u.model].death - 0.1) / 1.0));

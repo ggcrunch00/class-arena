@@ -44,6 +44,7 @@ const S = {
   right: (t) => { tone(t, 660, 660, 0.09, "triangle", 0.4); tone(t + 0.08, 990, 990, 0.16, "triangle", 0.4); },
   wrong: (t) => { tone(t, 220, 150, 0.25, "square", 0.18); },
   skip: (t) => { tone(t, 440, 330, 0.12, "sine", 0.2); },
+  tick: (t) => { tone(t, 1180, 1100, 0.025, "triangle", 0.05); },
   tap: (t) => { tone(t, 880, 990, 0.05, "triangle", 0.18); },
   talk: (t) => { tone(t, 587, 587, 0.07, "triangle", 0.2); tone(t + 0.08, 784, 784, 0.09, "triangle", 0.2); },
   coin: (t) => { tone(t, 1320, 1760, 0.08, "square", 0.12); },
