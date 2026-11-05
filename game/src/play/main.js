@@ -1,4 +1,4 @@
-// 「성문 대전」 연습 대전: 화면 조립, 문제 풀기, 출전 버튼, 시작·설정·결과 화면, 매 프레임 흐름.
+// 「아라 원정대」: 화면 조립, 문제 풀기, 출전 버튼, 시작·설정·결과 화면, 매 프레임 흐름.
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { ROLES, ROLE_INFO, SIDES, AI_LEVELS, QUALITY, QUALITY_ORDER, BASE, HEROES, HERO_ORDER, HERO_OPEN, TRAIN, TRAIN_ORDER } from "./config.js";
@@ -212,8 +212,9 @@ async function newGame(stage = null) {
     const losses = stage ? (camp.loss && camp.loss[stage.id]) || 0 : 0;
     const hard = !!(stage && camp.hard);
     const bopts = stage ? stageBattle(stage, losses, hard) : {};
-    // 영웅은 혼자 하는 판 모두(둘이서 빼고), 훈련소 단련은 원정·연습 대전에만
-    if (!duo) { bopts.hero = { [-1]: heroOf(camp) }; if (stage || !daily) bopts.train = { [-1]: camp.train }; }
+    // 영웅·훈련소는 원정에만(11-05 선생님): 자유 대전·둘이서·오늘의 도전, 앞으로의 PvP는 모두 같은 조건.
+    // Battle은 opts.hero {[-1], [1]}로 양쪽 영웅을 받을 수 있어, 나중에 대전 모드에서 "양쪽 같은 조건으로 영웅 고르기"를 열 수 있음(훈련은 넣지 않음)
+    if (stage) { bopts.hero = { [-1]: heroOf(camp) }; bopts.train = { [-1]: camp.train }; }
     const battle = new Battle(durations, bopts);
     const level = stage ? stageAI(stage, losses, hard) : daily ? "knight" : settings.ai;
     G = { battle, duo, daily, stage, ai: duo ? null : new ComputerPlayer(battle, CPU, level), endT: -1 };
@@ -481,10 +482,10 @@ function shareText() {
   };
   if (G.duo) {
     const w = b.winner;
-    return `성문 대전 · 둘이서 · ${w ? (w < 0 ? "기사단" : "해골 군단") + " 승리" : "무승부"} · ${tm}\n기사단: ${line(seats[0])}\n해골 군단: ${line(seats[1])}`;
+    return `아라 원정대 · 둘이서 · ${w ? (w < 0 ? "기사단" : "해골 군단") + " 승리" : "무승부"} · ${tm}\n기사단: ${line(seats[0])}\n해골 군단: ${line(seats[1])}`;
   }
   const res = b.winner === PLAYER ? "승리" : b.winner === CPU ? "패배" : "무승부";
-  const head = G.daily ? `성문 대전 · 오늘의 도전 ${G.daily.label}` : G.stage ? `성문 대전 · 원정 ${G.stage.id} ${G.stage.name}` : "성문 대전";
+  const head = G.daily ? `아라 원정대 · 오늘의 도전 ${G.daily.label}` : G.stage ? `아라 원정대 · 원정 ${G.stage.id} ${G.stage.name}` : "아라 원정대";
   const foe = G.stage ? "" : ` · 컴퓨터 ${G.daily ? "기사" : AI_LEVELS[settings.ai].name}`;
   return `${head} · ${res} ${"★".repeat(G.stars)}${"☆".repeat(3 - G.stars)}${foe} · ${tm}\n${line(seats[0])}`;
 }
@@ -503,9 +504,9 @@ function saveCard() {
   const gr = g.createLinearGradient(0, 0, 0, 1080); gr.addColorStop(0, "#1f3a2b"); gr.addColorStop(1, "#0d1712");
   g.fillStyle = gr; g.fillRect(0, 0, 1080, 1080);
   g.strokeStyle = "#c9a45c"; g.lineWidth = 10; g.strokeRect(30, 30, 1020, 1020);
-  g.textAlign = "center"; g.fillStyle = "#fff3d6"; g.font = "800 120px 'Hahmlet', serif"; g.fillText("성문 대전", 540, 200);
+  g.textAlign = "center"; g.fillStyle = "#fff3d6"; g.font = "800 120px 'Hahmlet', serif"; g.fillText("아라 원정대", 540, 200);
   const lines = $("#shareText").textContent.split("\n");
-  g.fillStyle = "#ffd36b"; g.font = "800 52px 'Hahmlet', serif"; g.fillText(lines[0].replace("성문 대전 · ", ""), 540, 320);
+  g.fillStyle = "#ffd36b"; g.font = "800 52px 'Hahmlet', serif"; g.fillText(lines[0].replace("아라 원정대 · ", ""), 540, 320);
   g.fillStyle = "#f6efe0"; g.font = "40px 'Gowun Dodum', sans-serif";
   let y = 430;
   for (const ln of lines.slice(1)) {
@@ -518,7 +519,7 @@ function saveCard() {
   g.fillStyle = "#aeb5a6"; g.font = "30px 'Gowun Dodum', sans-serif";
   g.fillText(new Date().toLocaleDateString("ko-KR"), 540, 1000);
   const url = c.toDataURL("image/png");
-  const a = document.createElement("a"); a.href = url; a.download = "성문대전_기록.png";
+  const a = document.createElement("a"); a.href = url; a.download = "아라원정대_기록.png";
   document.body.appendChild(a); a.click(); a.remove();
   // 저장이 막힌 화면(미리보기 등)에서는 그림을 보여 주고 길게 눌러 저장하게
   const box = $("#cardView"); box.hidden = false; box.querySelector("img").src = url;
@@ -682,7 +683,7 @@ function openDex(tab) {
 }
 
 // 기사단 막사: 함께할 영웅(원정에서 만나면 열림) + 훈련소(별로 단련, 되돌리기 없음)
-let barBack = "#titleScreen";
+let barBack = "#campScreen";
 function heroLock(k) { const at = HERO_OPEN[k]; return at ? `원정 ${at} 「${stageById(at).name}」 스테이지를 깨면 함께해요` : ""; }
 function openBar(back) {
   if (back) barBack = back;
@@ -843,7 +844,6 @@ function buildStart() {
   $("#cBack").addEventListener("click", () => { Sound.play("tap"); showStart(); });
   $("#cDex").addEventListener("click", () => { Sound.play("tap"); openDex(); });
   $("#cBar").addEventListener("click", () => { Sound.play("tap"); openBar("#campScreen"); });
-  $("#barBtn").addEventListener("click", () => { Sound.unlock(); Sound.play("tap"); openBar("#titleScreen"); });
   $("#barClose").addEventListener("click", () => { $("#barScreen").hidden = true; $(barBack).hidden = false; if (barBack === "#campScreen") drawCamp(); });
   document.querySelectorAll(".dtabs button").forEach((b) => b.addEventListener("click", () => { Sound.play("tap"); openDex(b.dataset.t); }));
   $("#dexClose").addEventListener("click", () => { $("#dexScreen").hidden = true; $("#campScreen").hidden = false; });
@@ -892,16 +892,6 @@ function drawStart() {
     b.innerHTML = `<span>${m.name}</span><small>${m.desc}</small>`;
     b.addEventListener("click", () => { settings.map = k; remember("classArena.map", k); drawStart(); });
     mapBox.appendChild(b);
-  }
-  $("#heroPick").hidden = duo;
-  const heroBox = $("#heroOpts"); heroBox.innerHTML = ""; camp.hero = heroOf(camp);
-  for (const k of HERO_ORDER) {
-    const H = HEROES[k], open = heroOpen(camp, k);
-    const b = document.createElement("button"); b.className = "opt hopt" + (k === camp.hero ? " on" : ""); b.disabled = !open;
-    b.innerHTML = `<img src="assets/faces/${H.face}.webp" alt=""><span></span><small></small>`;
-    b.querySelector("span").textContent = H.name + "의 " + H.skill; b.querySelector("small").textContent = open ? H.desc : heroLock(k);
-    b.addEventListener("click", () => { camp.hero = k; saveProgress(camp); drawStart(); });
-    heroBox.appendChild(b);
   }
   const lock = Object.keys(MAPS).filter((k) => !mapOpen(k)).length;
   if (lock) { const n = document.createElement("span"); n.className = "note"; n.textContent = `원정에서 열 지도 ${lock}개`; mapBox.appendChild(n); }

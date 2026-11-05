@@ -1,6 +1,6 @@
 {
-  "name": "성문 대전 · 교실 대전 게임",
-  "short_name": "성문 대전",
+  "name": "아라 원정대 · 교실 대전 게임",
+  "short_name": "아라 원정대",
   "description": "문제를 맞혀 골드를 벌고, 3갈래 길로 병사를 보내 상대 본성을 무너뜨리는 교실 대전 게임",
   "lang": "ko",
   "start_url": "./play.html",
