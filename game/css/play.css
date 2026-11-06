@@ -486,8 +486,8 @@ body.duo #talk { display: none; }
 #panel.two .qtext b.sent.xl, #panel.two .qline.tq .qt.sent.xl { font-size: clamp(12px, 1.4vw, 15px); }
 .tiles .tile { line-height: 1; padding: 0; } /* 낮은 화면에서 글자가 칸 위아래로 삐져나오지 않게 */
 .tgroup { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; align-items: stretch; } /* 과목마다 한 줄 */
-.hardtog { display: grid; grid-template-columns: auto 1fr; column-gap: 6px; align-items: center; color: var(--ink); }
-.hardtog small { grid-column: 2; font-size: 11px; color: var(--muted); }
+.hardtog { display: grid; grid-template-columns: auto auto 1fr; column-gap: 8px; align-items: center; color: var(--ink); }
+.hardtog small { display: block; font-size: 12px; color: var(--muted); }
 .cstage .st .hs { font-weight: 400; color: #ff9c8a; font-size: 12px; }
 
 /* =====================================================================
@@ -873,3 +873,44 @@ body.mirror #red .towers { margin-left: auto; margin-right: 6px; }
 body.mirror #red .hp i { left: 0; right: auto; } body.mirror #blue .hp i { left: auto; right: 0; }
 body.mirror .lanes svg.mini { transform: scaleX(-1); }
 body.mirror #blue .towers { margin-left: 6px; margin-right: auto; }
+
+/* ---- 11-06 원정 지도 옆: 출제 설정 카드 + 아이콘 단추 ---- */
+.cside { grid-template-rows: auto minmax(0, 1fr) auto auto; }
+.cset { display: grid; gap: 10px; padding: 12px; border-radius: 8px; background: rgba(8,18,28,.5); box-shadow: inset 0 0 0 1px rgba(243,211,138,.22); }
+.ctopicbtn { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; align-items: center; gap: 0 10px; text-align: left; padding: 9px 12px; border-radius: 6px;
+  background: var(--parchment); color: var(--ink-d); box-shadow: 0 0 0 2px #2a170b, 0 4px 0 #2a170b; }
+.ctopicbtn small { grid-column: 1; font-size: 12px; color: #7a5420; font-weight: 700; }
+.ctopicbtn b { grid-column: 1; font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ctopicbtn em { grid-column: 2; grid-row: 1 / span 2; font-style: normal; font-size: 14px; font-weight: 700; padding: 7px 12px; border-radius: 5px; background: #2a170b; color: var(--brass-l); }
+.ctopicbtn:active { transform: translateY(3px); box-shadow: 0 0 0 2px #2a170b, 0 1px 0 #2a170b; }
+.ctopicbtn[disabled] { cursor: default; filter: saturate(.6); } .ctopicbtn[disabled] em { background: transparent; color: #7a5420; }
+.cfmt { display: grid; gap: 4px; } .cfmt > small, .cset .hardtog b { font-size: 12px; color: var(--brass-l); font-weight: 700; }
+.cset .hardtog b { font-size: 15px; color: var(--parch); }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border-radius: 6px; padding: 3px; gap: 3px; background: rgba(0,0,0,.35); }
+.seg button { padding: 8px 6px; font-size: 15px; font-weight: 700; border-radius: 4px; color: var(--muted); }
+.seg button.on { background: linear-gradient(#f6dc96, #d9a441 60%, #b07a28); color: var(--ink-d); box-shadow: 0 0 0 1px #2a170b; }
+.hardtog { cursor: pointer; } .hardtog input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.hardtog .sw { position: relative; width: 44px; height: 26px; border-radius: 999px; background: rgba(0,0,0,.45); box-shadow: inset 0 0 0 1px rgba(243,211,138,.4); transition: background .15s; }
+.hardtog .sw::after { content: ""; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--parch); transition: transform .15s; }
+.hardtog input:checked + .sw { background: #b8433a; } .hardtog input:checked + .sw::after { transform: translateX(18px); }
+.hardtog input:focus-visible + .sw { outline: 2px solid var(--ink); outline-offset: 2px; }
+.cact { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cbtn { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; align-items: center; gap: 0 10px; text-align: left; padding: 9px 12px; border-radius: 6px; min-width: 0;
+  background: var(--grain), linear-gradient(rgba(36,62,88,.95), rgba(18,34,50,.95)); box-shadow: var(--brass-rim), 0 4px 0 #0b1621; color: var(--parch); }
+.cbtn svg { grid-row: 1 / span 2; width: 30px; height: 30px; fill: none; stroke: var(--brass-l); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.cbtn b { font-family: var(--display); font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cbtn small { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cbtn:hover { filter: brightness(1.12); } .cbtn:active { transform: translateY(3px); box-shadow: var(--brass-rim), 0 1px 0 #0b1621; }
+#cBar { background: var(--grain), linear-gradient(#f6dc96, #d9a441 55%, #b07a28); color: var(--ink-d); box-shadow: inset 0 1px 0 #fff6d6, 0 0 0 2px #2a170b, 0 4px 0 #2a170b; }
+#cBar svg { stroke: #2a170b; } #cBar small { color: #5a3a12; }
+@media (max-height: 700px) { .cbtn small, .hardtog small { display: none; } .cbtn { padding: 7px 10px; } .cset { gap: 7px; padding: 9px; } }
+.cnode.on { background: var(--parchment); }
+/* 낮은 화면(크롬북 등): 출제 설정을 두 칸으로, 메뉴 단추를 한 줄로 → 스테이지 목록 자리 넓히기 */
+@media (max-height: 700px) {
+  .cset { grid-template-columns: 1fr 1fr; align-items: end; } .cset .hardtog { grid-column: 1 / -1; } .cfmt > small { display: none; }
+  .ctopicbtn { padding: 6px 10px; } .ctopicbtn b { font-size: 15px; } .ctopicbtn em { padding: 5px 9px; font-size: 13px; }
+  .seg button { padding: 9px 4px; font-size: 14px; }
+  .cact { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .cbtn { grid-template-columns: 1fr; justify-items: center; text-align: center; gap: 2px; padding: 6px 4px; }
+  .cbtn svg { grid-row: auto; width: 24px; height: 24px; } .cbtn b { font-size: 14px; white-space: normal; line-height: 1.15; }
+}

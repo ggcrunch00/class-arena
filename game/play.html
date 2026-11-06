@@ -101,9 +101,18 @@
     <aside class="cside">
       <header><small id="cKicker">아라 군도</small><h2 id="cTitle">바닷가 초소</h2><p class="note" id="cTeach"></p></header>
       <div class="cstages" id="cStages"></div>
-      <div class="cprob"><span class="ctopic">문제 주제 <button class="ghost small" id="cTopicBtn"></button></span><label>형식 <select id="cFmt"></select></label>
-        <label class="hardtog"><input type="checkbox" id="cHard"> 도전 모드 <small>문제를 빨리 푸는 친구용: 해골이 더 빠르고 영리해요</small></label></div>
-      <div class="cact"><button class="ghost" id="cBack">처음으로</button><button class="ghost" id="cStory">이야기 다시 보기</button><button class="ghost" id="cDex">원정 도감</button><button class="ghost" id="cBar">기사단 막사</button></div>
+      <!-- 11-06: 출제 설정을 한 카드로(큰 글씨·큰 단추), 메뉴는 아이콘 단추 2×2 -->
+      <section class="cset" aria-label="출제 설정">
+        <button class="ctopicbtn" id="cTopicBtn"><small>문제 주제</small><b id="cTopicTxt"></b><em id="cTopicAct">바꾸기</em></button>
+        <div class="cfmt"><small>문제 형식</small><div class="seg" id="cFmt" role="radiogroup" aria-label="문제 형식"></div></div>
+        <label class="hardtog"><input type="checkbox" id="cHard" role="switch"><span class="sw" aria-hidden="true"></span><span><b>도전 모드</b><small>문제를 빨리 푸는 친구용: 해골이 더 빠르고 영리해요</small></span></label>
+      </section>
+      <nav class="cact" aria-label="원정 메뉴">
+        <button class="cbtn" id="cBar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg><b>기사단 막사</b><small>영웅 고르기·훈련</small></button>
+        <button class="cbtn" id="cDex"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5a2 2 0 012-2h13v14H6a2 2 0 00-2 2zm0 0a2 2 0 002 2h13"/><path d="M9 7h6"/></svg><b>원정 도감</b><small>인물·장소·물건</small></button>
+        <button class="cbtn" id="cStory"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 108-8 8 8 0 00-6 2.7"/><path d="M4 4v4h4"/><path d="M12 8v4l3 2"/></svg><b>이야기 다시 보기</b><small>이 장의 이야기</small></button>
+        <button class="cbtn" id="cBack"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg><b>처음으로</b><small>모드 고르기</small></button>
+      </nav>
     </aside>
   </div>
 </div>

@@ -598,16 +598,20 @@ function drawCamp() {
   }
   // 문제 주제·형식(원정에서도 고를 수 있게)
   // 로그인을 붙이기 전까지는 원정도 학생이 주제를 여러 개 고름(나중엔 선생님이 정한 범위: 아래 rangeFor)
-  const fSel = $("#cFmt");
-  if (!fSel.options.length) {
-    for (const [k, f] of Object.entries(FORMATS)) fSel.add(new Option(f.name, k));
-    fSel.addEventListener("change", () => { settings.format = fSel.value; remember("classArena.format", fSel.value); drawStart(); });
+  const seg = $("#cFmt");
+  if (!seg.children.length) {
+    for (const [k, f] of Object.entries(FORMATS)) {
+      const b = document.createElement("button"); b.dataset.k = k; b.setAttribute("role", "radio"); b.textContent = f.name; b.title = f.hint;
+      b.addEventListener("click", () => { settings.format = k; remember("classArena.format", k); Sound.play("tap"); drawCamp(); drawStart(); });
+      seg.appendChild(b);
+    }
     $("#cTopicBtn").addEventListener("click", () => { Sound.play("tap"); openTopicPick("topics", "#campScreen"); });
   }
+  seg.querySelectorAll("button").forEach((b) => { const on = b.dataset.k === settings.format; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
   const pickable = Account.canPickCampTopics();
-  $("#cTopicBtn").textContent = topicsLabel(Account.campRange(settings.topics)) + (pickable ? " · 바꾸기" : " · 선생님이 정함");
+  $("#cTopicTxt").textContent = topicsLabel(Account.campRange(settings.topics));
+  $("#cTopicAct").textContent = pickable ? "바꾸기" : "선생님이 정함";
   $("#cTopicBtn").disabled = !pickable;
-  fSel.value = settings.format;
   const hc = $("#cHard");
   if (!hc.dataset.on) { hc.dataset.on = 1; hc.addEventListener("change", () => { camp.hard = hc.checked; saveCamp(camp); Sound.play("tap"); }); }
   hc.checked = !!camp.hard;
@@ -618,7 +622,7 @@ function startStage(st) {
   // 장에 처음 들어갈 때 한 번: 그 섬 이야기(장 머리말)
   const pro = ch.prologue && !camp.seenCh[ch.id] ? ch.prologue : [];
   if (pro.length) { camp.seenCh = { ...camp.seenCh, [ch.id]: 1 }; saveCamp(camp); }
-  playStory(pro.concat(st.intro), { art: ch.art, card: { kick: `${ch.id}장 ${ch.name}`, title: `${st.id} ${st.name}`, goal: "목표: " + st.goal } }, () => wipe(() => newGame(st)));
+  playStory(pro.concat(st.intro), { art: st.art || ch.art, card: { kick: `${ch.id}장 ${ch.name}`, title: `${st.id} ${st.name}`, goal: "목표: " + st.goal } }, () => wipe(() => newGame(st)));
 }
 // 이야기 → 전투로 넘어갈 때 한 번: 양피지 막이 쓸고 지나감(한곳에만 쓰는 큰 움직임)
 function wipe(next) {

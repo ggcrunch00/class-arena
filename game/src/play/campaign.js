@@ -69,7 +69,7 @@ const ai = (o) => ({ answerEvery: 7, accuracy: 0.8, diff: 0, counter: 0.2, mineT
 
 export const CHAPTERS = [
   {
-    id: 1, name: "바닷가 초소", art: "ch1", map: "shore", pos: [43, 77],
+    id: 1, name: "바닷가 초소", art: "ch1", map: "shore", pos: [45, 85],
     prologue: [{ who: "narr", text: "아라 군도 남쪽 끝, 바닷가 초소는 배가 드나드는 첫 관문이에요. 이곳 깨침돌은 군도에서 가장 오래되었어요." }],
     teach: "문제를 풀어 골드를 벌고, 병사를 불러요",
     stages: [
@@ -96,7 +96,7 @@ export const CHAPTERS = [
         hint: "골드가 모이면 바로바로 병사를 보내요. 돌격병(도끼 해골)은 방패병으로 막아요.",
       },
       {
-        id: "1-2", name: "밤의 경보", map: "shore",
+        id: "1-2", art: "s12", name: "밤의 경보", map: "shore",
         goal: "해골 병사 8명을 무찔러요",
         rules: { roles: ["shield", "archer"], mine: false, cannon: false },
         battle: { time: 240, objective: { type: "kills", n: 8 }, gold: { [-1]: 110 }, baseHp: { [-1]: 1.4 }, towerHp: { [-1]: 1.3 } },
@@ -164,7 +164,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 2, name: "두 갈래 숲길", art: "ch2", map: "twin", pos: [29, 47],
+    id: 2, name: "두 갈래 숲길", art: "ch2", map: "twin", pos: [21, 66],
     prologue: [{ who: "narr", text: "초소 북쪽에는 호수를 품은 숲이 있어요. 길은 호수를 사이에 두고 둘로 갈라져요." }, { who: "narr", text: "옛 숲지기들은 두 길을 번갈아 걸으며 숲을 살폈대요. 한 길만 걷는 사람은 다른 길의 소식을 놓치니까요." }],
     teach: "길을 골라 보내요. 돌격병이 합류해요",
     stages: [
@@ -190,7 +190,7 @@ export const CHAPTERS = [
         hint: "한 길에 적이 몰려 있으면 다른 길 탑을 노려요.",
       },
       {
-        id: "2-2", name: "숲지기의 오두막", map: "twin",
+        id: "2-2", art: "s22", name: "숲지기의 오두막", map: "twin",
         goal: "해골 병사 12명을 무찔러요",
         rules: { roles: ["shield", "rusher", "archer"], mine: false, cannon: false },
         battle: { time: 270, objective: { type: "kills", n: 12 }, gold: { [-1]: 120 }, baseHp: { [-1]: 1.3 }, towerHp: { [-1]: 1.3 } },
@@ -259,7 +259,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 3, name: "강 건너 다리", art: "ch3", map: "bridge", pos: [70, 55],
+    id: 3, name: "강 건너 다리", art: "ch3", map: "bridge", pos: [73, 60],
     prologue: [{ who: "narr", text: "숲을 지나면 세 줄기 강이 흐르는 들판이 나와요. 강 위에는 돌다리 셋이 놓여 있어요." }, { who: "narr", text: "들판 마을 사람들은 다리 앞 깨침돌에서 글과 셈을 배웠어요. 다리가 막히면 배움도 멈춰요." }],
     teach: "마법사가 합류해 상성 고리가 완성돼요",
     stages: [
@@ -307,7 +307,7 @@ export const CHAPTERS = [
         hint: "방패 해골이 모이면 마법사, 마법사 해골은 궁수로 잡아요.",
       },
       {
-        id: "3-3", name: "들판 마을 장날", map: "bridge",
+        id: "3-3", art: "s33", name: "들판 마을 장날", map: "bridge",
         goal: "해골 병사 15명을 무찔러요",
         rules: { roles: ALL, mine: false, cannon: false },
         battle: { time: 300, objective: { type: "kills", n: 15 }, gold: { [-1]: 120 }, baseHp: { [-1]: 1.3 }, towerHp: { [-1]: 1.3 } },
@@ -353,7 +353,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 4, name: "물안개 늪", art: "swamp", map: "twin", pos: [86, 44],
+    id: 4, name: "물안개 늪", art: "swamp", map: "twin", pos: [84, 34],
     // 늪: 푸른빛 도는 흐린 빛 + 낮게 깔린 물안개
     mood: { sun: [0.86, 0.96, 0.84], sunI: 2.8, hemiSky: [0.62, 0.8, 0.68], hemiI: 1.2, bg: "#16241c", fog: "#87a08c", fogNear: 100, fogFar: 185 },
     prologue: [
@@ -406,7 +406,7 @@ export const CHAPTERS = [
         hint: "버티기 판이에요. 무리가 오면 탑 근처에서 여러 병사로 함께 막아요.",
       },
       {
-        id: "4-3", name: "버려진 나루터", map: "twin",
+        id: "4-3", art: "s43", name: "버려진 나루터", map: "twin",
         goal: "해골 병사 12명을 무찔러요",
         rules: { roles: ALL, mine: false, cannon: false },
         battle: { time: 300, objective: { type: "kills", n: 12 }, gold: { [-1]: 120 }, baseHp: { [-1]: 1.3 }, towerHp: { [-1]: 1.3 } },
@@ -460,7 +460,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 5, name: "산길 요새", art: "ch4", map: "pass", pos: [67, 22],
+    id: 5, name: "산길 요새", art: "ch4", map: "pass", pos: [51, 27],
     prologue: [{ who: "narr", text: "들판 북쪽, 눈 덮인 산 사이로 요새가 서 있어요. 요새 아래에는 군도의 금광이 있어요." }, { who: "narr", text: "요새로 가는 길은 짧은 지름길과 굽은 산길로 나뉘어요. 빠른 길이 늘 좋은 길은 아니에요." }],
     teach: "금광과 성 대포로 작전을 세워요",
     stages: [
@@ -508,7 +508,7 @@ export const CHAPTERS = [
         hint: "금광은 적이 조용할 때 키우고, 모은 골드는 쌓아 두지 말고 써요.",
       },
       {
-        id: "5-3", name: "대장간 되찾기", map: "pass",
+        id: "5-3", art: "s53", name: "대장간 되찾기", map: "pass",
         goal: "해골 병사 14명을 무찔러요",
         rules: { roles: ALL },
         battle: { time: 300, objective: { type: "kills", n: 14 }, gold: { [-1]: 130 }, baseHp: { [-1]: 1.3 }, towerHp: { [-1]: 1.3 } },
@@ -559,7 +559,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 6, name: "서리 고개", art: "frost", map: "wide", pos: [88, 7],
+    id: 6, name: "서리 고개", art: "frost", map: "wide", pos: [88, 14],
     // 눈 덮인 고개: 차고 밝은 빛 + 흰 눈안개
     mood: { sun: [0.92, 0.96, 1.05], sunI: 3.0, hemiSky: [0.86, 0.9, 1.0], hemiI: 1.45, bg: "#1c2733", fog: "#cdd8e4", fogNear: 105, fogFar: 190 },
     prologue: [
@@ -612,7 +612,7 @@ export const CHAPTERS = [
         hint: "거인은 체력이 아주 많아요. 탑 근처에서 여러 병사로 함께 막고, 대포를 아껴 둬요.",
       },
       {
-        id: "6-3", name: "얼음 동굴", map: "wide",
+        id: "6-3", art: "s63", name: "얼음 동굴", map: "wide",
         goal: "해골 병사 20명을 무찔러요",
         rules: { roles: ALL },
         battle: { time: 300, objective: { type: "kills", n: 20 }, gold: { [-1]: 140 }, baseHp: { [-1]: 1.35 }, towerHp: { [-1]: 1.3 } },
@@ -668,7 +668,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 7, name: "안개 성채", art: "ch5", map: "citadel", pos: [31, 9],
+    id: 7, name: "안개 성채", art: "ch5", map: "citadel", pos: [16, 20],
     prologue: [{ who: "narr", text: "모든 안개가 시작된 곳, 북쪽 바다 위의 성채예요." }, { who: "narr", text: "본래는 군도의 이야기를 모아 둔 왕립 도서관이었어요. 지금은 짙은 안개에 잠겨 책장 넘기는 소리도 들리지 않아요." }],
     teach: "배운 것을 모두 걸고 마지막 싸움에 나서요",
     stages: [
@@ -693,7 +693,7 @@ export const CHAPTERS = [
         hint: "거인은 체력이 아주 많아요. 탑 근처에서 여러 병사로 함께 막아요.",
       },
       {
-        id: "7-2", name: "도서관 서고", map: "citadel",
+        id: "7-2", art: "s72", name: "도서관 서고", map: "citadel",
         goal: "적 탑 2개를 무너뜨려요",
         rules: { roles: ALL },
         battle: { time: 360, objective: { type: "towers", n: 2 }, towerHp: { 1: 1.1 } },
@@ -768,7 +768,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 8, name: "잊힌 등대섬", art: "ch6", map: "wide", pos: [13, 80], after: true,
+    id: 8, name: "잊힌 등대섬", art: "ch6", map: "wide", pos: [14, 89], after: true,
     // 해 질 녘 빛(지도 분위기를 덮어씀)
     mood: { sun: [1.0, 0.58, 0.4], sunI: 2.7, hemiSky: [0.6, 0.52, 0.88], hemiI: 1.0, bg: "#1e1830" },
     prologue: [
@@ -826,7 +826,7 @@ export const CHAPTERS = [
         hint: "무찌르기 판이에요. 상성으로 빨리 무찌르고, 뭉치면 대포!",
       },
       {
-        id: "8-3", name: "거울 바다", map: "diag",
+        id: "8-3", art: "s83", name: "거울 바다", map: "diag",
         goal: "해골 군단의 본성을 무너뜨려요",
         rules: { roles: ALL },
         battle: { time: 390, baseHp: { 1: 1.15 }, towerHp: { 1: 1.1 } },
