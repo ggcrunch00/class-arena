@@ -569,7 +569,7 @@ function drawCamp() {
     const b = document.createElement("button");
     b.className = "cnode" + (ch.id === campSel ? " on" : "") + (open ? "" : " locked") + (nx.chapter.id === ch.id && !camp.stars[nx.id] ? " next" : "");
     b.style.left = ch.pos[0] + "%"; b.style.top = ch.pos[1] + "%";
-    b.innerHTML = `<span class="num">${ch.id}</span><b>${ch.name}</b><small>${open ? "★".repeat(stars) + "☆".repeat(ch.stages.length * 3 - stars) : "잠김"}</small>`;
+    b.innerHTML = `<span class="num">${ch.id}</span><b>${ch.name}</b><small>${open ? `★ ${stars}/${ch.stages.length * 3}` : "잠김"}</small>`;
     b.addEventListener("click", () => { campSel = ch.id; Sound.play("tap"); drawCamp(); });
     nodes.appendChild(b);
   }

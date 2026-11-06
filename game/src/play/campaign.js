@@ -387,8 +387,8 @@ export const CHAPTERS = [
         id: "4-2", name: "물안개 속에서", map: "twin",
         goal: "3분 30초 동안 본성을 지켜요",
         rules: { roles: ALL, mine: false, cannon: false },
-        battle: { time: 210, objective: { type: "survive" }, gold: { [-1]: 150, [1]: 90 }, baseHp: { [-1]: 1.15 } },
-        ai: ai({ answerEvery: 6.6, accuracy: 0.81, counter: 0.45, roles: ALL, cannon: false }),
+        battle: { time: 210, objective: { type: "survive" }, gold: { [-1]: 150, [1]: 90 }, baseHp: { [-1]: 1.3 } },
+        ai: ai({ answerEvery: 7.0, accuracy: 0.81, counter: 0.45, roles: ALL, cannon: false }),
         intro: [
           { who: "sol", text: "물안개가 너무 짙어서 깨침돌 빛이 약해졌어요. 3분 30초만 버텨 주면 빛을 다시 모을게요." },
           { who: "haram", text: "안 보일 땐 서두르지 말고 탑 가까이에서 막아요." },
@@ -407,9 +407,9 @@ export const CHAPTERS = [
       },
       {
         id: "4-3", name: "버려진 나루터", map: "twin",
-        goal: "해골 병사 13명을 무찔러요",
+        goal: "해골 병사 12명을 무찔러요",
         rules: { roles: ALL, mine: false, cannon: false },
-        battle: { time: 300, objective: { type: "kills", n: 13 }, gold: { [-1]: 120 }, baseHp: { [-1]: 1.3 }, towerHp: { [-1]: 1.3 } },
+        battle: { time: 300, objective: { type: "kills", n: 12 }, gold: { [-1]: 120 }, baseHp: { [-1]: 1.3 }, towerHp: { [-1]: 1.3 } },
         ai: ai({ answerEvery: 10, accuracy: 0.82, counter: 0.45, roles: ALL, cannon: false }),
         trickle: { every: 22, from: 35, roles: ["rusher", "archer", "mage", "shield"] },
         voice: "chulleong",
@@ -509,9 +509,9 @@ export const CHAPTERS = [
       },
       {
         id: "5-3", name: "대장간 되찾기", map: "pass",
-        goal: "해골 병사 15명을 무찔러요",
+        goal: "해골 병사 14명을 무찔러요",
         rules: { roles: ALL },
-        battle: { time: 300, objective: { type: "kills", n: 15 }, gold: { [-1]: 130 }, baseHp: { [-1]: 1.3 }, towerHp: { [-1]: 1.3 } },
+        battle: { time: 300, objective: { type: "kills", n: 14 }, gold: { [-1]: 130 }, baseHp: { [-1]: 1.3 }, towerHp: { [-1]: 1.3 } },
         ai: ai({ answerEvery: 9.5, accuracy: 0.83, counter: 0.5, mineTo: 2, cannonAt: 3, roles: ALL }),
         trickle: { every: 22, from: 30, roles: ["rusher", "shield", "archer", "mage"] },
         intro: [
@@ -559,7 +559,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 6, name: "서리 고개", art: "frost", map: "wide", pos: [85, 18],
+    id: 6, name: "서리 고개", art: "frost", map: "wide", pos: [88, 7],
     // 눈 덮인 고개: 차고 밝은 빛 + 흰 눈안개
     mood: { sun: [0.92, 0.96, 1.05], sunI: 3.0, hemiSky: [0.86, 0.9, 1.0], hemiI: 1.45, bg: "#1c2733", fog: "#cdd8e4", fogNear: 105, fogFar: 190 },
     prologue: [
@@ -937,7 +937,8 @@ export function saveProgress(p) { try { localStorage.setItem(KEY, JSON.stringify
 // 앞 스테이지를 깼으면 열림(첫 스테이지는 처음부터)
 export function isOpen(p, id) {
   const i = STAGES.findIndex((s) => s.id === id);
-  return i <= 0 || (p.stars[STAGES[i - 1].id] || 0) > 0;
+  // 이미 별을 받은 스테이지는 늘 열림(11-06 원정이 늘어난 뒤 예전 진행이 새 장 뒤에 갇히지 않게)
+  return i <= 0 || (p.stars[id] || 0) > 0 || (p.stars[STAGES[i - 1].id] || 0) > 0;
 }
 export function chapterStars(p, ch) { return ch.stages.reduce((a, s) => a + (p.stars[s.id] || 0), 0); }
 export function chapterCleared(p, n) { const ch = CHAPTERS[n - 1]; return !!ch && ch.stages.every((s) => (p.stars[s.id] || 0) > 0); }
