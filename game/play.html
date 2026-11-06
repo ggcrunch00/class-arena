@@ -58,14 +58,24 @@
 
 <!-- 전투 준비(설정 고르기) -->
 <div class="screen" id="startScreen" hidden>
-  <div class="sheet">
+  <div class="sheet prep">
     <header class="title"><small id="prepKick">준비</small><h1 id="prepTitle">연습 대전</h1></header>
     <p class="dailynote" id="dailyNote" hidden></p>
-    <div class="pickrow">
-      <div class="pick"><h3><span id="topicLabel">문제 주제</span> <small class="note" id="topicCount"></small></h3><div class="opts" id="topicOpts"></div></div>
-      <div class="pick" id="topic2Pick" hidden><h3>오른쪽(해골 군단) 문제 주제 <small class="note" id="topic2Count"></small></h3><div class="opts" id="topic2Opts"></div></div>
-      <div class="pick"><h3>문제 형식</h3><div class="opts" id="fmtOpts"></div></div>
+    <!-- 11-06: 자리(진영)마다 고른 주제를 과목별로 한눈에. 고르기는 「주제 고르기」 창에서 -->
+    <div class="sidecards" id="sideCards">
+      <section class="sidecard" id="sideL" data-key="topics">
+        <header><span class="fac"></span><b class="where">문제 주제</b><span class="cnt"></span></header>
+        <div class="picked"></div>
+        <div class="sideact"><button class="go small" data-pick="topics">주제 고르기</button><button class="ghost small" data-rand="topics">무작위 3개</button></div>
+      </section>
+      <button class="swapbtn" id="swapSides" hidden aria-label="진영 바꾸기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg><span>진영 바꾸기</span></button>
+      <section class="sidecard" id="sideR" data-key="topics2" hidden>
+        <header><span class="fac"></span><b class="where">오른쪽 자리</b><span class="cnt"></span></header>
+        <div class="picked"></div>
+        <div class="sideact"><button class="go small" data-pick="topics2">주제 고르기</button><button class="ghost small" data-rand="topics2">무작위 3개</button></div>
+      </section>
     </div>
+    <div class="pickrow"><div class="pick"><h3>문제 형식</h3><div class="opts" id="fmtOpts"></div></div></div>
     <div class="pickrow">
       <div class="pick" id="aiPick"><h3>컴퓨터 상대</h3><div class="opts" id="aiOpts"></div></div>
       <div class="pick"><h3>지도 <small class="note">원정에서 장을 깨면 그 지도가 열려요</small></h3><div class="opts" id="mapOpts"></div></div>
@@ -100,9 +110,16 @@
 
 <!-- 주제 고르기(원정에서 여러 주제) -->
 <div class="screen" id="topicScreen" hidden>
-  <div class="sheet"><h2>문제 주제 고르기</h2><p class="note">여러 개를 고르면 번갈아 나와요. 눌러서 켜고 끄세요.</p>
+  <div class="sheet tpick"><header class="tphead"><div><small id="tpWho">문제 주제</small><h2>주제 고르기</h2></div>
+      <p class="note">여러 개 고르면 번갈아 나와요. 눌러서 켜고 꺼요.</p></header>
+    <div class="tptabs" id="tpTabs" role="tablist"></div>
     <div class="opts" id="topicPickOpts"></div>
-    <div class="actions"><button class="go" id="topicDone">다 골랐어요</button></div></div>
+    <footer class="tpfoot">
+      <div class="tpsum"><b id="tpCount">0개</b><span id="tpList"></span></div>
+      <div class="tprand"><span>무작위</span><button class="ghost small" id="tpMinus" aria-label="하나 줄이기">−</button><b id="tpN">3</b><button class="ghost small" id="tpPlus" aria-label="하나 늘리기">+</button><span>개</span><button class="ghost small" id="tpRand">뽑기</button></div>
+      <button class="ghost small" id="tpClear">모두 지우기</button>
+      <button class="go" id="topicDone">다 골랐어요</button>
+    </footer></div>
 </div>
 
 <!-- 인물 도감: 원정에서 만난 인물 -->

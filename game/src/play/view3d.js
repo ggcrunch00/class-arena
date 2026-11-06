@@ -284,6 +284,7 @@ export class View3D {
   // 화면을 누른 곳 → 땅 위 좌표(블렌더 좌표 x, y)
   pickGround(cx, cy) {
     const r = this.renderer.domElement.getBoundingClientRect();
+    if (this.mirror) cx = r.left + r.right - cx;
     const ndc = new THREE.Vector2(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
     const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, this.cam);
     const hit = new THREE.Vector3();
@@ -295,9 +296,11 @@ export class View3D {
   structNode(st) { return this.nodes[(st.kind === "base" ? "base_" : "tower_") + (st.side < 0 ? "blue" : "red") + (st.kind === "tower" ? "_" + st.lane : "")]; }
 
   toPx(p) {
-    const v = p.clone().project(this.cam);
-    return { x: this.view.x + (v.x + 1) / 2 * this.view.w, y: this.view.y + (1 - v.y) / 2 * this.view.h };
+    const v = p.clone().project(this.cam), x = this.view.x + (v.x + 1) / 2 * this.view.w;
+    return { x: this.mirror ? this.renderer.domElement.clientWidth - x : x, y: this.view.y + (1 - v.y) / 2 * this.view.h };
   }
+  // 둘이서에서 왼쪽 자리가 해골 군단이면 전장을 좌우로 뒤집어 보여 줌(왼쪽 자리 본성이 화면 왼쪽에)
+  setMirror(on) { this.mirror = !!on; this.renderer.domElement.style.transform = on ? "scaleX(-1)" : ""; }
 
   // ---------- 효과 ----------
   puff(o) {

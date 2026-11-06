@@ -64,6 +64,8 @@ const settings = {
   topics: readTopics("classArena.topics", "classArena.topic"), topics2: readTopics("classArena.topics2", "classArena.topic2"),
   ai: remember("classArena.ai") || "recruit", format: remember("classArena.format") || "input",
   map: MAP_KEY,
+  duoLeft: remember("classArena.duoLeft") === "1" ? 1 : -1, // 둘이서 왼쪽 자리 진영(11-06)
+  randN: Math.max(1, Math.min(8, +remember("classArena.randN") || 3)), // 무작위로 고를 주제 수
 };
 if (!["cpu", "duo", "daily"].includes(settings.mode)) settings.mode = "cpu";
 // 오늘의 도전: 날짜로 주제·문제 순서가 정해짐(모두 같음), 상대는 기사, 형식은 직접 입력
@@ -169,7 +171,9 @@ function makeSeats(m) {
   panel.className = m === "duo" ? "two" : "one";
   document.body.classList.toggle("duo", m === "duo");
   const ctx = { view, isPlaying: () => mode === "play", toast, skill: (k, H) => { talk(k, H.line); banner(`${H.name}의 ${H.skill}!`, 1.6); } };
-  seats = m === "duo" ? [new Seat(panel, -1, ctx), new Seat(panel, 1, ctx)] : [new Seat(panel, -1, ctx)];
+  // 둘이서: 왼쪽 자리가 고른 진영(settings.duoLeft, 기사단 -1 / 해골 군단 1), 오른쪽은 반대 진영
+  const L = m === "duo" ? settings.duoLeft : -1;
+  seats = m === "duo" ? [new Seat(panel, L, ctx), new Seat(panel, -L, ctx)] : [new Seat(panel, -1, ctx)];
   view.setLane(null, 1);
   setTimeout(layout, 0);
 }
@@ -209,7 +213,7 @@ async function newGame(stage = null) {
     demo = null;
     const duo = !stage && settings.mode === "duo", daily = !stage && settings.mode === "daily" ? today() : null;
     for (const s of ["#titleScreen", "#startScreen", "#resultScreen", "#pauseScreen", "#setScreen", "#campScreen", "#storyScreen"]) $(s).hidden = true;
-    if ((seats.length === 2) !== duo) makeSeats(duo ? "duo" : "cpu");
+    if ((seats.length === 2) !== duo || (duo && seats[0].side !== settings.duoLeft)) makeSeats(duo ? "duo" : "cpu");
     await switchMap(stage ? stage.map : mapOpen(settings.map) ? settings.map : "diag");
     view.setMood(stage && stage.chapter.mood ? { ...MOOD, ...stage.chapter.mood } : MOOD); // 장마다 빛(등대섬은 해 질 녘)
     Music.theme(stage && stage.boss ? stage.boss : "march"); // 원정 보스 판은 그 보스 곡
@@ -232,8 +236,9 @@ async function newGame(stage = null) {
     setSeed(daily ? daily.key : null);
     seats[0].start(battle, daily ? daily.topic : stage ? Account.campRange(settings.topics) : settings.topics, daily ? "input" : settings.format, stage ? stage.rules : undefined);
     if (duo) seats[1].start(battle, settings.topics2, settings.format);
-    $("#blueSub").textContent = duo ? "왼쪽" : "나";
-    $("#redSub").textContent = duo ? "오른쪽" : stage ? `${stage.id} ${stage.boss ? CHARS[stage.boss].name : stage.name}` : "컴퓨터 " + AI_LEVELS[daily ? "knight" : settings.ai].name;
+    const mirror = duo && settings.duoLeft === 1; view.setMirror(mirror); document.body.classList.toggle("mirror", mirror);
+    $("#blueSub").textContent = duo ? (mirror ? "오른쪽" : "왼쪽") : "나";
+    $("#redSub").textContent = duo ? (mirror ? "왼쪽" : "오른쪽") : stage ? `${stage.id} ${stage.boss ? CHARS[stage.boss].name : stage.name}` : "컴퓨터 " + AI_LEVELS[daily ? "knight" : settings.ai].name;
     $("#banner").hidden = true; talkQ.length = 0; talkLog.length = 0;
     document.querySelectorAll(".confetti").forEach((c) => c.remove()); // 앞 판 색종이 지우기
     $("#talk").hidden = true; talkT = 0;
@@ -439,7 +444,7 @@ function showResult() {
   const res = $("#resBody"); res.innerHTML = "";
   for (const seat of seats) {
     const col = document.createElement("div"); col.className = "rescol " + (seat.side < 0 ? "blue" : "red");
-    col.innerHTML = (G.duo ? `<h3 class="who">${sideName(seat.side)} · ${seat.side < 0 ? "왼쪽" : "오른쪽"} (${topicsLabel(seat.topics)})</h3>` : "") +
+    col.innerHTML = (G.duo ? `<h3 class="who">${seats.indexOf(seat) === 0 ? "왼쪽" : "오른쪽"} ${sideName(seat.side)} (${topicsLabel(seat.topics)})</h3>` : "") +
       `<div class="stats">${statsOf(seat.side)}</div><div class="review"><h3>틀린 문제 다시 풀기 <small class="revScore"></small></h3><div class="revList"></div></div>`;
     res.appendChild(col);
     reviewList(seat, col.querySelector(".revList"), col.querySelector(".revScore"));
@@ -496,7 +501,7 @@ function shareText() {
   };
   if (G.duo) {
     const w = b.winner;
-    return `아라 원정대 · 둘이서 · ${w ? (w < 0 ? "기사단" : "해골 군단") + " 승리" : "무승부"} · ${tm}\n기사단: ${line(seats[0])}\n해골 군단: ${line(seats[1])}`;
+    return `아라 원정대 · 둘이서 · ${w ? (w < 0 ? "기사단" : "해골 군단") + " 승리" : "무승부"} · ${tm}\n왼쪽 ${sideName(seats[0].side)}: ${line(seats[0])}\n오른쪽 ${sideName(seats[1].side)}: ${line(seats[1])}`;
   }
   const res = b.winner === PLAYER ? "승리" : b.winner === CPU ? "패배" : "무승부";
   const head = G.daily ? `아라 원정대 · 오늘의 도전 ${G.daily.label}` : G.stage ? `아라 원정대 · 원정 ${G.stage.id} ${G.stage.name}` : "아라 원정대";
@@ -597,7 +602,7 @@ function drawCamp() {
   if (!fSel.options.length) {
     for (const [k, f] of Object.entries(FORMATS)) fSel.add(new Option(f.name, k));
     fSel.addEventListener("change", () => { settings.format = fSel.value; remember("classArena.format", fSel.value); drawStart(); });
-    $("#cTopicBtn").addEventListener("click", () => { Sound.play("tap"); openTopicPick(); });
+    $("#cTopicBtn").addEventListener("click", () => { Sound.play("tap"); openTopicPick("topics", "#campScreen"); });
   }
   const pickable = Account.canPickCampTopics();
   $("#cTopicBtn").textContent = topicsLabel(Account.campRange(settings.topics)) + (pickable ? " · 바꾸기" : " · 선생님이 정함");
@@ -800,20 +805,23 @@ function storyEnd() {
 }
 
 // ---------- 주제 고르기(여러 개) ----------
-// box에 과목별 줄로 주제 단추를 그림. key: settings의 "topics"·"topics2". 누르면 켜고 끄기(하나는 남김)
-function buildTopicChips(box, key, after) {
+const GROUPS = () => [...new Set(Object.values(TOPICS).map((t) => t.group || "수학"))];
+// box에 주제 단추를 그림(group이 있으면 그 과목만). key: settings의 "topics"·"topics2". 누르면 켜고 끄기
+function buildTopicChips(box, key, after, group = null) {
   box.innerHTML = "";
-  let group = "", row = null;
+  let g0 = null, row = null;
   for (const [k, t] of Object.entries(TOPICS)) {
-    if (!row || (t.group && t.group !== group)) {
-      group = t.group; row = document.createElement("div"); row.className = "tgroup"; box.appendChild(row);
-      const g = document.createElement("span"); g.className = "ogroup"; g.textContent = group || ""; row.appendChild(g);
+    const g = t.group || "수학";
+    if (group && g !== group) continue;
+    if (!row || g !== g0) {
+      g0 = g; row = document.createElement("div"); row.className = "tgroup"; box.appendChild(row);
+      const gl = document.createElement("span"); gl.className = "ogroup"; gl.textContent = group ? "" : g; row.appendChild(gl);
     }
     const b = document.createElement("button"); b.className = "opt"; b.dataset.k = k; b.setAttribute("aria-pressed", "false");
     b.innerHTML = `<span>${t.name}</span><small>${t.hint}</small>`;
     b.addEventListener("click", () => {
       const list = settings[key], i = list.indexOf(k);
-      if (i >= 0) { if (list.length === 1) { toast("주제는 하나 넘게 골라야 해요"); return; } list.splice(i, 1); } else list.push(k);
+      if (i >= 0) list.splice(i, 1); else list.push(k);
       saveTopics(key); Sound.play("tap"); paintTopicChips(box, key); if (after) after();
     });
     row.appendChild(b);
@@ -823,10 +831,73 @@ function buildTopicChips(box, key, after) {
 function paintTopicChips(box, key) {
   box.querySelectorAll(".opt").forEach((b) => { const on = settings[key].includes(b.dataset.k); b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
 }
-// 원정 지도에서 주제 바꾸기
-function openTopicPick() {
-  buildTopicChips($("#topicPickOpts"), "topics");
-  $("#campScreen").hidden = true; $("#topicScreen").hidden = false;
+// 무작위 n개(과목을 주면 그 과목 안에서)
+function randomTopics(key, n, group = null) {
+  const pool = Object.keys(TOPICS).filter((k) => !group || (TOPICS[k].group || "수학") === group);
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  settings[key] = pool.slice(0, Math.max(1, Math.min(n, pool.length))); saveTopics(key);
+}
+// 고른 주제를 과목별로 한 줄씩(× 누르면 빼기)
+function drawPicked(box, key, after) {
+  box.innerHTML = "";
+  for (const g of GROUPS()) {
+    const ks = settings[key].filter((k) => (TOPICS[k].group || "수학") === g);
+    if (!ks.length) continue;
+    const row = document.createElement("div"); row.className = "pg";
+    row.innerHTML = `<span class="subj s-${GROUPS().indexOf(g)}">${g}</span><span class="pchips"></span>`;
+    for (const k of ks) {
+      const c = document.createElement("button"); c.className = "pchip"; c.title = TOPICS[k].hint; c.setAttribute("aria-label", TOPICS[k].name + " 빼기");
+      c.innerHTML = `${TOPICS[k].name}<i>×</i>`;
+      c.addEventListener("click", () => {
+        if (settings[key].length === 1) { toast("주제는 하나 넘게 골라야 해요"); return; }
+        settings[key] = settings[key].filter((x) => x !== k); saveTopics(key); Sound.play("tap"); after();
+      });
+      row.querySelector(".pchips").appendChild(c);
+    }
+    box.appendChild(row);
+  }
+}
+// 주제 고르기 창: 과목 탭 + 단추 + 고른 것 요약 + 무작위 n개
+let tp = { key: "topics", back: "#startScreen", tab: "전체" };
+function openTopicPick(key, back) {
+  tp = { key, back, tab: tp.tab || "전체" };
+  const duo = settings.mode === "duo" && back === "#startScreen";
+  $("#tpWho").textContent = back === "#campScreen" ? "원정 문제 주제" : duo ? `${key === "topics" ? "왼쪽" : "오른쪽"} 자리 · ${sideName(key === "topics" ? settings.duoLeft : -settings.duoLeft)}` : "문제 주제";
+  for (const s of ["#campScreen", "#startScreen"]) $(s).hidden = true;
+  $("#topicScreen").hidden = false; drawTopicPick();
+}
+function drawTopicPick() {
+  const key = tp.key, tabs = $("#tpTabs");
+  tabs.innerHTML = "";
+  for (const g of ["전체", ...GROUPS()]) {
+    const n = settings[key].filter((k) => g === "전체" || (TOPICS[k].group || "수학") === g).length;
+    const b = document.createElement("button"); b.className = "tptab" + (g === tp.tab ? " on" : ""); b.setAttribute("role", "tab"); b.setAttribute("aria-selected", g === tp.tab);
+    b.innerHTML = `${g}${n ? `<i>${n}</i>` : ""}`;
+    b.addEventListener("click", () => { tp.tab = g; Sound.play("tap"); drawTopicPick(); });
+    tabs.appendChild(b);
+  }
+  buildTopicChips($("#topicPickOpts"), key, drawTopicPickFoot, tp.tab === "전체" ? null : tp.tab);
+  drawTopicPickFoot();
+}
+function drawTopicPickFoot() {
+  const key = tp.key, list = settings[key];
+  $("#tpCount").textContent = `${list.length}개 고름`;
+  $("#tpList").textContent = list.length ? list.map((k) => TOPICS[k].name).join(", ") : "아직 없어요";
+  $("#tpN").textContent = settings.randN;
+  $("#tpRand").textContent = tp.tab === "전체" ? "뽑기" : `${tp.tab}에서 뽑기`;
+  $("#tpTabs").querySelectorAll(".tptab").forEach((b, i) => { const g = ["전체", ...GROUPS()][i], n = list.filter((k) => g === "전체" || (TOPICS[k].group || "수학") === g).length; b.innerHTML = `${g}${n ? `<i>${n}</i>` : ""}`; });
+}
+function buildTopicPick() {
+  $("#tpMinus").addEventListener("click", () => { settings.randN = Math.max(1, settings.randN - 1); remember("classArena.randN", settings.randN); drawTopicPickFoot(); });
+  $("#tpPlus").addEventListener("click", () => { settings.randN = Math.min(8, settings.randN + 1); remember("classArena.randN", settings.randN); drawTopicPickFoot(); });
+  $("#tpRand").addEventListener("click", () => { randomTopics(tp.key, settings.randN, tp.tab === "전체" ? null : tp.tab); Sound.play("coin"); drawTopicPick(); });
+  $("#tpClear").addEventListener("click", () => { settings[tp.key] = []; saveTopics(tp.key); Sound.play("tap"); drawTopicPick(); });
+  $("#topicDone").addEventListener("click", () => {
+    if (!settings[tp.key].length) { toast("주제를 하나 넘게 골라요"); return; }
+    $("#topicScreen").hidden = true; $(tp.back).hidden = false;
+    if (tp.back === "#campScreen") drawCamp(); else drawStart();
+    drawLastSet();
+  });
 }
 
 // ---------- 시작·설정·멈춤 ----------
@@ -837,8 +908,12 @@ function buildStart() {
     settings.mode = b.dataset.m; remember("classArena.mode", settings.mode);
     $("#titleScreen").hidden = true; $("#startScreen").hidden = false; drawStart();
   }));
-  buildTopicChips($("#topicOpts"), "topics", drawStart); buildTopicChips($("#topic2Opts"), "topics2", drawStart);
-  $("#topicDone").addEventListener("click", () => { $("#topicScreen").hidden = true; $("#campScreen").hidden = false; drawCamp(); drawLastSet(); });
+  buildTopicPick();
+  document.querySelectorAll("#sideCards [data-pick]").forEach((b) => b.addEventListener("click", () => { Sound.play("tap"); openTopicPick(b.dataset.pick, "#startScreen"); }));
+  document.querySelectorAll("#sideCards [data-rand]").forEach((b) => b.addEventListener("click", () => {
+    randomTopics(b.dataset.rand, settings.randN); Sound.play("coin"); toast(`주제를 무작위로 ${settings[b.dataset.rand].length}개 골랐어요`); drawStart(); drawLastSet();
+  }));
+  $("#swapSides").addEventListener("click", () => { settings.duoLeft = -settings.duoLeft; remember("classArena.duoLeft", settings.duoLeft); Sound.play("tap"); drawStart(); drawLastSet(); });
 
   const fmtBox = $("#fmtOpts");
   for (const [k, f] of Object.entries(FORMATS)) {
@@ -906,14 +981,22 @@ function buildStart() {
 function drawStart() {
   const duo = settings.mode === "duo", daily = settings.mode === "daily";
   $("#prepTitle").textContent = { cpu: "연습 대전", duo: "둘이서 대전", daily: "오늘의 도전" }[settings.mode] || "연습 대전";
-  $("#topic2Pick").hidden = !duo; $("#aiPick").hidden = duo || daily;
-  for (const id of ["#topicOpts", "#fmtOpts"]) $(id).closest(".pick").hidden = daily;
+  $("#aiPick").hidden = duo || daily;
+  $("#fmtOpts").closest(".pick").hidden = daily;
   $("#dailyNote").hidden = !daily;
   if (daily) { const t = today(); $("#dailyNote").textContent = `${t.label} 오늘의 도전은 ${TOPICS[t.topic].name}이에요. 직접 입력으로 컴퓨터 기사와 겨뤄요. 반 친구들 모두 같은 문제가 같은 순서로 나와요. 끝나고 기록을 복사해 비교해 보세요!`; }
-  $("#topicLabel").textContent = duo ? "왼쪽(기사단) 문제 주제" : "문제 주제";
-  paintTopicChips($("#topicOpts"), "topics"); paintTopicChips($("#topic2Opts"), "topics2");
-  $("#topicCount").textContent = settings.topics.length > 1 ? `${settings.topics.length}개 고름 · 번갈아 나와요` : "여러 개 고를 수 있어요";
-  $("#topic2Count").textContent = settings.topics2.length > 1 ? `${settings.topics2.length}개 고름` : "";
+  // 자리 카드: 연습은 하나(나), 둘이서는 왼쪽·오른쪽(진영 표시, 바꾸기)
+  $("#sideCards").hidden = daily; $("#sideR").hidden = !duo; $("#swapSides").hidden = !duo;
+  $("#sideCards").classList.toggle("two", duo);
+  for (const [id, key, side, where] of [["#sideL", "topics", duo ? settings.duoLeft : -1, duo ? "왼쪽 자리" : "문제 주제"], ["#sideR", "topics2", -settings.duoLeft, "오른쪽 자리"]]) {
+    const c = $(id);
+    c.className = "sidecard " + (side < 0 ? "blue" : "red");
+    c.querySelector(".fac").textContent = duo ? sideName(side) : "나 · 기사단";
+    c.querySelector(".where").textContent = where;
+    c.querySelector(".cnt").textContent = `${settings[key].length}개 · 번갈아 나와요`;
+    drawPicked(c.querySelector(".picked"), key, () => { drawStart(); drawLastSet(); });
+    c.querySelector("[data-rand]").textContent = `무작위 ${settings.randN}개`;
+  }
   document.querySelectorAll("#aiOpts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.ai));
   document.querySelectorAll("#fmtOpts .opt").forEach((b) => b.classList.toggle("on", b.dataset.k === settings.format));
   const mapBox = $("#mapOpts"); mapBox.innerHTML = "";
@@ -928,7 +1011,7 @@ function drawStart() {
   if (lock) { const n = document.createElement("span"); n.className = "note"; n.textContent = `원정에서 열 지도 ${lock}개`; mapBox.appendChild(n); }
 }
 function showStart() {
-  mode = "menu"; G = null; Music.theme("march"); view.setHero(null);
+  mode = "menu"; G = null; Music.theme("march"); view.setHero(null); view.setMirror(false); document.body.classList.remove("mirror");
   document.body.classList.add("menu"); document.body.classList.remove("counting"); $("#count").hidden = true;
   layout();
   startDemo();
