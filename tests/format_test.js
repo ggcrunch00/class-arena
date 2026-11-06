@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
   const logs = [];
   page.on('pageerror', (e) => logs.push('PAGEERROR: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error') logs.push(m.text()); });
-  await page.goto('http://127.0.0.1:8130/play.html#wide');
+  await page.goto('http://127.0.0.1:8130/play.html#diag');
   await page.waitForFunction(() => window.__arena, null, { timeout: 120000 });
   await page.screenshot({ path: out + '/f0_start.png' });
   await page.evaluate(() => window.__arena.start('gugu', 'recruit', 'pick'));

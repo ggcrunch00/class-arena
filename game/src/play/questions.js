@@ -338,6 +338,27 @@ function num(text, answer, prompt = "") {
   return { type: "number", text, answer, prompt };
 }
 
+// ---------- 여러 주제(11-06) ----------
+// 고른 주제들을 섞은 주머니에서 하나씩 꺼내 고르게 냄(한 바퀴 돌면 다시 섞음)
+export function topicBag(list) {
+  const keys = [...new Set([].concat(list || []))].filter((k) => TOPICS[k]);
+  if (!keys.length) keys.push("gugu");
+  let bag = [], last = null;
+  return () => {
+    if (keys.length === 1) return keys[0];
+    if (!bag.length) { bag = shuffle(keys.slice()); if (bag[bag.length - 1] === last) bag.unshift(bag.pop()); } // 같은 주제 두 번 이어 나오지 않게
+    return (last = bag.pop());
+  };
+}
+// 주제 묶음 이름: 하나면 그 이름, 둘이면 "가, 나", 셋 넘으면 "가 외 n개"
+export function topicsLabel(list) {
+  const keys = [].concat(list || []).filter((k) => TOPICS[k]);
+  if (!keys.length) return "";
+  if (keys.length === 1) return TOPICS[keys[0]].name;
+  if (keys.length === 2) return keys.map((k) => TOPICS[k].name).join(", ");
+  return `${TOPICS[keys[0]].name} 외 ${keys.length - 1}개`;
+}
+
 // 문제 형식: 숫자 직접 입력 / 섞어서 / 고르기만(객관식·OX)
 export const FORMATS = {
   input: { name: "직접 입력", hint: "숫자판으로 답 쓰기(골드 많이)" },

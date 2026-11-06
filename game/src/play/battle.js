@@ -8,13 +8,15 @@ const rand = (a, b) => a + Math.random() * (b - a);
 export class Battle {
   // durations: { 모형이름: { walk, attack, death, cheer, spawn? } } (초)
   // opts(캠페인): time 판 길이, baseHp/towerHp {[-1]: 배율, [1]: 배율}, gold {[-1]: 시작 골드, [1]: …},
-  //   objective { type: "base" | "towers" | "survive", n } — towers: 적 탑 n개를 무너뜨리면 승리, survive: 시간 끝까지 본성을 지키면 승리
+  //   objective { type: "base" | "towers" | "survive" | "kills", n } — towers: 적 탑 n개를 무너뜨리면 승리, survive: 시간 끝까지 본성을 지키면 승리,
+  //     kills: 시간 안에 해골 병사 n명을 무찌르면 승리(못 하면 패배, 11-06)
   //   hero {[side]: 영웅 이름}, train {[side]: {armor, blade, purse, stone}} — 훈련소 단계
   constructor(durations, opts = {}) {
     this.dur = durations;
     this.opts = opts;
     this.matchTime = opts.time || MATCH.time;
     this.objective = opts.objective || { type: "base" };
+    this.kills = { [-1]: 0, [1]: 0 }; // 무찌른 적 병사 수(쪽마다)
     this.units = [];
     this.projectiles = [];
     this.events = [];
@@ -247,7 +249,11 @@ export class Battle {
     const dmg = Math.round(raw * (counter ? COUNTER_MULT : 1));
     t.hp -= dmg; t.flash = 1;
     this.events.push({ type: "hit", target: t, x: t.x, y: t.y, z: 1.5, dmg, counter, side: from ? from.side : 0 });
-    if (t.hp <= 0) { t.hp = 0; this.setState(t, "death"); this.events.push({ type: "death", unit: t }); }
+    if (t.hp <= 0) {
+      t.hp = 0; this.setState(t, "death"); this.events.push({ type: "death", unit: t });
+      this.kills[-t.side]++;
+      if (this.objective.type === "kills" && t.side === 1 && this.kills[-1] >= (this.objective.n || 10)) this.finish(-1, "kills");
+    }
   }
 
   damageStruct(st, dmg) {
@@ -330,6 +336,7 @@ export class Battle {
       if (!this.overtime && this.timeLeft <= MATCH.overtime) { this.overtime = true; this.events.push({ type: "overtime" }); }
       if (this.timeLeft <= 0) {
         if (this.objective.type === "survive") this.finish(-1, "survive");
+        else if (this.objective.type === "kills") this.finish(1, "killsTime");
         else {
           const a = this.score(-1), b = this.score(1);
           this.finish(Math.abs(a - b) < 0.01 ? 0 : (a > b ? -1 : 1), "time");

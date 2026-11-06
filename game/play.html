@@ -43,32 +43,27 @@
     <img class="crest" src="assets/crest.webp" alt="" onerror="this.remove()">
     <h1 class="logo"><span>아라</span><span>원정대</span></h1>
     <p class="tagline">문제를 맞혀 골드를 벌고, 병사를 보내 잿빛 안개를 걷어 내요!</p>
-    <div class="titleact">
-      <button class="go big" id="campBtn">원정 떠나기</button>
-      <span class="sub"><button class="ghost" id="quickBtn">자유 대전 바로 시작</button>
-      <button class="ghost" id="prepBtn">전투 준비</button>
-      <button class="ghost" id="setBtn0">설정</button></span>
+    <!-- 11-06: 모드를 바로 고르는 카드 넷(원정·연습 대전·둘이서 대전·오늘의 도전) -->
+    <div class="modecards" role="group" aria-label="모드 고르기">
+      <button class="mcard mcamp" id="campBtn"><b>원정</b><small>이야기 따라 섬을 건너요</small><em id="campMeta"></em></button>
+      <button class="mcard" data-m="cpu"><b>연습 대전</b><small>컴퓨터와 겨뤄요</small><em class="mmeta"></em></button>
+      <button class="mcard" data-m="duo"><b>둘이서 대전</b><small>태블릿 하나로 나란히</small><em class="mmeta"></em></button>
+      <button class="mcard" data-m="daily"><b>오늘의 도전</b><small>모두 같은 문제로 겨뤄요</small><em class="mmeta"></em></button>
     </div>
-    <p class="lastset" id="lastSet"></p>
-    <a class="guidelink" href="guide.html">선생님 안내</a>
+    <div class="titlefoot">
+      <button class="ghost gear" id="setBtn0" aria-label="설정"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8.4 5-1.9-.3a6.9 6.9 0 0 1-.7 1.6l1.1 1.6-1.8 1.8-1.6-1.1c-.5.3-1 .5-1.6.7l-.3 1.9h-2.6l-.3-1.9a6.9 6.9 0 0 1-1.6-.7l-1.6 1.1-1.8-1.8 1.1-1.6c-.3-.5-.5-1-.7-1.6l-1.9-.3v-2.6l1.9-.3c.2-.6.4-1.1.7-1.6L4.9 6.8l1.8-1.8 1.6 1.1c.5-.3 1-.5 1.6-.7l.3-1.9h2.6l.3 1.9c.6.2 1.1.4 1.6.7l1.6-1.1 1.8 1.8-1.1 1.6c.3.5.5 1 .7 1.6l1.9.3Z"/></svg>설정</button>
+    <a class="guidelink" href="guide.html">선생님 안내</a></div>
   </div>
 </div>
 
 <!-- 전투 준비(설정 고르기) -->
 <div class="screen" id="startScreen" hidden>
   <div class="sheet">
-    <header class="title"><small>전투 준비</small><h1>아라 원정대</h1></header>
-    <div class="modes" id="modes">
-      <button class="mode" data-m="cpu">연습 대전<small>컴퓨터와 겨루기</small></button>
-      <button class="mode" data-m="duo">둘이서 대전<small>태블릿 하나로 나란히</small></button>
-      <button class="mode" data-m="daily">오늘의 도전<small>모두 같은 문제로 겨루기</small></button>
-      <button class="mode" id="modeCamp">원정<small>이야기 따라 섬을 건너요</small></button>
-      <button class="mode" disabled>협동 작전<small>준비 중</small></button>
-    </div>
+    <header class="title"><small id="prepKick">준비</small><h1 id="prepTitle">연습 대전</h1></header>
     <p class="dailynote" id="dailyNote" hidden></p>
     <div class="pickrow">
-      <div class="pick"><h3 id="topicLabel">문제 주제</h3><div class="opts" id="topicOpts"></div></div>
-      <div class="pick" id="topic2Pick" hidden><h3>오른쪽(해골 군단) 문제 주제</h3><div class="opts" id="topic2Opts"></div></div>
+      <div class="pick"><h3><span id="topicLabel">문제 주제</span> <small class="note" id="topicCount"></small></h3><div class="opts" id="topicOpts"></div></div>
+      <div class="pick" id="topic2Pick" hidden><h3>오른쪽(해골 군단) 문제 주제 <small class="note" id="topic2Count"></small></h3><div class="opts" id="topic2Opts"></div></div>
       <div class="pick"><h3>문제 형식</h3><div class="opts" id="fmtOpts"></div></div>
     </div>
     <div class="pickrow">
@@ -96,11 +91,18 @@
     <aside class="cside">
       <header><small id="cKicker">아라 군도</small><h2 id="cTitle">바닷가 초소</h2><p class="note" id="cTeach"></p></header>
       <div class="cstages" id="cStages"></div>
-      <div class="cprob"><label>문제 주제 <select id="cTopic"></select></label><label>형식 <select id="cFmt"></select></label>
+      <div class="cprob"><span class="ctopic">문제 주제 <button class="ghost small" id="cTopicBtn"></button></span><label>형식 <select id="cFmt"></select></label>
         <label class="hardtog"><input type="checkbox" id="cHard"> 도전 모드 <small>문제를 빨리 푸는 친구용: 해골이 더 빠르고 영리해요</small></label></div>
       <div class="cact"><button class="ghost" id="cBack">처음으로</button><button class="ghost" id="cStory">이야기 다시 보기</button><button class="ghost" id="cDex">원정 도감</button><button class="ghost" id="cBar">기사단 막사</button></div>
     </aside>
   </div>
+</div>
+
+<!-- 주제 고르기(원정에서 여러 주제) -->
+<div class="screen" id="topicScreen" hidden>
+  <div class="sheet"><h2>문제 주제 고르기</h2><p class="note">여러 개를 고르면 번갈아 나와요. 눌러서 켜고 끄세요.</p>
+    <div class="opts" id="topicPickOpts"></div>
+    <div class="actions"><button class="go" id="topicDone">다 골랐어요</button></div></div>
 </div>
 
 <!-- 인물 도감: 원정에서 만난 인물 -->

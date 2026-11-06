@@ -65,7 +65,7 @@ export const HEROES = {
 };
 export const HERO_ORDER = ["haram", "saebyeok", "uru", "sol"];
 // 이 스테이지를 깨면 그 영웅과 함께할 수 있음(null: 처음부터)
-export const HERO_OPEN = { haram: null, saebyeok: "1-1", uru: "1-2", sol: "2-2" };
+export const HERO_OPEN = { haram: null, saebyeok: "1-1", uru: "1-2", sol: "2-4" };
 
 // 훈련소(11-05): 원정에서 모은 별로 기사단을 단련. 원정과 혼자 연습(컴퓨터와 대전)에만 쓰고, 둘이서·오늘의 도전에는 안 씀
 export const TRAIN = {

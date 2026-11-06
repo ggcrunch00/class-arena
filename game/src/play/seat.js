@@ -3,7 +3,7 @@
 import { ROLES, ROLE_INFO, SIDES, MINE, CANNON, GOLD, HEROES } from "./config.js";
 import { LANE_NAMES, LANE_LABEL, LANES, BOUNDS, BASES } from "./lanes.js";
 import { Sound } from "./sound.js";
-import { TOPICS, makeQuestion, checkAnswer, answerText, questionLine } from "./questions.js";
+import { TOPICS, makeQuestion, checkAnswer, answerText, questionLine, topicBag, topicsLabel } from "./questions.js";
 
 const TPL = `
 <section class="quiz" aria-label="문제">
@@ -119,13 +119,18 @@ export class Seat {
   }
 
   // 새 판
-  start(battle, topic, format, rules) {
-    this.b = battle; this.topic = topic; this.format = format;
+  // topics: 주제 하나(이름) 또는 여러 개(배열). 여러 개면 섞어서 고르게 냄
+  start(battle, topics, format, rules) {
+    this.topics = [...new Set([].concat(topics))].filter((k) => TOPICS[k]);
+    if (!this.topics.length) this.topics = ["gugu"];
+    this.nextTopic = topicBag(this.topics); this.topic = this.topics[0];
+    this.b = battle; this.format = format;
     this.setLanes(); this.setRules(rules);
     this.lock = null; this.wrongs = []; this.runRight = 0; this.runWrong = 0;
     this.log = [];            // 맞힘(1)·틀림(0) 순서(기록 카드의 ■□ 줄)
     this.shownGold = battle.sides[this.side].gold; this.wasReady = {};
-    this.$(".chip").textContent = TOPICS[topic].name;
+    this.$(".chip").textContent = TOPICS[this.topic].name;
+    this.$(".chip").title = this.topics.map((k) => TOPICS[k].name).join(", ");
     const hero = battle.sides[this.side].hero, hb = this.$(".hero");
     hb.hidden = !hero;
     if (hero) {
@@ -175,7 +180,10 @@ export class Seat {
   }
 
   next() {
+    this.topic = this.nextTopic();
     this.q = makeQuestion(this.topic, this.diff, this.format);
+    const chip = this.$(".chip"); chip.textContent = TOPICS[this.topic].name;
+    chip.classList.toggle("multi", this.topics.length > 1); chip.dataset.n = this.topics.length > 1 ? this.topics.length : "";
     this.input = "";
     const qt = questionLine(this.q);
     const t = this.$(".qt");

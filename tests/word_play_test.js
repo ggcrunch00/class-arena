@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('http://127.0.0.1:8130/play.html#wide');
+  await page.goto('http://127.0.0.1:8130/play.html#diag');
   await page.waitForFunction(() => window.__arena, null, { timeout: 120000 });
   await page.evaluate(([t, f, m]) => window.__arena.start(t, 'recruit', f, m), [topic, fmt, mode]);
   await page.waitForTimeout(800);

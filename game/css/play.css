@@ -793,3 +793,26 @@ body.counting #panel { pointer-events: none; filter: saturate(.6) brightness(.8)
 .dexcard .dicon { grid-row: 1 / span 2; width: 56px; height: 56px; padding: 10px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #23506a, #13283a);
   box-shadow: 0 0 0 2px var(--brass), 0 0 0 4px #2a170b; fill: none; stroke: var(--stone); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .dexcard.unknown .dicon { stroke: #5d6b78; background: #1a2430; }
+
+/* 타이틀 모드 카드(11-06): 원정은 크게, 나머지 셋은 나란히 */
+.titlebox { max-width: 640px; }
+.modecards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: min(600px, 92vw); }
+.mcard { display: grid; gap: 2px; text-align: left; padding: 12px 14px 11px; border-radius: 8px; color: var(--ink);
+  background: var(--grain), linear-gradient(rgba(22,40,58,.92), rgba(12,24,36,.94)); box-shadow: var(--brass-rim), 0 10px 26px rgba(0,0,0,.45); min-width: 0; }
+.mcard b { font-family: var(--display); font-weight: 800; font-size: 21px; color: var(--parch); }
+.mcard small { font-size: 13px; opacity: .85; }
+.mcard em { font-style: normal; font-size: 12px; color: var(--brass-l); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.3em; }
+.mcard.mcamp { grid-column: 1 / -1; padding: 16px 20px; background: var(--grain), linear-gradient(#f6dc96, #d9a441 55%, #b07a28); color: var(--ink-d);
+  box-shadow: inset 0 1px 0 #fff6d6, 0 0 0 2px #2a170b, 0 6px 0 #2a170b, 0 14px 30px rgba(0,0,0,.45); }
+.mcard.mcamp b { color: var(--ink-d); font-size: 28px; } .mcard.mcamp em { color: #5a3a12; font-weight: 700; }
+.mcard:hover, .mcard:focus-visible { filter: brightness(1.08); } .mcard:active { transform: translateY(2px); }
+.titlefoot { display: flex; align-items: center; gap: 14px; }
+.gear { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: rgba(10,22,34,.72); border: 0; box-shadow: var(--brass-rim); font-size: 15px; }
+.gear svg { width: 18px; height: 18px; fill: var(--brass-l); }
+@media (max-width: 700px) { .modecards { grid-template-columns: 1fr 1fr; } }
+/* 여러 주제일 때 칩에 묶음 수 */
+.chip.multi::after { content: "+" attr(data-n); margin-left: 6px; font-size: 11px; padding: 0 5px; border-radius: 8px; background: rgba(42,23,11,.18); }
+/* 원정 지도의 주제 단추 */
+.ctopic { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ctopic .ghost.small { padding: 5px 10px; font-size: 13px; max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#topicScreen .sheet { width: min(980px, 100%); max-height: 94vh; overflow-y: auto; }

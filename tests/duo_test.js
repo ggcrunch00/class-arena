@@ -7,13 +7,13 @@ const { chromium } = require('playwright');
   const logs = [];
   page.on('pageerror', (e) => { logs.push('PAGEERROR: ' + e.message); console.log('PAGEERROR: ' + e.message + ' ' + (e.stack || '').split('\n')[1]); });
   page.on('console', (m) => { if (m.type() === 'error') logs.push(m.text()); });
-  await page.goto('http://127.0.0.1:8130/play.html#wide');
+  await page.goto('http://127.0.0.1:8130/play.html#diag');
   await page.waitForFunction(() => window.__arena, null, { timeout: 120000 });
-  await page.click('#prepBtn');
-  await page.click('#modes [data-m="duo"]');
+  await page.click('.mcard[data-m="duo"]', { force: true });
   await page.waitForTimeout(300);
   await page.screenshot({ path: out + '/d0_start.png' });
   await page.click('#startBtn');
+  await page.waitForFunction(() => window.__arena.battle && window.__arena.mode === 'play', null, { timeout: 120000 });
   const info = await page.evaluate(async () => {
     const A = window.__arena, roles = ['shield', 'archer', 'rusher', 'mage'], lanes = ['top', 'mid', 'bot'];
     for (let i = 0; i < 260; i++) {

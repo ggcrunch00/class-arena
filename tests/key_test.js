@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 1024, height: 768 } });
   page.on('pageerror', (e) => console.log('PAGEERROR: ' + e.message));
-  await page.goto('http://127.0.0.1:8130/play.html#wide');
+  await page.goto('http://127.0.0.1:8130/play.html#diag');
   await page.waitForFunction(() => window.__arena, null, { timeout: 120000 });
   await page.evaluate(() => window.__arena.start('gugu', 'recruit', 'pick'));
   await page.waitForTimeout(500);

@@ -11,9 +11,9 @@ const { chromium } = require('playwright');
     window.AudioContext = function () { const c = new AC(); window.__an = c.createAnalyser(); window.__an.fftSize = 2048;
       const orig = c.destination; Object.defineProperty(c, 'destination', { get: () => window.__an }); window.__an.connect(orig); return c; };
   });
-  await page.goto('http://127.0.0.1:8130/play.html#wide');
+  await page.goto('http://127.0.0.1:8130/play.html#diag');
   await page.waitForFunction(() => window.__arena, null, { timeout: 120000 });
-  await page.click('#quickBtn', { force: true });
+  await page.click('.mcard[data-m="cpu"]', { force: true }); await page.waitForTimeout(300); await page.click('#startBtn', { force: true });
   await page.waitForTimeout(3000);
   const rms = await page.evaluate(async () => {
     const a = window.__an, buf = new Float32Array(a.fftSize); let best = 0;

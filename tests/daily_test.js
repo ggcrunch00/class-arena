@@ -7,9 +7,9 @@ const { chromium } = require('playwright');
   for (let k = 0; k < 2; k++) {
     const page = await browser.newPage({ viewport: { width: 1024, height: 768 } });
     page.on('pageerror', (e) => console.log('PAGEERROR: ' + e.message));
-    await page.goto('http://127.0.0.1:8130/play.html#wide');
+    await page.goto('http://127.0.0.1:8130/play.html#diag');
     await page.waitForFunction(() => window.__arena, null, { timeout: 120000 });
-    await page.click('#prepBtn'); await page.click('#modes [data-m="daily"]');
+    await page.click('.mcard[data-m="daily"]', { force: true }); await page.waitForTimeout(300);
     if (k === 0) await page.screenshot({ path: out + '/daily_prep.png' });
     await page.click('#startBtn');
     await page.waitForTimeout(900);

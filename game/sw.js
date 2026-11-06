@@ -1,7 +1,7 @@
 // 서비스 워커: 한 번 받은 게임 파일을 기기에 저장해 두 번째부터 빠르게(인터넷이 끊겨도) 열리게 함.
 // 화면 파일(html)과 게임 코드는 "인터넷 먼저", 큰 모형·그림은 "저장본 먼저 + 뒤에서 새것 받기".
 // GitHub Pages 같은 배포 주소에서만 켜짐(main.js 에서 등록).
-const CACHE = "class-arena-v3"; // 11-05: 영웅·기사단 막사·6장 등대섬·도감 장소/물건
+const CACHE = "class-arena-v4"; // 11-06: 원정 8장 32스테이지, 새 삽화·얼굴, 메뉴 개편
 const CORE = ["./", "./play.html", "./guide.html", "./css/play.css", "./js/play_bundle.js", "./manifest.webmanifest", "./icons/icon-192.png"];
 
 self.addEventListener("install", (e) => {

@@ -11,7 +11,7 @@ export class StageRunner {
     this.done = new Set();
     if (ai) ai.onTalk = (type, info) => {
       const line = bossLine(stage.lines, type, info, LANE_LABEL);
-      if (line && hooks.boss) hooks.boss(stage.boss, line);
+      if (line && hooks.boss) hooks.boss(stage.boss || stage.voice, line); // voice: 보스 판이 아니어도 말하는 상대(11-06)
     };
   }
 
@@ -25,6 +25,12 @@ export class StageRunner {
     const b = this.b;
     if (this.ai && this.ai.watch) this.ai.watch(evts);
     if (b.state !== "play") return;
+    // trickle: 정해진 간격마다 해골 하나씩(무찌르기 판에서 상대가 끊기지 않게, 11-06)
+    const tr = this.stage.trickle;
+    if (tr && b.time >= (this.trickT ??= tr.from || tr.every)) {
+      this.trickT += tr.every * (1 + 0.1 * this.assist);
+      b.spawnFree(1, tr.roles[Math.floor(Math.random() * tr.roles.length)], this.autoLane());
+    }
     (this.stage.script || []).forEach((ev, i) => {
       if (this.done.has(i) || b.time < ev.at) return;
       this.done.add(i);
@@ -51,7 +57,7 @@ export function stageBattle(stage, losses = 0, hard = false) {
   const o = { ...stage.battle }, k = hard ? 0 : assistLevel(losses);
   if (hard) o.baseHp = { ...(o.baseHp || {}), 1: ((o.baseHp && o.baseHp[1]) || 1) * 1.15 };
   // 버티기 판은 해골 본성을 줄여도 소용없으니 우리 본성 체력을 늘림(도움 단계마다 +12%)
-  if (k && o.objective && o.objective.type === "survive") o.baseHp = { ...(o.baseHp || {}), [-1]: ((o.baseHp && o.baseHp[-1]) || 1) * (1 + 0.12 * k) };
+  if (k && o.objective && (o.objective.type === "survive" || o.objective.type === "kills")) o.baseHp = { ...(o.baseHp || {}), [-1]: ((o.baseHp && o.baseHp[-1]) || 1) * (1 + 0.12 * k) };
   if (k) {
     o.baseHp = { ...(o.baseHp || {}), 1: ((o.baseHp && o.baseHp[1]) || 1) * (1 - 0.06 * k) };
     o.towerHp = { ...(o.towerHp || {}), 1: ((o.towerHp && o.towerHp[1]) || 1) * (1 - 0.06 * k) };

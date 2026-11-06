@@ -5,7 +5,7 @@
 //   --avoid  겹치면 안 되는 문장 목록(한 줄에 하나, 저장소에는 올리지 않는 파일). 10글자 넘게 같으면 알림
 // 오류(✖)가 하나라도 있으면 끝 상태 1. 알림(△)은 사람이 한 번 보면 되는 것.
 import fs from "node:fs";
-import { TOPICS, FORMATS, makeQuestion, checkAnswer, answerText, setSeed } from "../game/src/play/questions.js";
+import { TOPICS, FORMATS, makeQuestion, checkAnswer, answerText, setSeed, topicBag } from "../game/src/play/questions.js";
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
@@ -321,6 +321,18 @@ for (const topic of Object.keys(TOPICS)) for (const diff of [0, 1, 2]) for (cons
   }
 }
 // 오늘의 도전: 같은 씨앗이면 같은 문제 순서
+// 여러 주제(11-06): 한 바퀴(주제 수만큼) 안에 모든 주제가 한 번씩, 바로 이어서 같은 주제가 두 번 나오지 않음
+{
+  const keys = ["gugu", "saja", "geo6", "hanja87"], next = topicBag(keys);
+  let prev = null;
+  for (let r = 0; r < 200; r++) {
+    const got = keys.map(() => next());
+    if (new Set(got).size !== keys.length) { err("여러 주제", `한 바퀴에 빠진 주제가 있어요: ${got.join(",")}`); break; }
+    if (got[0] === prev) { err("여러 주제", `바퀴가 넘어갈 때 같은 주제가 이어서 나왔어요: ${prev}`); break; }
+    prev = got[got.length - 1];
+  }
+  if (topicBag(["없는주제"])() !== "gugu") err("여러 주제", "없는 주제만 있으면 곱셈구구로 돌아가야 해요");
+}
 for (const topic of Object.keys(TOPICS)) {
   const run = () => { setSeed(20261104); return Array.from({ length: 30 }, (_, i) => makeQuestion(topic, i % 3, "mix").text).join("|"); };
   if (run() !== run()) err(`${TOPICS[topic].name}`, "같은 날짜 씨앗인데 문제 순서가 달라요(오늘의 도전이 반마다 달라짐)");
