@@ -148,7 +148,7 @@ export class Seat {
   useSkill() {
     if (!this.active() || !this.b.useSkill(this.side, this.lane)) return false;
     const H = HEROES[this.b.sides[this.side].hero];
-    Sound.play("horn");
+    Sound.play("skill_" + H.kind);
     if (this.ctx.skill) this.ctx.skill(this.b.sides[this.side].hero, H); else this.say(H.skill + "!");
     return true;
   }

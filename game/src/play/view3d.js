@@ -1,7 +1,7 @@
 // 전장 그리기(three.js 실시간 3D). 전투 규칙(battle.js)의 상태를 받아 그림·효과·소리로 보여 줌.
 import * as THREE from "three";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
-import { ELEV, UNIT_SCALE, SIDES, ROLE_INFO, SPECIAL, TOWER, BASE } from "./config.js";
+import { HEROES, ELEV, UNIT_SCALE, SIDES, ROLE_INFO, SPECIAL, TOWER, BASE } from "./config.js";
 import { LANES, LANE_NAMES, BOUNDS, BASES, RIVER, MOOD } from "./lanes.js";
 import { Sound } from "./sound.js";
 
@@ -366,6 +366,32 @@ export class View3D {
     a.play();
     v.anim = name;
   }
+  // ---------- 영웅(원정): 우리 본성 곁에 크게 서 있다가 기술을 쓰면 공격 동작 ----------
+  setHero(key) {
+    if (this.hero) { this.scene.remove(this.hero.obj, this.hero.ring); this.hero.ring.material.dispose(); this.hero = null; }
+    const H = key && HEROES[key], src = H && this.models[H.model];
+    if (!src) return;
+    const obj = SkeletonUtils.clone(src.scene), sc = UNIT_SCALE * 1.5;
+    obj.scale.setScalar(sc);
+    obj.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    // 본성에서 지도 가운데 쪽으로 조금, 옆으로 조금 비켜 섬(길 출발점과 겹치지 않게)
+    const [bx, by] = BASES[-1], dl = Math.hypot(bx, by) || 1, dx = -bx / dl, dy = -by / dl;
+    const x = bx + dx * 3.4 - dy * 3.0, y = by + dy * 3.4 + dx * 3.0;
+    obj.position.copy(V(x, y, 0)); obj.rotation.y = Math.atan2(dx, -dy);
+    const ring = new THREE.Mesh(this.blobGeo, new THREE.MeshBasicMaterial({ map: this.T_TEAM, color: 0xf3d38a, transparent: true, depthWrite: false }));
+    ring.scale.set(2.2, 1, 2.2); ring.position.copy(V(x, y, 0.06)); ring.renderOrder = 1;
+    this.scene.add(obj, ring);
+    const mixer = new THREE.AnimationMixer(obj), actions = {};
+    for (const clip of src.animations) actions[clip.name] = mixer.clipAction(clip);
+    this.hero = { key, obj, ring, mixer, actions, x, y, anim: null, busy: 0 };
+    this.heroPose("cheer");
+  }
+  heroPose(name) {
+    const h = this.hero, a = h && h.actions[name]; if (!a || h.anim === name) return;
+    a.reset(); a.setLoop(THREE.LoopRepeat); a.timeScale = name === "cheer" ? 0.35 : 1.1; // 기다릴 땐 천천히 들썩, 기술 땐 힘차게
+    if (h.anim && h.actions[h.anim]) a.crossFadeFrom(h.actions[h.anim], 0.15, false);
+    a.play(); h.anim = name;
+  }
   removeUnit(id) {
     const v = this.views.get(id); if (!v) return;
     this.scene.remove(v.obj, v.blob, v.team); v.blob.material.dispose(); v.bar.remove(); this.views.delete(id);
@@ -454,6 +480,12 @@ export class View3D {
         if (e.proj.kind === "orb") Sound.play("magic");
         else if (e.proj.kind === "arrow") Sound.play("arrow");
       } else if (e.type === "skill") {
+        if (this.hero && e.side < 0) {
+          this.hero.busy = 1.4; this.heroPose("attack");
+          const hp = V(this.hero.x, this.hero.y, 2.2);
+          this.burst(hp, 20, { tint: 0xf3d38a, add: true, speed: 4, up: 2.5, life: 0.7, s0: 0.6, s1: 0.08 });
+          this.ring(this.hero.x, this.hero.y, 0xf3d38a);
+        }
         // 영웅 기술: 우리 병사마다 빛 고리(방패 함성 청록, 돌격 함성 금빛), 화살비·깨침돌 폭발은 날아가는 것으로 보여 줌
         const tint = e.kind === "guard" ? 0x46e0cf : e.kind === "rally" ? 0xffc65a : e.kind === "blast" ? 0x46e0cf : 0xfff1b8;
         const base = b && b.sides[e.side].base;
@@ -595,6 +627,14 @@ export class View3D {
       c.bar.firstChild.style.width = (st.hp / st.max * 100) + "%";
     }
     for (const m of this.laneMats || []) m.opacity = 0.86 + Math.sin(performance.now() / 300) * 0.14;
+    if (this.hero) {
+      const h = this.hero;
+      h.mixer.update(dt);
+      if (h.busy > 0) { h.busy -= dt; if (h.busy <= 0) this.heroPose("cheer"); }
+      const ready = b && b.sides && b.canSkill && b.canSkill(-1);
+      h.ring.material.opacity = ready ? 0.65 + Math.sin(performance.now() / 180) * 0.35 : 0.45;
+      h.ring.material.color.setHex(ready ? 0x46e0cf : 0xf3d38a); // 기술이 다 차면 청록으로 깜빡여 알려 줌
+    }
     // 영웅 기술이 이어지는 동안 우리 병사 발밑에 반짝임
     if (b && b.sides) for (const sd of [-1, 1]) {
       const B = b.sides[sd].buff; if (!B || !(B.guard > 0 || B.rally > 0)) continue;

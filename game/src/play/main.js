@@ -18,9 +18,9 @@ const $ = (s) => document.querySelector(s);
 // 지도: 자유 대전에서 고른 지도(주소 끝 #wide 처럼 줄 수도 있음). 판마다 필요한 전장 모형만 그때 받음
 const firstMap = (location.hash || "").replace("#", "");
 let camp = loadProgress();    // 원정 진행(별·처음 이야기 봤는지)
-// 자유 대전에서 쓸 수 있는 지도: 처음부터 둘 + 원정에서 깬 장의 지도
+// 자유 대전에서 쓸 수 있는 지도: 처음부터 대각선 + 원정에서 깬 장의 지도
 const mapOpen = (k) => !!MAPS[k] && (MAPS[k].free || chapterCleared(camp, MAPS[k].chapter));
-let MAP_KEY = useMap(MAPS[firstMap] ? firstMap : remember("classArena.map") || "diag");
+let MAP_KEY = useMap(MAPS[firstMap] ? firstMap : mapOpen(remember("classArena.map")) ? remember("classArena.map") : "diag");
 const MODELS = ["field", ...Object.values(SIDES[-1].models), ...Object.values(SIDES[1].models)];
 const PLAYER = -1, CPU = 1;
 
@@ -205,6 +205,7 @@ async function newGame(stage = null) {
     if ((seats.length === 2) !== duo) makeSeats(duo ? "duo" : "cpu");
     await switchMap(stage ? stage.map : mapOpen(settings.map) ? settings.map : "diag");
     view.setMood(stage && stage.chapter.mood ? { ...MOOD, ...stage.chapter.mood } : MOOD); // 장마다 빛(등대섬은 해 질 녘)
+    Music.theme(stage && stage.boss ? stage.boss : "march"); // 원정 보스 판은 그 보스 곡
     Music.intense(false); Music.duck(false); Music.start();
     document.body.classList.remove("menu");
     layout();
@@ -218,6 +219,7 @@ async function newGame(stage = null) {
     const battle = new Battle(durations, bopts);
     const level = stage ? stageAI(stage, losses, hard) : daily ? "knight" : settings.ai;
     G = { battle, duo, daily, stage, ai: duo ? null : new ComputerPlayer(battle, CPU, level), endT: -1 };
+    view.setHero(battle.sides[-1].hero); // 원정: 영웅이 우리 본성 곁에 서서 기술 쓸 때 움직임
     if (stage) G.runner = new StageRunner(battle, stage, G.ai, { talk: (w, t) => talk(w, t), boss: (w, t) => talk(w, t, true) }, hard ? 0 : assistLevel(losses));
     G.hard = hard;
     setSeed(daily ? daily.key : null);
@@ -897,7 +899,7 @@ function drawStart() {
   if (lock) { const n = document.createElement("span"); n.className = "note"; n.textContent = `원정에서 열 지도 ${lock}개`; mapBox.appendChild(n); }
 }
 function showStart() {
-  mode = "menu"; G = null;
+  mode = "menu"; G = null; Music.theme("march"); view.setHero(null);
   document.body.classList.add("menu"); document.body.classList.remove("counting"); $("#count").hidden = true;
   layout();
   startDemo();

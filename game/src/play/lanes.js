@@ -10,8 +10,9 @@ import MAP_CITADEL from "./map_citadel.json" with { type: "json" };
 
 // free: 자유 대전에서 고를 수 있는지(캠페인 지도는 그 장을 깨면 열림)
 export const MAPS = {
-  diag: { name: "대각선", desc: "롤처럼 모서리에서 모서리로", data: MAP_DIAG, free: true },
-  wide: { name: "펼친 3갈래", desc: "옆으로 넓게, 병사가 크게", data: MAP_WIDE, free: true },
+  // 11-06 선생님 확정: 자유 대전 기본 지도는 대각선. 펼친 3갈래는 원정 6-1에 쓰고, 6장을 마치면 자유 대전에도 열림
+  diag: { name: "대각선", desc: "모서리에서 모서리로 세 갈래", data: MAP_DIAG, free: true },
+  wide: { name: "펼친 3갈래", desc: "옆으로 넓게, 병사가 크게", data: MAP_WIDE, chapter: 6 },
   shore: { name: "바닷가 초소", desc: "한 갈래 길", data: MAP_SHORE, chapter: 1 },
   twin: { name: "두 갈래 숲길", desc: "호수를 낀 두 길", data: MAP_TWIN, chapter: 2 },
   bridge: { name: "강 건너 다리", desc: "다리 셋, 3갈래", data: MAP_BRIDGE, chapter: 3 },

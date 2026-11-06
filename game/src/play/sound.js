@@ -57,6 +57,11 @@ const S = {
   arrow: (t) => { noise(t, 0.08, 0.15, 5000, 2); },
   mine: (t) => { tone(t, 523, 523, 0.1, "triangle", 0.3); tone(t + 0.1, 659, 659, 0.1, "triangle", 0.3); tone(t + 0.2, 784, 784, 0.2, "triangle", 0.3); },
   horn: (t) => { tone(t, 220, 220, 0.5, "sawtooth", 0.12); tone(t + 0.5, 294, 294, 0.6, "sawtooth", 0.12); },
+  // 영웅 기술(11-06): 방패 함성은 쇳소리+올라가는 화음, 화살비는 바람 소리 여러 번, 돌격 함성은 뿔나팔 셋, 깨침돌 폭발은 모이는 빛+쿵
+  skill_guard: (t) => { noise(t, 0.12, 0.35, 3500, 3); tone(t, 1400, 1300, 0.3, "triangle", 0.12); [392, 494, 587].forEach((f, i) => tone(t + 0.08 + i * 0.07, f, f, 0.5, "triangle", 0.22)); },
+  skill_volley: (t) => { for (let i = 0; i < 5; i++) noise(t + i * 0.06, 0.18, 0.22, 4200 - i * 300, 1.5); tone(t, 700, 1400, 0.25, "sine", 0.08); },
+  skill_rally: (t) => { [196, 247, 294].forEach((f, i) => tone(t + i * 0.16, f, f, 0.32, "sawtooth", 0.11)); tone(t + 0.48, 392, 392, 0.7, "sawtooth", 0.12); },
+  skill_blast: (t) => { tone(t, 300, 1600, 0.5, "sine", 0.18); tone(t + 0.05, 450, 2400, 0.45, "triangle", 0.08); tone(t + 0.55, 110, 45, 0.6, "sine", 0.7); noise(t + 0.55, 0.45, 0.4, 600, 0.5); },
   win: (t) => { [523, 659, 784, 1047].forEach((f, i) => tone(t + i * 0.13, f, f, 0.25, "triangle", 0.35)); },
   lose: (t) => { [392, 330, 262].forEach((f, i) => tone(t + i * 0.2, f, f * 0.98, 0.3, "triangle", 0.3)); },
 };

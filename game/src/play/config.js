@@ -51,15 +51,15 @@ export const SPECIAL = {
 //   rally: 정해진 시간 동안 우리 병사 빠르기·공격 배율
 //   blast: 고른 길 맨 앞 적 무리에 큰 깨침돌 빛(병사 dmg, 둘레 splash, 그 길 탑·본성에 struct)
 export const HEROES = {
-  haram: { name: "하람", title: "기사단장", face: "haram", skill: "방패 함성", need: 6, kind: "guard", time: 8, cut: 0.5, heal: 0.3,
+  haram: { model: "knight", name: "하람", title: "기사단장", face: "haram", skill: "방패 함성", need: 6, kind: "guard", time: 8, cut: 0.5, heal: 0.3,
     desc: "8초 동안 우리 병사가 받는 피해가 절반, 바로 체력도 조금 회복", line: "방패를 들어요! 한 걸음도 물러서지 마요!" },
-  saebyeok: { name: "새벽", title: "정찰병", face: "saebyeok", skill: "화살비", need: 6, kind: "volley", n: 3, dmg: 24, splash: 1.5,
+  saebyeok: { model: "rogue", name: "새벽", title: "정찰병", face: "saebyeok", skill: "화살비", need: 6, kind: "volley", n: 3, dmg: 24, splash: 1.5,
     desc: "고른 길 맨 앞의 적에게 화살비가 세 번 쏟아져요", line: "저기예요! 화살비, 쏴요!",
     join: "다음 전투부터 저도 지휘관 곁에 설게요. 기사단 막사에서 저를 고르면 화살비를 보여 드릴게요!" },
-  uru: { name: "우루", title: "돌격대장", face: "uru", skill: "돌격 함성", need: 6, kind: "rally", time: 8, speed: 1.4, dmg: 1.3,
+  uru: { model: "barbarian", name: "우루", title: "돌격대장", face: "uru", skill: "돌격 함성", need: 6, kind: "rally", time: 8, speed: 1.4, dmg: 1.3,
     desc: "8초 동안 우리 병사가 더 빠르고(+40%) 더 세게(+30%) 싸워요", line: "으랏차! 다 같이 앞으로!",
     join: "다음엔 저를 데려가요! 기사단 막사에서 고르면 돌격 함성으로 모두 힘이 펄펄 나게 해 줄게요." },
-  sol: { name: "솔", title: "궁정 마법사", face: "sol", skill: "깨침돌 폭발", need: 7, kind: "blast", dmg: 150, splash: 3.4, struct: 150,
+  sol: { model: "mage", name: "솔", title: "궁정 마법사", face: "sol", skill: "깨침돌 폭발", need: 7, kind: "blast", dmg: 150, splash: 3.4, struct: 150,
     desc: "고른 길 맨 앞 적 무리에 큰 빛이 터져요(탑에도 피해)", line: "깨침돌아, 모은 빛을 보여 줘!",
     join: "깨침돌의 빛을 한데 모으는 법을 알아냈어요. 기사단 막사에서 저와 함께하면 깨침돌 폭발을 쓸 수 있어요." },
 };
