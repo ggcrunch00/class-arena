@@ -13,6 +13,7 @@ const { chromium } = require('playwright');
   await page.waitForTimeout(1500);
   await page.screenshot({ path: out + '/p1_start.png' });
   await page.click('.mcard[data-m="cpu"]', { force: true }); await page.waitForTimeout(300); await page.click('#startBtn', { force: true });
+  await page.waitForFunction(() => window.__arena.battle && window.__arena.mode === 'play', null, { timeout: 120000 });
   // 전투: 정답을 내고 병사를 뽑으면서 30초(게임 시간) 진행
   const info = await page.evaluate(async () => {
     const A = window.__arena, roles = ['shield', 'archer', 'rusher', 'mage'], lanes = ['top', 'mid', 'bot'];
