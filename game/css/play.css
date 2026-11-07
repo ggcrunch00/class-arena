@@ -963,3 +963,17 @@ body.counting #panel { pointer-events: none; filter: saturate(.6) brightness(.8)
 
 /* 확대를 막지 않는 대신, 단추를 빠르게 두 번 눌러도 화면이 확대되지 않게(11-07 검토: 확대 제한 풀기) */
 button, .card, .lanes, .keypad, .tiles { touch-action: manipulation; }
+
+/* 11-07 검토: 좁은 화면(1024×768 둘이서)에서 위 줄 글자가 잘리던 것 — 줄임말·작은 글씨로 */
+@media (max-width: 1180px) {
+  body.duo .qhead { gap: 4px; flex-wrap: nowrap; }
+  body.duo .qhead .chip { max-width: 5.5em; overflow: hidden; text-overflow: ellipsis; }
+  body.duo .seg button { padding: 3px 6px; font-size: 12px; }
+  body.duo .streak { display: none !important; } /* 연속은 전장 알림으로도 나옴 */
+  body.duo .qhead .chip { min-width: 4.2em; }
+  body.duo .ahead { gap: 4px; }
+  body.duo .mine small { display: none; }
+  body.duo .lanes button { min-width: 0; padding-inline: 4px; }
+  body.duo .lanes button svg { display: none; }
+  body.duo .lanes button span { font-size: 12px; white-space: nowrap; }
+}

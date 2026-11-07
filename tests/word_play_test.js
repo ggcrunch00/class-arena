@@ -47,7 +47,13 @@ const { chromium } = require('playwright');
   // 첫 줄 바른 답 누르기
   const fixed = await page.evaluate(() => {
     const s = window.__arena.seats[0], x = s.wrongs[0]; if (!x) return 'none';
-    const row = document.querySelector('#resBody .rev'); const btn = [...row.querySelectorAll('button')].find((b) => b.textContent === String(x.q.answer));
+    const row = document.querySelector('#resBody .rev');
+    if (x.q.type === 'tiles') { // 글자 타일 문제는 복습에서도 타일을 차례로 눌러 조립(11-07)
+      const btns = [...row.querySelectorAll('.rtiles button')], used = new Set();
+      for (const ch of [...String(x.q.answer).replace(/\s/g, '')]) { const i = btns.findIndex((b, j) => !used.has(j) && b.textContent === ch); if (i < 0) return 'no-tile'; used.add(i); btns[i].click(); }
+      return row.classList.contains('done') ? 'done' : 'not-done';
+    }
+    const btn = [...row.querySelectorAll('button')].find((b) => b.textContent === String(x.q.answer));
     if (!btn) return 'no-button'; btn.click(); return row.classList.contains('done') ? 'done' : 'not-done';
   });
   console.log('다시 풀기 바른 답 →', fixed, '| 기록 글:', (await page.textContent('#shareText')).split('\n')[1]);
