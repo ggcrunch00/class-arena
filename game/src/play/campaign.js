@@ -353,7 +353,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 4, name: "물안개 늪", art: "swamp", map: "twin", pos: [84, 34],
+    id: 4, name: "물안개 늪", art: "swamp", map: "swamp", pos: [84, 34],
     // 늪: 푸른빛 도는 흐린 빛 + 낮게 깔린 물안개
     mood: { sun: [0.86, 0.96, 0.84], sunI: 2.8, hemiSky: [0.62, 0.8, 0.68], hemiI: 1.2, bg: "#16241c", fog: "#87a08c", fogNear: 100, fogFar: 185 },
     prologue: [
@@ -363,7 +363,7 @@ export const CHAPTERS = [
     teach: "길을 자주 바꾸는 상대를 읽어요",
     stages: [
       {
-        id: "4-1", name: "갈대숲 입구", map: "twin",
+        id: "4-1", name: "갈대숲 입구", map: "swamp",
         goal: "해골 군단의 본성을 무너뜨려요",
         rules: { roles: ALL, mine: false, cannon: false },
         battle: { time: 330, baseHp: { 1: 0.9 } },
@@ -384,7 +384,7 @@ export const CHAPTERS = [
         hint: "무리가 온 길을 보고, 그 길로 천적 병사를 보내요.",
       },
       {
-        id: "4-2", name: "물안개 속에서", map: "twin",
+        id: "4-2", name: "물안개 속에서", map: "swamp",
         goal: "3분 30초 동안 본성을 지켜요",
         rules: { roles: ALL, mine: false, cannon: false },
         battle: { time: 210, objective: { type: "survive" }, gold: { [-1]: 150, [1]: 90 }, baseHp: { [-1]: 1.3 } },
@@ -406,7 +406,7 @@ export const CHAPTERS = [
         hint: "버티기 판이에요. 무리가 오면 탑 근처에서 여러 병사로 함께 막아요.",
       },
       {
-        id: "4-3", art: "s43", name: "버려진 나루터", map: "twin",
+        id: "4-3", art: "s43", name: "버려진 나루터", map: "swamp",
         goal: "해골 병사 12명을 무찔러요",
         rules: { roles: ALL, mine: false, cannon: false },
         battle: { time: 300, objective: { type: "kills", n: 12 }, gold: { [-1]: 120 }, baseHp: { [-1]: 1.3 }, towerHp: { [-1]: 1.3 } },
@@ -430,7 +430,7 @@ export const CHAPTERS = [
         hint: "무찌르기 판이에요. 상성을 노리면 더 빨리 무찌를 수 있어요.",
       },
       {
-        id: "4-4", name: "해골 뱃사공 출렁", map: "twin", boss: "chulleong",
+        id: "4-4", name: "해골 뱃사공 출렁", map: "swamp", boss: "chulleong",
         goal: "출렁의 본성을 무너뜨려요",
         rules: { roles: ALL, mine: false, cannon: false },
         battle: { time: 360, baseHp: { 1: 0.95 } },
@@ -559,7 +559,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 6, name: "서리 고개", art: "frost", map: "wide", pos: [88, 14],
+    id: 6, name: "서리 고개", art: "frost", map: "frost", pos: [88, 14],
     // 눈 덮인 고개: 차고 밝은 빛 + 흰 눈안개
     mood: { sun: [0.92, 0.96, 1.05], sunI: 3.0, hemiSky: [0.86, 0.9, 1.0], hemiI: 1.45, bg: "#1c2733", fog: "#cdd8e4", fogNear: 105, fogFar: 190 },
     prologue: [
@@ -569,7 +569,7 @@ export const CHAPTERS = [
     teach: "안개 거인을 처음 만나요. 여럿이 함께 막아요",
     stages: [
       {
-        id: "6-1", name: "얼어붙은 길", map: "wide",
+        id: "6-1", name: "얼어붙은 길", map: "frost",
         goal: "해골 군단의 본성을 무너뜨려요",
         rules: { roles: ALL },
         battle: { time: 360, towerHp: { 1: 1.1 } },
@@ -590,7 +590,7 @@ export const CHAPTERS = [
         hint: "세 길을 골고루 살펴요. 금광은 조용할 때, 대포는 뭉쳤을 때!",
       },
       {
-        id: "6-2", name: "눈보라", map: "wide",
+        id: "6-2", name: "눈보라", map: "frost",
         goal: "4분 동안 본성을 지켜요",
         rules: { roles: ALL },
         battle: { time: 240, objective: { type: "survive" }, gold: { [-1]: 160, [1]: 100 }, baseHp: { [-1]: 1.2 } },
@@ -612,7 +612,7 @@ export const CHAPTERS = [
         hint: "거인은 체력이 아주 많아요. 탑 근처에서 여러 병사로 함께 막고, 대포를 아껴 둬요.",
       },
       {
-        id: "6-3", art: "s63", name: "얼음 동굴", map: "wide",
+        id: "6-3", art: "s63", name: "얼음 동굴", map: "frost",
         goal: "해골 병사 20명을 무찔러요",
         rules: { roles: ALL },
         battle: { time: 300, objective: { type: "kills", n: 20 }, gold: { [-1]: 140 }, baseHp: { [-1]: 1.35 }, towerHp: { [-1]: 1.3 } },
@@ -637,7 +637,7 @@ export const CHAPTERS = [
         hint: "해골이 끊이지 않고 와요. 상성을 노리고, 뭉치면 대포로 한꺼번에!",
       },
       {
-        id: "6-4", name: "해골 파수꾼 서리", map: "wide", boss: "seori",
+        id: "6-4", name: "해골 파수꾼 서리", map: "frost", boss: "seori",
         goal: "서리의 본성을 무너뜨려요",
         rules: { roles: ALL },
         battle: { time: 390, baseHp: { 1: 1.1 }, towerHp: { 1: 1.15 } },
@@ -768,7 +768,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 8, name: "잊힌 등대섬", art: "ch6", map: "wide", pos: [14, 89], after: true,
+    id: 8, name: "잊힌 등대섬", art: "ch6", map: "isle", pos: [14, 89], after: true,
     // 해 질 녘 빛(지도 분위기를 덮어씀)
     mood: { sun: [1.0, 0.58, 0.4], sunI: 2.7, hemiSky: [0.6, 0.52, 0.88], hemiI: 1.0, bg: "#1e1830" },
     prologue: [
@@ -779,7 +779,7 @@ export const CHAPTERS = [
     teach: "영웅과 함께, 배운 모든 것을 시험해요",
     stages: [
       {
-        id: "8-1", name: "꺼진 등대", map: "wide",
+        id: "8-1", name: "꺼진 등대", map: "isle",
         goal: "4분 동안 본성을 지켜 등대 불씨를 살려요",
         rules: { roles: ALL },
         battle: { time: 240, objective: { type: "survive" }, gold: { [-1]: 160, [1]: 90 }, baseHp: { [-1]: 1.2 } },
@@ -803,7 +803,7 @@ export const CHAPTERS = [
         hint: "버티기 판이에요. 탑 근처에 병사를 세워 두고, 영웅 기술은 무리나 거인이 올 때 써요.",
       },
       {
-        id: "8-2", name: "등대지기의 일지", map: "diag",
+        id: "8-2", name: "등대지기의 일지", map: "isle",
         goal: "해골 병사 18명을 무찔러요",
         rules: { roles: ALL },
         battle: { time: 300, objective: { type: "kills", n: 18 }, gold: { [-1]: 140 }, baseHp: { [-1]: 1.35 }, towerHp: { [-1]: 1.3 } },
@@ -826,7 +826,7 @@ export const CHAPTERS = [
         hint: "무찌르기 판이에요. 상성으로 빨리 무찌르고, 뭉치면 대포!",
       },
       {
-        id: "8-3", art: "s83", name: "거울 바다", map: "diag",
+        id: "8-3", art: "s83", name: "거울 바다", map: "isle",
         goal: "해골 군단의 본성을 무너뜨려요",
         rules: { roles: ALL },
         battle: { time: 390, baseHp: { 1: 1.15 }, towerHp: { 1: 1.1 } },
@@ -849,7 +849,7 @@ export const CHAPTERS = [
         hint: "상대가 내 병사를 보고 천적을 보내요. 같은 병사를 연달아 보내지 말아요.",
       },
       {
-        id: "8-4", name: "안개 그림자", map: "diag", boss: "geurimja", epilogue: true,
+        id: "8-4", name: "안개 그림자", map: "isle", boss: "geurimja", epilogue: true,
         goal: "안개 그림자의 본성을 무너뜨려요",
         rules: { roles: ALL },
         battle: { time: 420, baseHp: { 1: 1.3 }, towerHp: { 1: 1.2 } },

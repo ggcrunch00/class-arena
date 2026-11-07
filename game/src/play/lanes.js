@@ -7,6 +7,9 @@ import MAP_TWIN from "./map_twin.json" with { type: "json" };
 import MAP_BRIDGE from "./map_bridge.json" with { type: "json" };
 import MAP_PASS from "./map_pass.json" with { type: "json" };
 import MAP_CITADEL from "./map_citadel.json" with { type: "json" };
+import MAP_SWAMP from "./map_swamp.json" with { type: "json" };
+import MAP_FROST from "./map_frost.json" with { type: "json" };
+import MAP_ISLE from "./map_isle.json" with { type: "json" };
 
 // free: 자유 대전에서 고를 수 있는지(캠페인 지도는 그 장을 깨면 열림)
 export const MAPS = {
@@ -18,6 +21,10 @@ export const MAPS = {
   bridge: { name: "강 건너 다리", desc: "다리 셋, 3갈래", data: MAP_BRIDGE, chapter: 3 },
   pass: { name: "산길 요새", desc: "짧은 지름길과 굽은 산길", data: MAP_PASS, chapter: 5 },
   citadel: { name: "안개 성채", desc: "성벽으로 모이는 세 길", data: MAP_CITADEL, chapter: 7 },
+  // 11-07: 이야기에 맞춘 지도(길은 두 갈래·펼친 3갈래·대각선과 같고 땅·물·꾸밈이 다름)
+  swamp: { name: "물안개 늪", desc: "웅덩이 사이 두 갈래", data: MAP_SWAMP, chapter: 4 },
+  frost: { name: "서리 고개", desc: "눈 덮인 3갈래, 언 강", data: MAP_FROST, chapter: 6 },
+  isle: { name: "잊힌 등대섬", desc: "모래톱 섬, 대각선 세 갈래", data: MAP_ISLE, chapter: 8 },
 };
 
 const ALL_LANES = ["top", "mid", "bot"];
@@ -63,6 +70,8 @@ export const BOUNDS = [0, 0];
 export const RIVER = [];
 export let MAP_KEY = "diag";
 export const MOOD = {};
+// 지금 지도의 바다·폭포·등대(view3d가 씀)
+export const SCENE = { theme: "grass", seaZ: -1.8, sea: null, falls: [], beacon: null };
 
 export function useMap(key) {
   if (!MAPS[key]) key = "diag";
@@ -81,6 +90,7 @@ export function useMap(key) {
   for (const n of LANE_NAMES) TOWERS[n] = { [-1]: M.towers[n]["-1"], [1]: M.towers[n]["1"] };
   BOUNDS[0] = M.bounds[0]; BOUNDS[1] = M.bounds[1];
   RIVER.length = 0; for (const p of M.river) RIVER.push(p);
+  Object.assign(SCENE, { theme: M.theme || "grass", seaZ: M.seaZ ?? -1.8, sea: M.sea || null, falls: M.falls || [], beacon: M.beacon || null });
   return key;
 }
 useMap("diag");

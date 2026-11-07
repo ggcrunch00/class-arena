@@ -108,5 +108,10 @@
   ],
   "hemiI": 1.15,
   "bg": "#1d2a16"
- }
+ },
+ "theme": "grass",
+ "seaZ": -1.8,
+ "sea": null,
+ "falls": [],
+ "beacon": null
 }

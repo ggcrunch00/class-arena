@@ -6,6 +6,7 @@ import sys, os, math, random, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy, bmesh, mathutils
 from scene_common import *
+import scene_common
 
 S = 3.0                       # 육각 타일 확대 배율
 HW, RS = 2.0 * S, 1.725 * S   # 타일 가로, 줄 간격
@@ -25,6 +26,10 @@ HILLS = []           # 길 사이 낮은 언덕 자리 [(x, y)]
 LABELS = None        # 길 이름(게임 화면)
 TREE_P = 0.30        # 낮은 덤불 지도에서 작은 나무 비율
 MOOD = None          # 게임 화면 빛·안개(view3d.setMood)
+THEME = "grass"      # grass | snow | swamp | beach (11-07: 팔레트 그림·길·물 색이 바뀜)
+SEA_Z = -1.8         # 바다 높이(섬은 0, 둘레가 절벽으로 보임)
+BEACON = None        # 등대 불빛 자리(x, y, z)
+SEA = None           # 게임 바다 색 {deep, shallow, foam}
 
 if LAYOUT == "wide":
     # 펼친 3갈래: 본성 왼쪽·오른쪽 가운데, 윗길(뒤)·아랫길(앞)이 바깥으로 휘어 돎
@@ -105,6 +110,53 @@ elif LAYOUT == "citadel":
     JUNGLE, WALLS = "rocky", True
     MOOD = {"sun": [0.82, 0.85, 0.92], "sunI": 2.6, "hemiSky": [0.7, 0.72, 0.8], "hemiI": 1.2, "bg": "#1b1e24",
             "fog": "#9aa3b0", "fogNear": 95, "fogFar": 175}
+elif LAYOUT == "swamp":
+    # 4장 물안개 늪(11-07): 두 갈래 숲길과 같은 길. 웅덩이·갈대·베어 낸 나무, 탁한 풀빛
+    BX, BY = 17.5, 9.0
+    BASE = {-1: (-15.5, 0.0), 1: (15.5, 0.0)}
+    LANES = {
+        "top": [BASE[-1], (-13.0, 4.0), (-7.5, 6.6), (7.5, 6.6), (13.0, 4.0), BASE[1]],
+        "bot": [BASE[-1], (-13.0, -4.0), (-7.5, -6.6), (7.5, -6.6), (13.0, -4.0), BASE[1]],
+    }
+    RIVER = []
+    LAKES = [(0.0, 0.0, 4.2), (-9.0, 0.3, 1.7), (9.0, -0.3, 1.7), (-3.0, 9.6, 1.6), (4.5, 9.8, 1.3), (-5.0, -9.6, 1.4), (3.0, -9.8, 1.5)]
+    RIVERS = [([(-4.4, 1.6), (-7.6, 0.6)], 0.9), ([(4.4, -1.6), (7.6, -0.6)], 0.9)]
+    LOW_JUNGLE = True
+    JUNGLE, THEME = "swamp", "swamp"
+    LABELS = {"top": "윗갈대길", "bot": "아랫갈대길"}
+    MOOD = {"sun": [0.86, 0.96, 0.84], "sunI": 2.9, "hemiSky": [0.62, 0.8, 0.68], "hemiI": 1.2, "bg": "#16241c"}
+    SEA = {"deep": "#1d3b33", "shallow": "#4f7a5c", "foam": "#d9e8c8"}
+elif LAYOUT == "frost":
+    # 6장 서리 고개(11-07): 펼친 3갈래와 같은 길. 눈 덮인 땅·언 강·뒤쪽 설산
+    BX, BY = 17.5, 9.6
+    BASE = {-1: (-15.5, 0.0), 1: (15.5, 0.0)}
+    LANES = {
+        "top": [BASE[-1], (-14.2, 4.6), (-11.0, 7.4), (11.0, 7.4), (14.2, 4.6), BASE[1]],
+        "mid": [BASE[-1], BASE[1]],
+        "bot": [BASE[-1], (-14.2, -4.6), (-11.0, -7.4), (11.0, -7.4), (14.2, -4.6), BASE[1]],
+    }
+    RIVER = [(-2.5, 11.5), (2.5, -11.5)]
+    LOW_JUNGLE = True
+    JUNGLE, THEME, MOUNTAINS = "low", "snow", True
+    TREE_P = 0.24
+    MOOD = {"sun": [0.95, 0.97, 1.0], "sunI": 2.5, "hemiSky": [0.8, 0.88, 1.0], "hemiI": 1.1, "bg": "#1c2633"}
+    SEA = {"deep": "#20364d", "shallow": "#6f98b5", "foam": "#f2f8ff"}
+elif LAYOUT == "isle":
+    # 8장 잊힌 등대섬(11-07): 대각선과 같은 길. 섬 둘레가 모래톱, 뒤쪽 바위섬에 등대
+    BX, BY = 21.0, 12.0
+    BASE = {-1: (-18.0, -9.5), 1: (18.0, 9.5)}
+    LANES = {
+        "top": [BASE[-1], (-18.6, -5.0), (-18.6, 7.2), (-16.2, 9.9), (14.0, 10.1), BASE[1]],
+        "mid": [BASE[-1], BASE[1]],
+        "bot": [BASE[-1], (-14.0, -10.1), (16.2, -9.9), (18.6, -7.2), (18.6, 5.0), BASE[1]],
+    }
+    RIVER = []
+    LAKES = [(-6.0, 4.0, 2.2), (6.0, -4.0, 2.2)]
+    LOW_JUNGLE = False
+    THEME = "beach"
+    BEACON = (-4.0, 12.8)
+    MOOD = {"sun": [1.0, 0.78, 0.6], "sunI": 3.1, "hemiSky": [0.85, 0.7, 0.85], "hemiI": 1.2, "bg": "#2a1f33"}
+    SEA = {"deep": "#26305a", "shallow": "#5f86a8", "foam": "#fbe9dc"}
 else:
     # 대각선: 롤처럼 본성이 왼쪽 앞·오른쪽 뒤 모서리
     BX, BY = 21.0, 12.0
@@ -118,6 +170,27 @@ else:
     LOW_JUNGLE = False
 if RIVER:
     RIVERS = [(RIVER, 1.7)] + RIVERS
+
+
+def theme_atlas(theme):
+    """팔레트 그림의 풀·잎 색(초록 계열)을 테마 색으로 바꾼 사본(assets_mod/hexagons_<테마>.png)"""
+    import numpy as np
+    out = ROOT + "/assets_mod/hexagons_" + theme + ".png"
+    img = bpy.data.images.load(ROOT + "/assets_mod/hexagons_medieval.png")
+    w, h = img.size
+    px = np.array(img.pixels[:]).reshape(h, w, 4)
+    r, g, b = px[..., 0], px[..., 1], px[..., 2]
+    green = (g > r * 1.08) & (g > b * 0.95)
+    lum = (0.3 * r + 0.59 * g + 0.11 * b)[..., None]
+    if theme == "snow":
+        tgt = np.concatenate([0.70 + lum * 0.3, 0.77 + lum * 0.27, 0.88 + lum * 0.12], -1).clip(0, 1)
+    else:   # swamp: 누런 이끼·검푸른 물풀빛
+        tgt = np.concatenate([lum * 0.95 + 0.06, lum * 1.05 + 0.08, lum * 0.55 + 0.04], -1).clip(0, 1)
+    px[..., :3] = np.where(green[..., None], tgt, px[..., :3])
+    img.pixels[:] = px.ravel()
+    img.filepath_raw = out; img.file_format = "PNG"; img.save()
+    bpy.data.images.remove(img)
+    return out
 
 def seg_dist(p, a, b):
     ax, ay = a; bx, by = b; px, py = p
@@ -210,25 +283,201 @@ def mat(name, col, rough=0.9, alpha=1.0):
     return m
 
 
-def build_ground():
-    for j in range(-6, 7):
-        for i in range(-7, 7):
+def tree(root):
+    out = [root]
+    for c in root.children:
+        out += tree(c)
+    return out
+
+# ---------- 섬 모양(11-07): 타일 격자, 섬 안팎, 강이 섬 끝에서 떨어지는 폭포 ----------
+GRID = {(i, j): hexpos(i, j) for j in range(-9, 10) for i in range(-10, 10)}
+ISLAND = {k for k, (x, y) in GRID.items() if abs(x) <= BX + 1 and abs(y) <= BY + 1.5}
+FALLS = []      # [(x, y, 바깥 방향 dx, dy, 반폭)]
+
+
+def nbrs(i, j):
+    d = [(1, 0), (-1, 0), (0, 1), (0, -1)] + ([(1, 1), (1, -1)] if j % 2 else [(-1, 1), (-1, -1)])
+    return [(i + a, j + b) for a, b in d]
+
+
+def tile_of(p):
+    j0 = round(p[1] / RS)
+    best = None
+    for j in (j0 - 1, j0, j0 + 1):
+        i0 = round((p[0] - (HW / 2 if j % 2 else 0)) / HW)
+        for i in (i0 - 1, i0, i0 + 1):
             x, y = hexpos(i, j)
-            inside = abs(x) <= BX + 1 and abs(y) <= BY + 1.5
-            if inside:
-                place("tiles/base/hex_grass.gltf", (x, y, 0), 0, S)
-            elif abs(x) <= BX + 8 and abs(y) <= BY + 6:
-                place("tiles/base/hex_water.gltf", (x, y, -0.15), 0, S)
-    bpy.ops.mesh.primitive_plane_add(size=300, location=(0, 0, -1.2))
-    bpy.context.active_object.data.materials.append(mat("Sea", (0.16, 0.55, 0.72), 0.35))
-    water = mat("River", (0.2, 0.55, 0.78), 0.25)
+            d = (x - p[0]) ** 2 + (y - p[1]) ** 2
+            if best is None or d < best[0]:
+                best = (d, (i, j))
+    return best[1]
+
+
+def on_island(p):
+    return tile_of(p) in ISLAND
+
+
+def clip_river(pts, half):
+    """섬 밖으로 나가는 강은 섬 끝에서 자르고(조금 내밀어) 그 자리를 폭포로 기록"""
+    dense = []
+    for k in range(len(pts) - 1):
+        a, b = pts[k], pts[k + 1]
+        n = max(1, int(math.dist(a, b) / 0.2))
+        for t in range(n):
+            dense.append(((a[0] + (b[0] - a[0]) * t / n, a[1] + (b[1] - a[1]) * t / n), k))
+    dense.append((pts[-1], len(pts) - 2))
+    flags = [on_island(p) for p, _ in dense]
+    if all(flags) or not any(flags):
+        return pts
+    first = flags.index(True); last = len(flags) - 1 - flags[::-1].index(True)
+    out = []
+
+    def ext(idx, nb):
+        p, q = dense[idx][0], dense[nb][0]
+        dx, dy = q[0] - p[0], q[1] - p[1]; L = math.hypot(dx, dy) or 1
+        dx, dy = dx / L, dy / L
+        e = (p[0] + dx * 0.35, p[1] + dy * 0.35)
+        FALLS.append((round(e[0], 3), round(e[1], 3), round(dx, 3), round(dy, 3), half))
+        return e
+    start = ext(first, first - 1) if first > 0 else dense[0][0]
+    end = ext(last, last + 1) if last < len(dense) - 1 else dense[-1][0]
+    ka, kb = dense[first][1], dense[last][1]
+    out = [start] + [pts[k] for k in range(ka + 1, kb + 1)] + [end]
+    return out
+
+
+def cover_river(pts, half):
+    """강폭 전체 밑에 땅 타일이 있게(강 한쪽이 바다 위로 걸쳐 떠 보이지 않게) 섬을 조금 넓힘"""
+    orig = set(ISLAND)
+    for k in range(len(pts) - 1):
+        a, b = pts[k], pts[k + 1]
+        L = math.dist(a, b) or 1; n = max(1, int(L / 0.4))
+        tx, ty = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+        for t in range(n + 1):
+            c = (a[0] + (b[0] - a[0]) * t / n, a[1] + (b[1] - a[1]) * t / n)
+            if tile_of(c) not in orig:
+                continue
+            for u in (-1, -0.5, 0.5, 1):
+                q = (c[0] - ty * half * 1.15 * u, c[1] + tx * half * 1.15 * u)
+                key = tile_of(q)
+                if key in GRID and abs(GRID[key][0]) <= BX + 1 + HW * 0.6 and abs(GRID[key][1]) <= BY + 1.5 + RS * 0.6:
+                    ISLAND.add(key)
+
+
+def stretch(pts):
+    """강 양끝을 바다 쪽으로 길게 늘림(섬 밖에서 끝나야 폭포 자리를 찾음). 섬 안에서 끝나는 강(늪 물길)은 그대로"""
+    pts = list(pts)
+    for i0, i1 in ((0, 1), (-1, -2)):
+        a, b = pts[i0], pts[i1]
+        if abs(a[0]) > BX - 2 or abs(a[1]) > BY - 1:   # 섬 가장자리 가까이에서 끝나는 강만
+            L = math.dist(a, b) or 1
+            pts[i0] = (a[0] + (a[0] - b[0]) / L * 12, a[1] + (a[1] - b[1]) / L * 12)
+    return pts
+
+
+for k in range(len(RIVERS)):
+    pts, half = RIVERS[k]
+    pts = stretch(pts)
+    cover_river(pts, half)
+    RIVERS[k] = (clip_river(pts, half), half)
+
+
+_mesh_alt = {}
+
+
+def tile_mat(obj_root, m):
+    """타일 재질 바꾸기(같은 재질끼리는 메쉬를 함께 써서 게임에서 한 번에 그림)"""
+    for o in tree(obj_root):
+        if o.type == 'MESH':
+            key = (o.data.name, m.name)
+            if key not in _mesh_alt:
+                d = o.data.copy(); d.name = "hex_sand"; d.materials.clear(); d.materials.append(m)
+                _mesh_alt[key] = d
+            o.data = _mesh_alt[key]; o.name = "hex_sand"
+
+
+def build_ground():
+    rnd = random.Random(77)
+    for (i, j) in ISLAND:
+        place("tiles/base/hex_grass.gltf", (*GRID[(i, j)], 0), 0, S)
+    # 섬 둘레: 낮은 단(모래톱·풀 언덕)과 물가 바위 — 네모난 섬 모양을 깨고 절벽 아래를 꾸밈
+    ring = {n for k in ISLAND for n in nbrs(*k) if n not in ISLAND and n in GRID}
+    sand = mat("Sand", (0.92, 0.8, 0.56), 0.95) if THEME == "beach" else None
+    for k in sorted(ring):
+        x, y = GRID[k]
+        if any(math.dist((x, y), (f[0], f[1])) < 6.5 for f in FALLS):
+            continue   # 폭포 떨어지는 자리는 비워 둠
+        r = rnd.random()
+        if r < (0.8 if THEME == "beach" else 0.42):
+            t = place("tiles/base/hex_grass.gltf", (x, y, -0.95 if THEME != "beach" else -1.15), 0, S)
+            if sand:
+                tile_mat(t, sand); t.name = "P_hex_sand"
+            elif rnd.random() < 0.5:
+                N = "decoration/nature/"
+                place(N + rnd.choice(["rock_single_A.gltf", "rock_single_B.gltf", "tree_single_A.gltf", "trees_B_small.gltf"]),
+                      (x + rnd.uniform(-1.5, 1.5), y + rnd.uniform(-1.5, 1.5), -0.95), rnd.uniform(0, 6.28), S * rnd.uniform(0.35, 0.55))
+        elif r < 0.75:
+            place("decoration/nature/" + rnd.choice(["rock_single_C.gltf", "rock_single_D.gltf", "rock_single_E.gltf"]),
+                  (x + rnd.uniform(-1.5, 1.5), y + rnd.uniform(-1.5, 1.5), SEA_Z - 0.3), rnd.uniform(0, 6.28), S * rnd.uniform(0.5, 0.9))
+    build_islets(rnd)
+    if sys.argv[1] == "preview":   # 게임에서는 바다를 셰이더로 그림(물결·해안 거품)
+        bpy.ops.mesh.primitive_plane_add(size=300, location=(0, 0, SEA_Z))
+        bpy.context.active_object.data.materials.append(mat("Sea", (0.16, 0.45, 0.62), 0.35))
+    wcol = {"snow": (0.62, 0.8, 0.92), "swamp": (0.16, 0.28, 0.2)}.get(THEME, (0.2, 0.55, 0.78))
+    water = mat("Ice" if THEME == "snow" else "River", wcol, 0.12 if THEME == "snow" else 0.25)
     for k, (pts, half) in enumerate(RIVERS):
         ribbon(pts, half, 0.02, water, "River%d" % k, 0.15, 5 + k)
     for k, (cx, cy, r) in enumerate(LAKES):
         ribbon([(cx - 0.01, cy), (cx + 0.01, cy)], r, 0.02, water, "Lake%d" % k, 0.0, 30 + k)
-    dirt = mat("Dirt", (0.5, 0.33, 0.19))
+    road = {"snow": ("Road_snow", (0.5, 0.44, 0.4)), "swamp": ("Road_swamp", (0.36, 0.28, 0.17)), "beach": ("Dirt", (0.5, 0.33, 0.19))}.get(THEME, ("Dirt", (0.5, 0.33, 0.19)))
+    dirt = mat(road[0], road[1])
     for k, (n, pts) in enumerate(LANES.items()):
         ribbon(pts, ROAD_W, 0.05 + k * 0.06, dirt, "Road_" + n, 0.12, 10 + k)
+
+
+def build_islets(rnd):
+    """바다 위 작은 섬 무리(멀리 보이는 군도). 지도마다 같은 자리(씨앗 고정)"""
+    N = "decoration/nature/"
+    spots = []
+    tries = 0
+    while len(spots) < 10 and tries < 400:
+        tries += 1
+        x, y = rnd.uniform(-BX - 30, BX + 30), rnd.uniform(-BY - 16, BY + 30)
+        if abs(x) < BX + 11 and abs(y) < BY + 10:
+            continue
+        if any(math.dist((x, y), q) < 13 for q in spots):
+            continue
+        spots.append((x, y))
+    deco = {"snow": ["mountain_A.gltf", "mountain_B.gltf", "trees_A_medium.gltf", "rock_single_E.gltf"],
+            "swamp": ["trees_B_medium.gltf", "waterplant_C.gltf", "tree_single_B_cut.gltf", "hills_B_trees.gltf"],
+            "beach": ["rock_single_E.gltf", "trees_A_small.gltf", "hills_A.gltf", "rock_single_C.gltf"]}.get(THEME,
+            ["hills_A_trees.gltf", "hills_C_trees.gltf", "trees_A_large.gltf", "mountain_C_grass_trees.gltf"])
+    for n, (x, y) in enumerate(spots):
+        k0 = tile_of((x, y)); cells = [k0] + rnd.sample(nbrs(*k0), rnd.randint(0, 2))
+        for c in cells:
+            if c not in GRID:
+                continue
+            cx, cy = GRID[c]
+            place("tiles/base/hex_grass.gltf", (cx, cy, -1.05), 0, S)
+            if rnd.random() < 0.85:
+                place(N + rnd.choice(deco), (cx + rnd.uniform(-0.8, 0.8), cy + rnd.uniform(-0.8, 0.8), -1.05), rnd.uniform(0, 6.28), S * rnd.uniform(0.6, 0.85))
+        if n % 4 == 1 and THEME in ("grass", "beach"):   # 몇 섬에는 작은 집·풍차(사람 사는 군도)
+            cx, cy = GRID[k0]
+            place(rnd.choice(["buildings/blue/building_home_A_blue.gltf", "buildings/blue/building_windmill_blue.gltf", "buildings/blue/building_well_blue.gltf"]),
+                  (cx + 1.2, cy - 1.0, -1.05), rnd.uniform(0, 6.28), 2.0)
+    if BEACON:   # 등대섬: 섬 뒤쪽(윗길 너머)에 등대(탑 받침 + 탑), 둘레 바위
+        bx, by = BEACON
+        place("buildings/yellow/building_tower_B_yellow.gltf", (bx, by, 0), 0, 1.9)   # 노란 지붕: 적 탑(빨강)과 헷갈리지 않게
+        for q in range(5):
+            place(N + "rock_single_" + "ABCDE"[q] + ".gltf", (bx + math.cos(q * 1.3 + 0.4) * 2.6, by + math.sin(q * 1.3 + 0.4) * 2.0, 0), q, S * 0.42)
+        globals()["BEACON"] = (bx, by, 5.6)
+    # 하늘에 뜬 구름(섬 바깥 바다 위만: 길을 가리지 않게)
+    for k in range(7):
+        side = k % 4
+        x = rnd.uniform(-BX - 26, BX + 26) if side < 2 else (rnd.choice([-1, 1]) * rnd.uniform(BX + 8, BX + 22))
+        y = (BY + rnd.uniform(6, 20)) if side < 2 else rnd.uniform(-BY, BY + 10)
+        c = place(N + rnd.choice(["cloud_big.gltf", "cloud_small.gltf"]), (x, y, rnd.uniform(9, 13)), rnd.uniform(0, 6.28), S * rnd.uniform(0.9, 1.4))
+        c.name = "P_cloud_%d" % k
 
 
 def build_jungle():
@@ -241,7 +490,7 @@ def build_jungle():
         p = (rnd.uniform(-BX, BX), rnd.uniform(-BY, BY))
         dl = min(poly_dist(p, pts) for pts in LANES.values())
         dr = min([poly_dist(p, pts) - half + 1.7 for pts, half in RIVERS] + [math.dist(p, (cx, cy)) - r0 + 1.7 for cx, cy, r0 in LAKES] + [99])
-        db = min(math.dist(p, b) for b in BASE.values())
+        db = min([math.dist(p, b) for b in BASE.values()] + ([math.dist(p, BEACON[:2]) + 1.5] if BEACON else []))
         if dl < ROAD_W + (0.7 if LOW_JUNGLE else 1.8) or dr < 2.4 or db < 5:
             continue
         r = rnd.random()
@@ -252,6 +501,16 @@ def build_jungle():
                 place(N + rnd.choice(["trees_A_cut.gltf", "trees_B_cut.gltf", "tree_single_A_cut.gltf"]), (*p, 0), rnd.uniform(0, 6.28), S * rnd.uniform(0.35, 0.5))
             elif r < 0.30:
                 place(N + rnd.choice(small), (*p, 0), rnd.uniform(0, 6.28), S * rnd.uniform(0.28, 0.4))
+            continue
+        if JUNGLE == "swamp":   # 늪: 갈대·수초 무리, 베어 낸 나무, 드문 작은 나무
+            if r < 0.16:
+                place(N + rnd.choice(["waterplant_A.gltf", "waterplant_B.gltf", "waterplant_C.gltf"]), (*p, 0), rnd.uniform(0, 6.28), S * rnd.uniform(0.55, 0.8))
+            elif r < 0.21:
+                place(N + rnd.choice(["trees_A_cut.gltf", "trees_B_cut.gltf", "tree_single_B_cut.gltf"]), (*p, 0), rnd.uniform(0, 6.28), S * rnd.uniform(0.4, 0.55))
+            elif r < 0.27:
+                place(N + rnd.choice(["tree_single_B.gltf", "trees_B_small.gltf"]), (*p, 0), rnd.uniform(0, 6.28), S * rnd.uniform(0.35, 0.5))
+            elif r < 0.31:
+                place(N + rnd.choice(rocks), (*p, 0), rnd.uniform(0, 6.28), S * rnd.uniform(0.3, 0.5))
             continue
         if JUNGLE == "forest" and dl > ROAD_W + 1.6 and r < 0.20:   # 숲: 길에서 조금 떨어진 곳은 작은 나무 무리
             place(N + rnd.choice(small), (*p, 0), rnd.uniform(0, 6.28), S * rnd.uniform(0.4, 0.55))
@@ -289,9 +548,37 @@ def build_jungle():
     build_extras(rnd)
 
 
+def build_camps(rnd):
+    """양쪽 본성 둘레 야영지(11-07): 기사단은 천막·파란 깃발·무기대·과녁, 해골 군단은 부서진 공사장·빨간 깃발·투석기 탄·잘린 나무"""
+    P = "decoration/props/"
+    kits = {-1: [P + "tent.gltf", P + "flag_blue.gltf", P + "weaponrack.gltf", P + "target.gltf", P + "barrel.gltf", P + "crate_A_big.gltf",
+                 P + "bucket_arrows.gltf", P + "flag_blue.gltf", P + "sack.gltf", P + "crate_long_A.gltf"],
+            1: ["buildings/neutral/building_scaffolding.gltf", P + "flag_red.gltf", "buildings/neutral/projectile_catapult.gltf", P + "crate_open.gltf",
+                "decoration/nature/trees_A_cut.gltf", P + "flag_red.gltf", P + "resource_stone.gltf", P + "pallet.gltf", "decoration/nature/rock_single_D.gltf", P + "wheelbarrow.gltf"]}
+    scale = {"tent.gltf": 2.2, "building_scaffolding.gltf": 1.6, "target.gltf": 2.2, "weaponrack.gltf": 2.2, "trees_A_cut.gltf": S * 0.45, "rock_single_D.gltf": S * 0.45}
+    for side, kit in kits.items():
+        bx, by = BASE[side]
+        n = 0
+        for tries in range(400):
+            if n >= len(kit):
+                break
+            a = rnd.uniform(0, 6.283); d = rnd.uniform(3.3, 6.2)
+            p = (bx + math.cos(a) * d, by + math.sin(a) * d)
+            if not on_island(p) or abs(p[0]) > BX + 2 or abs(p[1]) > BY + 2:
+                continue
+            if min(poly_dist(p, pts) for pts in LANES.values()) < ROAD_W + 0.9:
+                continue
+            if any(poly_dist(p, pts) < h + 0.8 for pts, h in RIVERS) or any(math.dist(p, (cx, cy)) < r0 + 0.8 for cx, cy, r0 in LAKES):
+                continue
+            m = kit[n]; name = m.split("/")[-1]
+            place(m, (*p, 0), rnd.uniform(0, 6.28), scale.get(name, 2.0))
+            n += 1
+
+
 def build_extras(rnd):
     """지도마다 다른 꾸밈: 마을, 산, 다리, 언덕, 성벽"""
     N = "decoration/nature/"
+    build_camps(rnd)
     if VILLAGE:   # 파란 본성 뒤 초소 마을
         bx, by = BASE[-1]
         for (dx, dy, m, rot, sc) in [(-0.5, 4.2, "buildings/blue/building_windmill_blue.gltf", 0.3, 2.0), (2.2, 3.6, "buildings/blue/building_home_A_blue.gltf", 0.2, 2.0),
@@ -349,16 +636,12 @@ def build_structures():
     return out
 
 
-def tree(root):
-    out = [root]
-    for c in root.children:
-        out += tree(c)
-    return out
-
 
 if __name__ == "__main__":
     mode = sys.argv[1]
     sc = reset()
+    if THEME in ("snow", "swamp"):
+        scene_common.MOD_TEX = theme_atlas(THEME)
     lights()
     build_ground(); build_jungle()
     structs = build_structures()
@@ -395,6 +678,7 @@ if __name__ == "__main__":
         meta = {"lanes": {k: [list(p) for p in v] for k, v in LANES.items()},
                 "towers": {k: {str(s): list(p) for s, p in v.items()} for k, v in towers().items()},
                 "bases": {str(s): list(p) for s, p in BASE.items()}, "bounds": [BX, BY], "river": [list(RIVERS[0][0][0]), list(RIVERS[0][0][-1])] if RIVERS else [],
-                "labels": LABELS, "mood": MOOD}
+                "labels": LABELS, "mood": MOOD, "theme": THEME, "seaZ": SEA_Z, "sea": SEA, "falls": FALLS,
+                "beacon": list(BEACON) if BEACON and len(BEACON) == 3 else None}
         json.dump(meta, open(ROOT + "/game/src/play/map_" + LAYOUT + ".json", "w"), indent=1)
         print("MAP", LAYOUT, os.path.getsize(ROOT + "/game/models/field_" + LAYOUT + ".raw.glb") // 1024, "KB (압축 전)")

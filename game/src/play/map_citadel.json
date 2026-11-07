@@ -136,5 +136,10 @@
   "fog": "#9aa3b0",
   "fogNear": 95,
   "fogFar": 175
- }
+ },
+ "theme": "grass",
+ "seaZ": -1.8,
+ "sea": null,
+ "falls": [],
+ "beacon": null
 }

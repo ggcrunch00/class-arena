@@ -1,7 +1,7 @@
 // 서비스 워커: 한 번 받은 게임 파일을 기기에 저장해 두 번째부터 빠르게(인터넷이 끊겨도) 열리게 함.
 // 화면 파일(html)과 게임 코드는 "인터넷 먼저", 큰 모형·그림은 "저장본 먼저 + 뒤에서 새것 받기".
 // GitHub Pages 같은 배포 주소에서만 켜짐(main.js 에서 등록).
-const CACHE = "class-arena-v5"; // 11-06: 새 원정 지도·장면 삽화 8장, 준비 창·원정 화면 개편
+const CACHE = "class-arena-v6"; // 11-07: 새 바다·폭포·섬 둘레, 새 지도 셋(늪·서리 고개·등대섬), 진영 고르기
 const CORE = ["./", "./play.html", "./guide.html", "./css/play.css", "./js/play_bundle.js", "./manifest.webmanifest", "./icons/icon-192.png"];
 
 self.addEventListener("install", (e) => {

@@ -2,7 +2,8 @@
 import * as THREE from "three";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { HEROES, ELEV, UNIT_SCALE, SIDES, ROLE_INFO, SPECIAL, TOWER, BASE } from "./config.js";
-import { LANES, LANE_NAMES, BOUNDS, BASES, RIVER, MOOD } from "./lanes.js";
+import { LANES, LANE_NAMES, BOUNDS, BASES, RIVER, MOOD, SCENE } from "./lanes.js";
+import { World } from "./world3d.js";
 import { Sound } from "./sound.js";
 
 // 블렌더 좌표(x 오른쪽, y 뒤쪽, z 위) → three 좌표
@@ -115,16 +116,8 @@ export class View3D {
       });
     }
     scene.add(field);
-    // 바다에 잔물결 무늬(천천히 흐름) — 판판한 파랑 대신
-    this.seaTex = this.seaTex || (() => {
-      const c = document.createElement("canvas"); c.width = c.height = 128;
-      const g = c.getContext("2d"); g.fillStyle = "#ffffff"; g.fillRect(0, 0, 128, 128);
-      g.strokeStyle = "rgba(20,60,90,0.18)"; g.lineWidth = 2;
-      for (let y = 8; y < 128; y += 16) { g.beginPath(); for (let x = 0; x <= 128; x += 4) g.lineTo(x, y + Math.sin((x / 128) * Math.PI * 4 + y) * 3); g.stroke(); }
-      const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(40, 40); t.colorSpace = THREE.SRGBColorSpace; return t;
-    })();
-    field.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) if (m.name === "Sea" && !m.map) { m.map = this.seaTex; m.needsUpdate = true; } });
-    this.makeOcean();
+    this.world = this.world || new World(this.scene, this);
+    this.world.build(field);
     // 본성·탑(무너지면 폐허로 바꿔 끼움)
     this.nodes = {};
     for (const side of [-1, 1]) {
@@ -155,6 +148,7 @@ export class View3D {
     this.hemi.color.copy(c(m.hemiSky, 0xa8c4f0)); this.hemi.intensity = m.hemiI ?? 1.25;
     this.renderer.setClearColor(new THREE.Color(m.bg || "#0d1712"));
     this.scene.fog = m.fog ? new THREE.Fog(new THREE.Color(m.fog), m.fogNear ?? 100, m.fogFar ?? 180) : null;
+    if (this.world) this.world.setMood(m);
   }
 
   // ---------- 화질 ----------
@@ -173,6 +167,7 @@ export class View3D {
       this.scene.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; });
     }
     for (const c of this.clouds) c.visible = P.clouds;
+    if (this.world) this.world.setQuality(P);
     for (const v of this.views.values()) v.blob.visible = P.blob;
     this.fxScale = P.fx;
     this.cap = P.cap;
@@ -239,48 +234,6 @@ export class View3D {
     return marks;
   }
   // 섬 밖 넓은 바다를 육각 물 타일로 채우고, 먼 곳에 작은 섬을 띄움(11-05: PC 넓은 화면에서 위쪽이 빈 하늘색으로 보이던 것)
-  makeOcean() {
-    if (this.ocean) for (const m of this.ocean) this.scene.remove(m); // 모양·재질은 지도와 같이 쓰므로 버리지 않음
-    this.ocean = [];
-    const find = (re) => { let f = null; this.field.traverse((o) => { if (!f && o.isInstancedMesh && re.test(o.name)) f = o; }); return f; };
-    const src = find(/^hex_water/), grass = find(/^hex_grass/), tree = find(/^trees?_/);
-    if (!src) return;
-    this.field.updateMatrixWorld(true);
-    // 지도에 이미 깔린 물 타일 하나를 본보기로: 그 자리에서 (dx, dy)만큼 옮겨 찍음
-    const base = (mesh, k = 0) => { const m = new THREE.Matrix4(); mesh.getMatrixAt(k, m); return m.premultiply(mesh.matrixWorld); };
-    const at = (M0, x0, y0, x, y, lift = 0) => { const d = V(x - x0, y - y0, lift); return new THREE.Matrix4().makeTranslation(d.x, d.y, d.z).multiply(M0); };
-    const W0 = base(src), w0 = new THREE.Vector3().setFromMatrixPosition(W0), wx = w0.x, wy = -w0.z;
-    const [BX, BY] = BOUNDS, HW = 6, RS = 5.175;
-    const rnd = (() => { let a = 7; return () => { a = (a * 16807) % 2147483647; return a / 2147483647; }; })();
-    const water = [], isles = [];
-    for (let j = -16; j <= 24; j++) for (let i = -18; i <= 18; i++) {
-      const x = i * HW + (j % 2 ? HW / 2 : 0), y = j * RS;
-      const baked = j >= -6 && j <= 6 && i >= -7 && i <= 6 && Math.abs(y) <= BY + 6 && Math.abs(x) <= BX + 8; // 블렌더가 깐 곳(build_map.py와 같은 규칙)
-      if (baked) continue;
-      const far = Math.max(Math.abs(x) - BX - 9, Math.abs(y) - BY - 7, 0);
-      if (grass && far > 3 && rnd() < 0.06) isles.push([x, y]); else water.push([x, y]);
-    }
-    const wMesh = new THREE.InstancedMesh(src.geometry, src.material, water.length);
-    water.forEach(([x, y], k) => wMesh.setMatrixAt(k, at(W0, wx, wy, x, y)));
-    wMesh.receiveShadow = true; wMesh.frustumCulled = false;
-    this.scene.add(wMesh); this.ocean.push(wMesh);
-    if (isles.length) {
-      const G0 = base(grass), g0 = new THREE.Vector3().setFromMatrixPosition(G0), gx = g0.x, gy = -g0.z;
-      const iMesh = new THREE.InstancedMesh(grass.geometry, grass.material, isles.length);
-      isles.forEach(([x, y], k) => iMesh.setMatrixAt(k, at(G0, gx, gy, x, y, -0.25)));
-      iMesh.frustumCulled = false; this.scene.add(iMesh); this.ocean.push(iMesh);
-      if (tree) {
-        const T0 = base(tree), t0 = new THREE.Vector3().setFromMatrixPosition(T0), tx = t0.x, ty = -t0.z;
-        const tMesh = new THREE.InstancedMesh(tree.geometry, tree.material, isles.length * 2);
-        let n = 0;
-        for (const [x, y] of isles) for (let q = 0; q < 2; q++) {
-          const a = rnd() * 6.28, d = 0.6 + rnd() * 1.6;
-          tMesh.setMatrixAt(n++, at(T0, tx, ty, x + Math.cos(a) * d, y + Math.sin(a) * d, -0.25));
-        }
-        tMesh.count = n; tMesh.frustumCulled = false; this.scene.add(tMesh); this.ocean.push(tMesh);
-      }
-    }
-  }
   // 화면을 누른 곳 → 땅 위 좌표(블렌더 좌표 x, y)
   pickGround(cx, cy) {
     const r = this.renderer.domElement.getBoundingClientRect();
@@ -529,7 +482,7 @@ export class View3D {
 
   // ---------- 매 프레임 ----------
   update(dt, b) {
-    if (this.seaTex) { this.seaTex.offset.x += dt * 0.006; this.seaTex.offset.y += dt * 0.002; }
+    if (this.world) this.world.update(dt);
     if (this.T_CHEV) this.T_CHEV.offset.x -= dt * 0.9; // 고른 길 화살표가 적 쪽으로 흐름
     for (let i = this.rings.length - 1; i >= 0; i--) {
       const r = this.rings[i]; r.t += dt;
