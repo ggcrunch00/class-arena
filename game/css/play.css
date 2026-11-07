@@ -977,3 +977,66 @@ button, .card, .lanes, .keypad, .tiles { touch-action: manipulation; }
   body.duo .lanes button svg { display: none; }
   body.duo .lanes button span { font-size: 12px; white-space: nowrap; }
 }
+
+/* 11-07 결과: 주제·난이도별 기록 표 */
+.brk { background: rgba(8,18,28,.5); border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(243,211,138,.18); padding: 8px 10px; }
+.brk summary { cursor: pointer; font-weight: 700; color: var(--brass-l); font-size: 15px; }
+.brkwrap { overflow-x: auto; margin-top: 6px; }
+.brk table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.brk th, .brk td { padding: 5px 6px; text-align: left; border-bottom: 1px solid rgba(243,211,138,.12); white-space: nowrap; }
+.brk thead th { font-size: 12px; color: var(--muted); font-weight: 400; }
+.brk tbody th { color: var(--parch); font-weight: 700; }
+.brk td.n { font-variant-numeric: tabular-nums; text-align: right; }
+.brk td.ok { color: var(--ok); } .brk td.no { color: var(--no); } .brk td.sk { color: var(--muted); }
+.brk td.kinds { font-size: 12px; color: var(--muted); white-space: normal; min-width: 10em; }
+.brk .dlv { font-size: 12px; padding: 1px 7px; border-radius: 4px; background: rgba(255,255,255,.1); }
+.brk .dlv.d1 { background: rgba(243,211,138,.25); } .brk .dlv.d2 { background: rgba(226,100,63,.35); }
+.brk .pbar { display: inline-block; width: 42px; height: 6px; margin-right: 6px; border-radius: 3px; background: rgba(255,255,255,.12); vertical-align: middle; overflow: hidden; }
+.brk .pbar i { display: block; height: 100%; background: var(--ok); }
+/* 자동 난이도 예고: 한 문제만 더 맞히면 오를 단계가 깜빡임 */
+.seg button.soon { animation: soonPulse 1s ease-in-out infinite; }
+@keyframes soonPulse { 50% { background: rgba(70,224,207,.35); box-shadow: 0 0 0 2px rgba(70,224,207,.7); } }
+@media (prefers-reduced-motion: reduce) { .seg button.soon { animation: none; box-shadow: 0 0 0 2px rgba(70,224,207,.7); } }
+
+/* ---- 11-07 전자칠판 모드: 멀리서도 보이는 문제 글씨, 단순한 조작판 ---- */
+.boardtog { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; border-radius: 6px; background: rgba(8,18,28,.45); box-shadow: inset 0 0 0 1px rgba(243,211,138,.2); }
+.boardtog b { color: var(--parch); font-size: 16px; }
+body.board { --panel-h: clamp(300px, 52vh, 600px); }
+body.board.duo { --panel-h: clamp(320px, 56vh, 640px); }
+body.board .qtext b { font-size: clamp(40px, 6.4vw, 92px); }
+body.board .qtext b.mid { font-size: clamp(34px, 5.2vw, 76px); }
+body.board .qtext b.long { font-size: clamp(28px, 4.2vw, 60px); }
+body.board .qtext b.sent { font-size: clamp(24px, 3.4vw, 46px); }
+body.board .qtext b.sent.long { font-size: clamp(20px, 2.8vw, 38px); }
+body.board .qtext small { font-size: clamp(14px, 1.4vw, 20px); }
+body.board .ans { font-size: clamp(30px, 4vw, 60px); }
+body.board .keypad button { font-size: clamp(28px, 3.8vw, 52px); }
+body.board .keypad [data-k="back"] { font-size: clamp(16px, 1.6vw, 22px); }
+body.board .choices button b { font-size: clamp(30px, 4.4vw, 60px); }
+body.board .choices.long button b, body.board .choices.words button b { font-size: clamp(20px, 2.6vw, 34px); }
+body.board .tiles .tile { font-size: clamp(30px, 4.4vw, 60px); }
+body.board .card .nm { font-size: clamp(16px, 2vw, 24px); }
+body.board .card .cost { font-size: clamp(16px, 1.8vw, 22px); }
+/* 단순하게: 작은 보조 글자·그림은 감춤 */
+body.board .card .beat, body.board .mine small, body.board .lanes button svg, body.board .streak, body.board .seg button::after, body.board .tip { display: none !important; }
+body.board .lanes button span { font-size: clamp(15px, 1.6vw, 22px); }
+body.board .seg button { font-size: clamp(14px, 1.4vw, 19px); }
+body.board .chip { font-size: clamp(14px, 1.4vw, 19px); }
+body.board .ans { height: clamp(60px, 10vh, 110px); }
+/* 전자칠판 + 둘이서(자리마다 반 화면): 둘이서 기본 작은 글씨를 덮어씀 */
+body.board #panel.two .qtext b { font-size: clamp(32px, 4.6vw, 70px); }
+body.board #panel.two .qtext b.mid { font-size: clamp(28px, 3.8vw, 58px); }
+body.board #panel.two .qtext b.long { font-size: clamp(22px, 3vw, 44px); }
+body.board #panel.two .qtext b.sent { font-size: clamp(20px, 2.4vw, 34px); }
+body.board #panel.two .qtext b.sent.long { font-size: clamp(17px, 2vw, 28px); }
+body.board #panel.two .ans { height: clamp(52px, 8vh, 84px); font-size: clamp(28px, 3.4vw, 50px); }
+body.board #panel.two .keypad button { font-size: clamp(24px, 3vw, 42px); }
+body.board #panel.two .keypad [data-k="back"] { font-size: clamp(13px, 1.2vw, 17px); }
+body.board #panel.two .keypad .ok { font-size: clamp(18px, 1.8vw, 26px); }
+body.board #panel.two .card .nm { font-size: clamp(14px, 1.5vw, 20px); }
+body.board #panel.two .choices button b { font-size: clamp(24px, 3.2vw, 46px); }
+body.board #panel.two .tiles .tile { font-size: clamp(24px, 3.2vw, 46px); }
+/* 결과 표: 둘이서 두 칸이면 좁으니 문제 꼴 칸·막대는 감추고 표가 칸을 넘지 않게 */
+.brk { min-width: 0; overflow: hidden; }
+#resBody.two .brk td.kinds, #resBody.two .brk th:last-child, #resBody.two .brk .pbar { display: none; }
+#resBody.two .brk th, #resBody.two .brk td { padding: 4px 4px; font-size: 13px; }

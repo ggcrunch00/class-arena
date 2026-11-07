@@ -76,6 +76,7 @@
         <div class="sideact"><button class="go small" data-pick="topics2">주제 고르기</button><button class="ghost small" data-rand="topics2">무작위 3개</button></div>
       </section>
     </div>
+    <label class="toggle boardtog"><input type="checkbox" id="boardToggle2" data-board> <b>전자칠판 모드</b> <small class="note">문제 글씨를 크게, 조작판을 단순하게 — 교실 앞 큰 화면에서 여럿이 볼 때</small></label>
     <div class="pickrow"><div class="pick"><h3>문제 형식 <button class="fmthelp" data-fmthelp aria-label="문제 형식 설명 보기"><b>?</b>설명</button></h3><div class="opts" id="fmtOpts"></div></div></div>
     <div class="pickrow">
       <div class="pick" id="aiPick"><h3>컴퓨터 상대</h3><div class="opts" id="aiOpts"></div></div>
@@ -204,6 +205,7 @@
 <div class="screen" id="setScreen" hidden>
   <div class="sheet small"><h2>설정</h2>
     <div class="pick"><h3>화질</h3><div class="opts" id="qualOpts"></div><p class="note" id="qualNote"></p></div>
+    <label class="toggle"><input type="checkbox" id="boardToggle" data-board> 전자칠판 모드 <small class="note">문제 글씨를 크게, 조작판을 단순하게(멀리서도 보이게)</small></label>
     <label class="toggle"><input type="checkbox" id="fpsToggle"> 화면 빠르기(fps) 보기</label>
     <label class="toggle"><input type="checkbox" id="soundToggle"> 효과음</label>
     <label class="toggle"><input type="checkbox" id="musicToggle"> 배경 음악</label>

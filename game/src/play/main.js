@@ -408,6 +408,28 @@ function onEvents(evts) {
 }
 
 // ---------- 결과 ----------
+// 주제·난이도별 정답·오답·넘김 표 + 문제 꼴(입력·타일·객관식·O·X)별 맞힌 수(11-07: 골드보다 배운 것을 보여 주기)
+const KIND_NAME = { number: "직접 입력", tiles: "글자 타일", choice: "객관식", ox: "O·X" };
+const DIFF_NAME = ["쉬움", "보통", "어려움"];
+function breakdown(seat) {
+  const recs = seat.recs || [];
+  if (!recs.length) return "";
+  const rows = new Map();
+  for (const x of recs) {
+    const key = x.t + "|" + x.d;
+    if (!rows.has(key)) rows.set(key, { t: x.t, d: x.d, right: 0, wrong: 0, skip: 0, kinds: {} });
+    const r = rows.get(key); r[x.r]++;
+    const k = r.kinds[x.k] || (r.kinds[x.k] = [0, 0]); k[1]++; if (x.r === "right") k[0]++;
+  }
+  const list = [...rows.values()].sort((a, b) => a.t === b.t ? a.d - b.d : seat.topics.indexOf(a.t) - seat.topics.indexOf(b.t));
+  const body = list.map((r) => {
+    const n = r.right + r.wrong + r.skip, pct = Math.round(r.right / n * 100);
+    const kinds = Object.entries(r.kinds).map(([k, [a, b]]) => `${KIND_NAME[k] || k} ${a}/${b}`).join(" · ");
+    return `<tr><th>${TOPICS[r.t] ? TOPICS[r.t].name : r.t}</th><td><span class="dlv d${r.d}">${DIFF_NAME[r.d]}</span></td>` +
+      `<td class="n ok">${r.right}</td><td class="n no">${r.wrong}</td><td class="n sk">${r.skip}</td><td class="n"><i class="pbar"><i style="width:${pct}%"></i></i>${pct}%</td><td class="kinds">${kinds}</td></tr>`;
+  }).join("");
+  return `<details class="brk" open><summary>주제·난이도별 기록</summary><div class="brkwrap"><table><thead><tr><th>주제</th><th>난이도</th><th>정답</th><th>오답</th><th>넘김</th><th>정답률</th><th>문제 꼴(맞힘/푼 수)</th></tr></thead><tbody>${body}</tbody></table></div></details>`;
+}
 function reviewList(seat, box, scoreEl) {
   const seen = new Set(), list = seat.wrongs.filter((x) => !seen.has(x.q.text) && seen.add(x.q.text)).slice(0, 12);
   let fixed = 0;
@@ -483,7 +505,7 @@ function showResult() {
   for (const seat of seats) {
     const col = document.createElement("div"); col.className = "rescol " + (seat.side < 0 ? "blue" : "red");
     col.innerHTML = (G.duo ? `<h3 class="who">${sideName(seat.side)} (${topicsLabel(seat.topics)})</h3>` : "") +
-      `<div class="stats">${statsOf(seat.side)}</div><div class="review"><h3>틀린 문제 다시 풀기 <small class="revScore"></small></h3><div class="revList"></div></div>`;
+      `<div class="stats">${statsOf(seat.side)}</div>${breakdown(seat)}<div class="review"><h3>틀린 문제 다시 풀기 <small class="revScore"></small></h3><div class="revList"></div></div>`;
     res.appendChild(col);
     reviewList(seat, col.querySelector(".revList"), col.querySelector(".revScore"));
   }
@@ -1107,6 +1129,14 @@ function buildSettings() {
   $("#soundToggle").addEventListener("change", (e) => Sound.set(e.target.checked));
   $("#musicToggle").checked = Music.on;
   $("#musicToggle").addEventListener("change", (e) => { Music.set(e.target.checked); if (e.target.checked) { Sound.unlock(); Music.start(); } });
+  // 전자칠판 모드(11-07): 큰 문제 글씨·단순한 조작판. 설정과 준비 창 어디서 켜도 같이 바뀜
+  const setBoard = (on) => {
+    document.body.classList.toggle("board", on); remember("classArena.board", on ? "1" : "0");
+    document.querySelectorAll("[data-board]").forEach((c) => { c.checked = on; });
+    setTimeout(layout, 0);
+  };
+  document.querySelectorAll("[data-board]").forEach((c) => c.addEventListener("change", (e) => { Sound.play("tap"); setBoard(e.target.checked); }));
+  setBoard(remember("classArena.board") === "1");
   $("#setClose").addEventListener("click", () => { $("#setScreen").hidden = true; if (setBack) $(setBack).hidden = false; });
 }
 function drawQualOpts() {

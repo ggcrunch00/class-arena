@@ -129,7 +129,8 @@ export class Seat {
     this.lock = null; this.wrongs = []; this.runRight = 0; this.runWrong = 0;
     // 11-07 검토: 난이도는 주제마다 따로(곱셈구구를 잘한다고 낯선 사회 문제까지 어려워지지 않게)
     this.dByT = {}; this.runs = {};
-    this.log = [];            // 맞힘(1)·틀림(0) 순서(기록 카드의 ■□ 줄)
+    this.log = [];            // 맞힘(1)·틀림(0)·넘김(2) 순서(기록 카드의 ■□▫ 줄)
+    this.recs = [];           // 문제마다 {주제, 문제 꼴, 난이도, 결과} — 결과 화면의 주제·형식·난이도별 표(11-07)
     this.shownGold = battle.sides[this.side].gold; this.wasReady = {};
     this.$(".chip").textContent = TOPICS[this.topic].name;
     this.$(".chip").title = this.topics.map((k) => TOPICS[k].name).join(", ");
@@ -183,7 +184,8 @@ export class Seat {
   }
   paintDiff() {
     const d = this.diff;
-    this.el.querySelectorAll(".seg button").forEach((b) => { const on = +b.dataset.d === d; b.classList.toggle("on", on); b.classList.toggle("below", +b.dataset.d < d); b.setAttribute("aria-checked", on); });
+    const soon = this.runRight >= 4 && d < 2; // 자동으로 오르기 한 문제 전: 다음 단계 단추가 깜빡임
+    this.el.querySelectorAll(".seg button").forEach((b) => { const on = +b.dataset.d === d; b.classList.toggle("on", on); b.classList.toggle("below", +b.dataset.d < d); b.classList.toggle("soon", soon && +b.dataset.d === d + 1); b.setAttribute("aria-checked", on); });
   }
 
   next() {
@@ -302,34 +304,37 @@ export class Seat {
       const g = b.answer(side, "right", this.q.gk || this.q.type, this.diff);
       Sound.play("right"); Sound.play("coin");
       this.goldPop("+" + g);
-      this.log.push(1);
+      this.log.push(1); this.rec("right");
       this.flyCoins(g);
       const st = b.sides[side].streak;
       if (st === 3 || st === 10 || st === 20) this.say(`${st}연속 정답! 골드 +20%`);
       if (st === 5) this.say("5연속! 성 대포 충전 — 눌러서 발사!");
       this.drawAnswer("good");
       this.runRight++; this.runWrong = 0;
+      if (this.runRight === 4 && this.diff < 2) this.say(`한 문제만 더 맞히면 ${["보통", "어려움"][this.diff]} 문제로 올라가요(골드 ${["×2", "×4"][this.diff]})`);
+      this.paintDiff();
       if (this.tipStep === 1 && b.sides[side].gold >= 60) { this.tipStep = 2; this.showTips(); }
       if (this.runRight >= 5 && this.diff < 2) this.setDiff(this.diff + 1, `잘하고 있어요! 한 단계 어려운 문제(골드 ${["×1", "×2", "×4"][this.diff + 1]})`);
       else this.next();
     } else {
       b.answer(side, "wrong");
       Sound.play("wrong");
-      this.log.push(0);
+      this.log.push(0); this.rec("wrong");
       this.drawAnswer("bad");
       this.wrongs.push({ q: this.q, given: this.input, kind: "wrong" });
-      this.runWrong++; this.runRight = 0;
+      this.runWrong++; this.runRight = 0; this.paintDiff();
       this.lockFor(GOLD.wrongLock, "wrong", "아쉬워요! 정답은 " + answerText(this.q), () => {
         if (this.runWrong >= 2 && this.diff > 0) this.setDiff(this.diff - 1, "조금 쉬운 문제로 바꿨어요");
         else this.next();
       });
     }
   }
+  rec(r) { this.recs.push({ t: this.topic, k: this.q.type, d: this.diff, r }); }
   skip() {
     if (!this.active() || this.lock) return;
     this.b.answer(this.side, "skip");
-    this.runRight = 0; // 자동 난이도: 넘긴 문제는 "연속으로 잘 푼 것"에 넣지 않음
-    this.log.push(2);  // 기록 카드에서 ▫(넘김)
+    this.runRight = 0; this.paintDiff(); // 자동 난이도: 넘긴 문제는 "연속으로 잘 푼 것"에 넣지 않음
+    this.log.push(2); this.rec("skip"); // 기록 카드에서 ▫(넘김)
     Sound.play("skip");
     this.wrongs.push({ q: this.q, given: "", kind: "skip" });
     this.lockFor(GOLD.skipLock, "skip", "넘겼어요. 정답은 " + answerText(this.q), () => this.next());
