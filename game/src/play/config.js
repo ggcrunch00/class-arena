@@ -81,6 +81,9 @@ export const SIDES = {
   [-1]: { name: "기사단", models: { shield: "knight", rusher: "barbarian", archer: "rogue", mage: "mage" }, color: 0x9fd8ff },
   [1]: { name: "해골 군단", models: { shield: "skel_warrior", rusher: "skel_minion", archer: "skel_rogue", mage: "skel_mage" }, color: 0xc8ff7a },
 };
+// 11-07: 둘이서는 자리마다 진영을 따로 고름(기사단끼리·해골끼리도 됨). 본성 자리(side)와 병사 모습(진영)을 나눔
+export const FACTIONS = { knights: SIDES[-1], skeletons: SIDES[1] };
+export const DEFAULT_FAC = { [-1]: "knights", [1]: "skeletons" };
 
 // 컴퓨터 상대 3단계
 export const AI_LEVELS = {

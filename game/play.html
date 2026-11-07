@@ -65,17 +65,18 @@
     <div class="sidecards" id="sideCards">
       <section class="sidecard" id="sideL" data-key="topics">
         <header><span class="fac"></span><b class="where">문제 주제</b><span class="cnt"></span></header>
+        <div class="facpick" role="radiogroup" aria-label="진영 고르기" data-i="0" hidden><button data-f="knights" role="radio"><img src="assets/portraits/knight.webp" alt="">기사단</button><button data-f="skeletons" role="radio"><img src="assets/portraits/skel_warrior.webp" alt="">해골 군단</button></div>
         <div class="picked"></div>
         <div class="sideact"><button class="go small" data-pick="topics">주제 고르기</button><button class="ghost small" data-rand="topics">무작위 3개</button></div>
       </section>
-      <button class="swapbtn" id="swapSides" hidden aria-label="진영 바꾸기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg><span>진영 바꾸기</span></button>
       <section class="sidecard" id="sideR" data-key="topics2" hidden>
         <header><span class="fac"></span><b class="where">오른쪽 자리</b><span class="cnt"></span></header>
+        <div class="facpick" role="radiogroup" aria-label="진영 고르기" data-i="1" hidden><button data-f="knights" role="radio"><img src="assets/portraits/knight.webp" alt="">기사단</button><button data-f="skeletons" role="radio"><img src="assets/portraits/skel_warrior.webp" alt="">해골 군단</button></div>
         <div class="picked"></div>
         <div class="sideact"><button class="go small" data-pick="topics2">주제 고르기</button><button class="ghost small" data-rand="topics2">무작위 3개</button></div>
       </section>
     </div>
-    <div class="pickrow"><div class="pick"><h3>문제 형식</h3><div class="opts" id="fmtOpts"></div></div></div>
+    <div class="pickrow"><div class="pick"><h3>문제 형식 <button class="fmthelp" data-fmthelp aria-label="문제 형식 설명 보기"><b>?</b>설명</button></h3><div class="opts" id="fmtOpts"></div></div></div>
     <div class="pickrow">
       <div class="pick" id="aiPick"><h3>컴퓨터 상대</h3><div class="opts" id="aiOpts"></div></div>
       <div class="pick"><h3>지도 <small class="note">원정에서 장을 깨면 그 지도가 열려요</small></h3><div class="opts" id="mapOpts"></div></div>
@@ -104,7 +105,7 @@
       <!-- 11-06: 출제 설정을 한 카드로(큰 글씨·큰 단추), 메뉴는 아이콘 단추 2×2 -->
       <section class="cset" aria-label="출제 설정">
         <button class="ctopicbtn" id="cTopicBtn"><small>문제 주제</small><b id="cTopicTxt"></b><em id="cTopicAct">바꾸기</em></button>
-        <div class="cfmt"><small>문제 형식</small><div class="seg" id="cFmt" role="radiogroup" aria-label="문제 형식"></div></div>
+        <div class="cfmt"><small>문제 형식 <button class="fmthelp" data-fmthelp aria-label="문제 형식 설명 보기"><b>?</b>설명</button></small><div class="seg" id="cFmt" role="radiogroup" aria-label="문제 형식"></div></div>
         <label class="hardtog"><input type="checkbox" id="cHard" role="switch"><span class="sw" aria-hidden="true"></span><span><b>도전 모드</b><small>문제를 빨리 푸는 친구용: 해골이 더 빠르고 영리해요</small></span></label>
       </section>
       <nav class="cact" aria-label="원정 메뉴">
@@ -132,6 +133,41 @@
 </div>
 
 <!-- 인물 도감: 원정에서 만난 인물 -->
+<!-- 11-07: 문제 형식 설명(예시 화면과 함께) -->
+<div class="screen" id="fmtScreen" hidden role="dialog" aria-modal="true" aria-labelledby="fmtTitle">
+  <div class="sheet fmtsheet">
+    <header class="title"><small>문제 형식</small><h2 id="fmtTitle">문제가 이렇게 나와요</h2></header>
+    <div class="fmtcols">
+      <section class="fmtcol" data-k="input">
+        <h3>직접 입력 <em>골드 가장 많이</em></h3>
+        <p>답을 <b>숫자판</b>으로 직접 써요. 낱말 문제(사자성어·속담·한자 등)는 <b>글자 타일</b>을 차례로 눌러 답을 만들어요. 찍을 수 없어서 골드를 가장 많이 받아요.</p>
+        <div class="mockq"><div class="mq">7 × 8 =</div><div class="mbox">56</div>
+          <div class="mpad"><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i><i class="hit">6</i><i>7</i><i>8</i><i>9</i><i>0</i><i class="w">지우기</i><i class="ok">확인</i></div></div>
+        <div class="mockq"><div class="mq small">뜻: 하나를 들으면 열을 알 만큼 똑똑해요</div><div class="mbox">문일지<u>＿</u></div>
+          <div class="mtiles"><i>백</i><i class="hit">십</i><i>천</i><i>일</i></div></div>
+        <p class="fgold">문제당 <b>12골드</b>부터 · 연산 연습, 익숙한 친구에게</p>
+      </section>
+      <section class="fmtcol" data-k="mix">
+        <h3>섞어서 <em>골고루</em></h3>
+        <p>절반은 <b>직접 입력</b>, 나머지는 <b>객관식</b>(넷 중 고르기)과 가끔 <b>O·X</b>로 섞여 나와요. 어떤 꼴이 나올지 몰라 지루하지 않아요.</p>
+        <div class="mockq"><div class="mtag">직접 입력</div><div class="mq">36 ÷ 4 =</div><div class="mbox">9</div></div>
+        <div class="mockq"><div class="mtag">객관식</div><div class="mq">6 × 7 =</div><div class="mopts"><i>36</i><i class="hit">42</i><i>48</i><i>49</i></div></div>
+        <div class="mockq"><div class="mtag">O·X</div><div class="mq">8 × 6 = 46</div><div class="mox"><i>O</i><i class="hit">X</i></div></div>
+        <p class="fgold">입력 12 · 객관식 8 · O·X 5골드부터</p>
+      </section>
+      <section class="fmtcol" data-k="pick">
+        <h3>고르기만 <em>처음 하는 친구</em></h3>
+        <p><b>객관식</b>과 <b>O·X</b>만 나와요. 눌러서 고르기만 하면 돼서 게임에 처음 들어온 친구나 저학년에게 좋아요. 대신 골드는 조금 적어요.</p>
+        <div class="mockq"><div class="mtag">객관식</div><div class="mq">9 × 4 =</div><div class="mopts"><i>32</i><i class="hit">36</i><i>38</i><i>45</i></div></div>
+        <div class="mockq"><div class="mtag">O·X</div><div class="mq">5 × 5 = 25</div><div class="mox"><i class="hit">O</i><i>X</i></div></div>
+        <p class="fgold">객관식 8 · O·X 5골드부터</p>
+      </section>
+    </div>
+    <p class="note fmtnote">어떤 형식이든 쉬움·보통·어려움(골드 ×1·×2·×4)과 연속 정답 보너스는 똑같아요. 틀리면 3초 쉬어요.</p>
+    <div class="actions"><button class="go" id="fmtClose">알겠어요</button></div>
+  </div>
+</div>
+
 <div class="screen" id="dexScreen" hidden>
   <div class="sheet"><h2>원정 도감</h2>
     <div class="dtabs" role="tablist"><button data-t="who" class="on" role="tab">인물</button><button data-t="place" role="tab">장소</button><button data-t="item" role="tab">물건</button></div>

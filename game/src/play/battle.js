@@ -1,6 +1,6 @@
 // 전투 규칙(그림과 상관없는 부분). 3갈래 길: 병사는 고른 길을 따라 걷고, 그 길의 적 탑을 부숴야 본성에 닿음.
 // 화면(view3d.js)과 컴퓨터 상대(ai.js)가 이 규칙을 씀. 그림 없이 node로도 돌릴 수 있음(tests/balance_play.mjs).
-import { LANE, MATCH, GOLD, MINE, CANNON, TOWER, BASE, ROLE_INFO, COUNTER_MULT, SIDES, SPECIAL, HEROES, TRAIN } from "./config.js";
+import { LANE, MATCH, GOLD, MINE, CANNON, TOWER, BASE, ROLE_INFO, COUNTER_MULT, FACTIONS, DEFAULT_FAC, SPECIAL, HEROES, TRAIN } from "./config.js";
 import { LANES, LANE_NAMES, BASES, TOWERS } from "./lanes.js";
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -16,6 +16,7 @@ export class Battle {
     this.opts = opts;
     this.matchTime = opts.time || MATCH.time;
     this.objective = opts.objective || { type: "base" };
+    this.fac = { ...DEFAULT_FAC, ...(opts.fac || {}) }; // 쪽마다 병사 진영(둘이서 자리마다 고름)
     this.kills = { [-1]: 0, [1]: 0 }; // 무찌른 적 병사 수(쪽마다)
     this.units = [];
     this.projectiles = [];
@@ -96,7 +97,7 @@ export class Battle {
     if (this.canDeploy(side, role) || !LANES[lane]) return null;
     const S = this.sides[side], R = ROLE_INFO[role], L = LANES[lane];
     S.gold -= R.cost; S.cooldown[role] = R.cooldown; S.stats.deployed++;
-    const model = SIDES[side].models[role];
+    const model = FACTIONS[this.fac[side]].models[role];
     const spawnLen = this.dur[model].spawn ? this.dur[model].spawn / 2 : 0.35; // 해골 등장은 2배속
     const u = {
       id: this.nextId++, side, role, model, lane, dir: -side, s: side < 0 ? LANE.spawn : L.length - LANE.spawn,
@@ -114,7 +115,7 @@ export class Battle {
   spawnFree(side, role, lane) {
     if (this.state !== "play" || !LANES[lane]) return null;
     const sp = SPECIAL[role], R = sp || ROLE_INFO[role], L = LANES[lane];
-    const model = sp ? sp.model : SIDES[side].models[role];
+    const model = sp ? sp.model : FACTIONS[this.fac[side]].models[role];
     const spawnLen = this.dur[model].spawn ? this.dur[model].spawn / 2 : 0.35;
     const u = {
       id: this.nextId++, side, role, model, lane, dir: -side, s: side < 0 ? LANE.spawn : L.length - LANE.spawn,

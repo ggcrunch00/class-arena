@@ -1,6 +1,6 @@
 // 조작판 한 자리: 문제 풀기 + 출전(길 고르기·병사 카드·금광·성 대포).
 // 혼자 하기에서는 한 자리(기사단), 둘이서 하기에서는 두 자리(왼쪽 기사단, 오른쪽 해골 군단).
-import { ROLES, ROLE_INFO, SIDES, MINE, CANNON, GOLD, HEROES } from "./config.js";
+import { ROLES, ROLE_INFO, FACTIONS, DEFAULT_FAC, MINE, CANNON, GOLD, HEROES } from "./config.js";
 import { LANE_NAMES, LANE_LABEL, LANES, BOUNDS, BASES } from "./lanes.js";
 import { Sound } from "./sound.js";
 import { TOPICS, makeQuestion, checkAnswer, answerText, questionLine, topicBag, topicsLabel } from "./questions.js";
@@ -44,10 +44,10 @@ const TPL = `
 
 export class Seat {
   // ctx: { view, isPlaying(): bool, toast(msg) }
-  constructor(root, side, ctx) {
-    this.side = side; this.ctx = ctx;
+  constructor(root, side, ctx, fac = DEFAULT_FAC[side]) {
+    this.side = side; this.ctx = ctx; this.fac = fac;
     this.el = document.createElement("div");
-    this.el.className = "seat " + (side < 0 ? "blue" : "red");
+    this.el.className = "seat " + (side < 0 ? "blue" : "red") + " f-" + fac;
     this.el.innerHTML = TPL;
     root.appendChild(this.el);
     const q = (s) => this.el.querySelector(s);
@@ -55,7 +55,7 @@ export class Seat {
     this.lane = "mid";
     this.cards = {};
     for (const role of ROLES) {
-      const R = ROLE_INFO[role], model = SIDES[side].models[role];
+      const R = ROLE_INFO[role], model = FACTIONS[fac].models[role];
       const b = document.createElement("button");
       b.className = "card";
       b.setAttribute("aria-label", `${R.name} 출전, ${R.cost}골드, ${ROLE_INFO[R.beats].name}에 강함`);

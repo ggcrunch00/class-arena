@@ -1,7 +1,7 @@
 // 「아라 원정대」: 화면 조립, 문제 풀기, 출전 버튼, 시작·설정·결과 화면, 매 프레임 흐름.
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { ROLES, ROLE_INFO, SIDES, AI_LEVELS, QUALITY, QUALITY_ORDER, BASE, HEROES, HERO_ORDER, HERO_OPEN, TRAIN, TRAIN_ORDER } from "./config.js";
+import { ROLES, ROLE_INFO, SIDES, FACTIONS, AI_LEVELS, QUALITY, QUALITY_ORDER, BASE, HEROES, HERO_ORDER, HERO_OPEN, TRAIN, TRAIN_ORDER } from "./config.js";
 import { LANE_LABEL, LANE_NAMES, LANES, MAPS, MOOD, useMap } from "./lanes.js";
 import { Battle } from "./battle.js";
 import { ComputerPlayer } from "./ai.js";
@@ -58,13 +58,19 @@ let mode = "menu";           // menu | play | pause | result
 let G = null;                 // 한 판의 상태
 let seats = [];               // 조작판 자리(혼자 1개, 둘이서 2개)
 let demo = null;              // 시작 화면 뒤에서 컴퓨터끼리 싸우는 전투
+// 둘이서 진영: "knights,skeletons" 꼴로 기억. 11-06판의 duoLeft(왼쪽이 해골이면 1)도 이어받음
+function readFacs() {
+  const v = (remember("classArena.duoFac") || "").split(",");
+  if (v.length === 2 && v.every((f) => FACTIONS[f])) return v;
+  return remember("classArena.duoLeft") === "1" ? ["skeletons", "knights"] : ["knights", "skeletons"];
+}
 const settings = {
   mode: remember("classArena.mode") || "cpu",               // cpu: 연습 대전, duo: 둘이서(한 기기)
   // 11-06: 주제를 여러 개(배열). 예전 기기의 주제 하나(classArena.topic)도 그대로 이어받음
   topics: readTopics("classArena.topics", "classArena.topic"), topics2: readTopics("classArena.topics2", "classArena.topic2"),
   ai: remember("classArena.ai") || "recruit", format: remember("classArena.format") || "input",
   map: MAP_KEY,
-  duoLeft: remember("classArena.duoLeft") === "1" ? 1 : -1, // 둘이서 왼쪽 자리 진영(11-06)
+  duoFac: readFacs(), // 둘이서 자리마다 진영 [왼쪽, 오른쪽](11-07)
   randN: Math.max(1, Math.min(8, +remember("classArena.randN") || 3)), // 무작위로 고를 주제 수
 };
 if (!["cpu", "duo", "daily"].includes(settings.mode)) settings.mode = "cpu";
@@ -171,9 +177,9 @@ function makeSeats(m) {
   panel.className = m === "duo" ? "two" : "one";
   document.body.classList.toggle("duo", m === "duo");
   const ctx = { view, isPlaying: () => mode === "play", toast, skill: (k, H) => { talk(k, H.line); banner(`${H.name}의 ${H.skill}!`, 1.6); } };
-  // 둘이서: 왼쪽 자리가 고른 진영(settings.duoLeft, 기사단 -1 / 해골 군단 1), 오른쪽은 반대 진영
-  const L = m === "duo" ? settings.duoLeft : -1;
-  seats = m === "duo" ? [new Seat(panel, L, ctx), new Seat(panel, -L, ctx)] : [new Seat(panel, -1, ctx)];
+  // 둘이서: 왼쪽 자리(본성 왼쪽, -1)·오른쪽 자리(1)가 각자 고른 진영의 병사를 씀
+  const [fL, fR] = settings.duoFac;
+  seats = m === "duo" ? [new Seat(panel, -1, ctx, fL), new Seat(panel, 1, ctx, fR)] : [new Seat(panel, -1, ctx)];
   view.setLane(null, 1);
   setTimeout(layout, 0);
 }
@@ -213,7 +219,7 @@ async function newGame(stage = null) {
     demo = null;
     const duo = !stage && settings.mode === "duo", daily = !stage && settings.mode === "daily" ? today() : null;
     for (const s of ["#titleScreen", "#startScreen", "#resultScreen", "#pauseScreen", "#setScreen", "#campScreen", "#storyScreen"]) $(s).hidden = true;
-    if ((seats.length === 2) !== duo || (duo && seats[0].side !== settings.duoLeft)) makeSeats(duo ? "duo" : "cpu");
+    if ((seats.length === 2) !== duo || (duo && seats.some((s, i) => s.fac !== settings.duoFac[i])) || (!duo && seats[0].fac !== "knights")) makeSeats(duo ? "duo" : "cpu");
     await switchMap(stage ? stage.map : mapOpen(settings.map) ? settings.map : "diag");
     view.setMood(stage && stage.chapter.mood ? { ...MOOD, ...stage.chapter.mood } : MOOD); // 장마다 빛(등대섬은 해 질 녘)
     Music.theme(stage && stage.boss ? stage.boss : "march"); // 원정 보스 판은 그 보스 곡
@@ -227,6 +233,7 @@ async function newGame(stage = null) {
     // 영웅·훈련소는 원정에만(11-05 선생님): 자유 대전·둘이서·오늘의 도전, 앞으로의 PvP는 모두 같은 조건.
     // Battle은 opts.hero {[-1], [1]}로 양쪽 영웅을 받을 수 있어, 나중에 대전 모드에서 "양쪽 같은 조건으로 영웅 고르기"를 열 수 있음(훈련은 넣지 않음)
     if (stage) { bopts.hero = { [-1]: heroOf(camp) }; bopts.train = { [-1]: camp.train }; }
+    if (duo) bopts.fac = { [-1]: settings.duoFac[0], [1]: settings.duoFac[1] };
     const battle = new Battle(durations, bopts);
     const level = stage ? stageAI(stage, losses, hard) : daily ? "knight" : settings.ai;
     G = { battle, duo, daily, stage, ai: duo ? null : new ComputerPlayer(battle, CPU, level), endT: -1 };
@@ -236,9 +243,9 @@ async function newGame(stage = null) {
     setSeed(daily ? daily.key : null);
     seats[0].start(battle, daily ? daily.topic : stage ? Account.campRange(settings.topics) : settings.topics, daily ? "input" : settings.format, stage ? stage.rules : undefined);
     if (duo) seats[1].start(battle, settings.topics2, settings.format);
-    const mirror = duo && settings.duoLeft === 1; view.setMirror(mirror); document.body.classList.toggle("mirror", mirror);
-    $("#blueSub").textContent = duo ? (mirror ? "오른쪽" : "왼쪽") : "나";
-    $("#redSub").textContent = duo ? (mirror ? "왼쪽" : "오른쪽") : stage ? `${stage.id} ${stage.boss ? CHARS[stage.boss].name : stage.name}` : "컴퓨터 " + AI_LEVELS[daily ? "knight" : settings.ai].name;
+    $("#blue .name").textContent = FACTIONS[battle.fac[-1]].name; $("#red .name").textContent = FACTIONS[battle.fac[1]].name;
+    $("#blueSub").textContent = duo ? "왼쪽" : "나";
+    $("#redSub").textContent = duo ? "오른쪽" : stage ? `${stage.id} ${stage.boss ? CHARS[stage.boss].name : stage.name}` : "컴퓨터 " + AI_LEVELS[daily ? "knight" : settings.ai].name;
     $("#banner").hidden = true; talkQ.length = 0; talkLog.length = 0;
     document.querySelectorAll(".confetti").forEach((c) => c.remove()); // 앞 판 색종이 지우기
     $("#talk").hidden = true; talkT = 0;
@@ -339,7 +346,8 @@ function updateHud(force) {
 let toastT = 0;
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; t.style.animation = "none"; void t.offsetWidth; t.style.animation = ""; toastT = 2.6; }
 function banner(msg, sec = 1.8) { const b = $("#banner"); b.textContent = msg; b.hidden = false; b.style.animation = "none"; void b.offsetWidth; b.style.animation = ""; setTimeout(() => { b.hidden = true; }, sec * 1000); }
-const sideName = (s) => (s < 0 ? "기사단" : "해골 군단");
+// 둘이서는 같은 진영끼리도 겨루니 "왼쪽 기사단"처럼 자리까지 붙여 부름
+const sideName = (s) => (G && G.duo ? `${s < 0 ? "왼쪽" : "오른쪽"} ${FACTIONS[G.battle.fac[s]].name}` : s < 0 ? "기사단" : "해골 군단");
 const seatOf = (side) => seats.find((x) => x.side === side);
 
 let hitstop = 0, dangerT = 0, dangerSaid = -99;
@@ -444,7 +452,7 @@ function showResult() {
   const res = $("#resBody"); res.innerHTML = "";
   for (const seat of seats) {
     const col = document.createElement("div"); col.className = "rescol " + (seat.side < 0 ? "blue" : "red");
-    col.innerHTML = (G.duo ? `<h3 class="who">${seats.indexOf(seat) === 0 ? "왼쪽" : "오른쪽"} ${sideName(seat.side)} (${topicsLabel(seat.topics)})</h3>` : "") +
+    col.innerHTML = (G.duo ? `<h3 class="who">${sideName(seat.side)} (${topicsLabel(seat.topics)})</h3>` : "") +
       `<div class="stats">${statsOf(seat.side)}</div><div class="review"><h3>틀린 문제 다시 풀기 <small class="revScore"></small></h3><div class="revList"></div></div>`;
     res.appendChild(col);
     reviewList(seat, col.querySelector(".revList"), col.querySelector(".revScore"));
@@ -501,7 +509,7 @@ function shareText() {
   };
   if (G.duo) {
     const w = b.winner;
-    return `아라 원정대 · 둘이서 · ${w ? (w < 0 ? "기사단" : "해골 군단") + " 승리" : "무승부"} · ${tm}\n왼쪽 ${sideName(seats[0].side)}: ${line(seats[0])}\n오른쪽 ${sideName(seats[1].side)}: ${line(seats[1])}`;
+    return `아라 원정대 · 둘이서 · ${w ? sideName(w) + " 승리" : "무승부"} · ${tm}\n${sideName(seats[0].side)}: ${line(seats[0])}\n${sideName(seats[1].side)}: ${line(seats[1])}`;
   }
   const res = b.winner === PLAYER ? "승리" : b.winner === CPU ? "패배" : "무승부";
   const head = G.daily ? `아라 원정대 · 오늘의 도전 ${G.daily.label}` : G.stage ? `아라 원정대 · 원정 ${G.stage.id} ${G.stage.name}` : "아라 원정대";
@@ -817,9 +825,10 @@ function buildTopicChips(box, key, after, group = null) {
   for (const [k, t] of Object.entries(TOPICS)) {
     const g = t.group || "수학";
     if (group && g !== group) continue;
-    if (!row || g !== g0) {
-      g0 = g; row = document.createElement("div"); row.className = "tgroup"; box.appendChild(row);
-      const gl = document.createElement("span"); gl.className = "ogroup"; gl.textContent = group ? "" : g; row.appendChild(gl);
+    if (!row || g !== g0) { // 과목마다 가로 머리줄(과목 이름 · 고른 수) + 단추 칸
+      g0 = g; const sec = document.createElement("section"); sec.className = "tgsec s-" + GROUPS().indexOf(g);
+      sec.innerHTML = `<h4 class="tghead"><span class="subj s-${GROUPS().indexOf(g)}">${g}</span><small></small></h4><div class="tgrid"></div>`;
+      sec.dataset.g = g; box.appendChild(sec); row = sec.querySelector(".tgrid");
     }
     const b = document.createElement("button"); b.className = "opt"; b.dataset.k = k; b.setAttribute("aria-pressed", "false");
     b.innerHTML = `<span>${t.name}</span><small>${t.hint}</small>`;
@@ -834,6 +843,10 @@ function buildTopicChips(box, key, after, group = null) {
 }
 function paintTopicChips(box, key) {
   box.querySelectorAll(".opt").forEach((b) => { const on = settings[key].includes(b.dataset.k); b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+  box.querySelectorAll(".tgsec").forEach((sec) => {
+    const all = sec.querySelectorAll(".opt").length, n = sec.querySelectorAll(".opt.on").length;
+    sec.querySelector(".tghead small").textContent = `주제 ${all}개` + (n ? ` · ${n}개 고름` : "");
+  });
 }
 // 무작위 n개(과목을 주면 그 과목 안에서)
 function randomTopics(key, n, group = null) {
@@ -866,7 +879,7 @@ let tp = { key: "topics", back: "#startScreen", tab: "전체" };
 function openTopicPick(key, back) {
   tp = { key, back, tab: tp.tab || "전체" };
   const duo = settings.mode === "duo" && back === "#startScreen";
-  $("#tpWho").textContent = back === "#campScreen" ? "원정 문제 주제" : duo ? `${key === "topics" ? "왼쪽" : "오른쪽"} 자리 · ${sideName(key === "topics" ? settings.duoLeft : -settings.duoLeft)}` : "문제 주제";
+  $("#tpWho").textContent = back === "#campScreen" ? "원정 문제 주제" : duo ? `${key === "topics" ? "왼쪽" : "오른쪽"} 자리 · ${FACTIONS[settings.duoFac[key === "topics" ? 0 : 1]].name}` : "문제 주제";
   for (const s of ["#campScreen", "#startScreen"]) $(s).hidden = true;
   $("#topicScreen").hidden = false; drawTopicPick();
 }
@@ -917,7 +930,19 @@ function buildStart() {
   document.querySelectorAll("#sideCards [data-rand]").forEach((b) => b.addEventListener("click", () => {
     randomTopics(b.dataset.rand, settings.randN); Sound.play("coin"); toast(`주제를 무작위로 ${settings[b.dataset.rand].length}개 골랐어요`); drawStart(); drawLastSet();
   }));
-  $("#swapSides").addEventListener("click", () => { settings.duoLeft = -settings.duoLeft; remember("classArena.duoLeft", settings.duoLeft); Sound.play("tap"); drawStart(); drawLastSet(); });
+  // 문제 형식 설명 창(준비 창·원정 지도 위에 겹쳐 띄움)
+  document.querySelectorAll("[data-fmthelp]").forEach((b) => b.addEventListener("click", (e) => {
+    e.stopPropagation(); Sound.play("tap");
+    $("#fmtScreen").querySelectorAll(".fmtcol").forEach((c) => c.classList.toggle("now", c.dataset.k === settings.format));
+    $("#fmtScreen").hidden = false; $("#fmtClose").focus();
+  }));
+  $("#fmtClose").addEventListener("click", () => { Sound.play("tap"); $("#fmtScreen").hidden = true; });
+  $("#fmtScreen").addEventListener("click", (e) => { if (e.target.id === "fmtScreen") $("#fmtScreen").hidden = true; });
+  // 자리마다 진영 고르기(둘이서)
+  document.querySelectorAll("#sideCards .facpick button").forEach((b) => b.addEventListener("click", () => {
+    const i = +b.closest(".facpick").dataset.i; settings.duoFac[i] = b.dataset.f;
+    remember("classArena.duoFac", settings.duoFac.join(",")); Sound.play("tap"); drawStart(); drawLastSet();
+  }));
 
   const fmtBox = $("#fmtOpts");
   for (const [k, f] of Object.entries(FORMATS)) {
@@ -990,12 +1015,14 @@ function drawStart() {
   $("#dailyNote").hidden = !daily;
   if (daily) { const t = today(); $("#dailyNote").textContent = `${t.label} 오늘의 도전은 ${TOPICS[t.topic].name}이에요. 직접 입력으로 컴퓨터 기사와 겨뤄요. 반 친구들 모두 같은 문제가 같은 순서로 나와요. 끝나고 기록을 복사해 비교해 보세요!`; }
   // 자리 카드: 연습은 하나(나), 둘이서는 왼쪽·오른쪽(진영 표시, 바꾸기)
-  $("#sideCards").hidden = daily; $("#sideR").hidden = !duo; $("#swapSides").hidden = !duo;
+  $("#sideCards").hidden = daily; $("#sideR").hidden = !duo;
   $("#sideCards").classList.toggle("two", duo);
-  for (const [id, key, side, where] of [["#sideL", "topics", duo ? settings.duoLeft : -1, duo ? "왼쪽 자리" : "문제 주제"], ["#sideR", "topics2", -settings.duoLeft, "오른쪽 자리"]]) {
-    const c = $(id);
-    c.className = "sidecard " + (side < 0 ? "blue" : "red");
-    c.querySelector(".fac").textContent = duo ? sideName(side) : "나 · 기사단";
+  for (const [id, key, i, where] of [["#sideL", "topics", 0, duo ? "왼쪽 자리" : "문제 주제"], ["#sideR", "topics2", 1, "오른쪽 자리"]]) {
+    const c = $(id), fac = duo ? settings.duoFac[i] : "knights";
+    c.className = "sidecard " + (i ? "red" : "blue") + " f-" + fac;
+    c.querySelector(".fac").textContent = duo ? FACTIONS[fac].name : "나 · 기사단";
+    const fp = c.querySelector(".facpick"); fp.hidden = !duo;
+    fp.querySelectorAll("button").forEach((b) => { const on = b.dataset.f === fac; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
     c.querySelector(".where").textContent = where;
     c.querySelector(".cnt").textContent = `${settings[key].length}개 · 번갈아 나와요`;
     drawPicked(c.querySelector(".picked"), key, () => { drawStart(); drawLastSet(); });
@@ -1015,7 +1042,7 @@ function drawStart() {
   if (lock) { const n = document.createElement("span"); n.className = "note"; n.textContent = `원정에서 열 지도 ${lock}개`; mapBox.appendChild(n); }
 }
 function showStart() {
-  mode = "menu"; G = null; Music.theme("march"); view.setHero(null); view.setMirror(false); document.body.classList.remove("mirror");
+  mode = "menu"; G = null; Music.theme("march"); view.setHero(null);
   document.body.classList.add("menu"); document.body.classList.remove("counting"); $("#count").hidden = true;
   layout();
   startDemo();
