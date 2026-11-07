@@ -102,7 +102,14 @@ export class World {
   }
 
   clear() {
-    for (const o of this.objs) { this.scene.remove(o); o.traverse((c) => { if (c.geometry && !c.userData.shared) c.geometry.dispose(); }); }
+    // 지도를 바꿀 때 이 지도에서 만든 모양·재질을 모두 해제(바다 재질과 공용 그림은 다음 지도에서도 씀)
+    const geos = new Set(), mats = new Set();
+    for (const o of this.objs) {
+      this.scene.remove(o);
+      o.traverse((c) => { if (c.geometry) geos.add(c.geometry); for (const m of [].concat(c.material || [])) mats.add(m); });
+    }
+    for (const g of geos) g.dispose();
+    for (const m of mats) if (m !== this.seaMat) m.dispose();
     this.objs = []; this.anim = []; this.rivers = []; this.clouds = [];
   }
   add(o) { this.scene.add(o); this.objs.push(o); return o; }

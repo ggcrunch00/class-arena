@@ -127,6 +127,8 @@ export class Seat {
     this.b = battle; this.format = format;
     this.setLanes(); this.setRules(rules);
     this.lock = null; this.wrongs = []; this.runRight = 0; this.runWrong = 0;
+    // 11-07 검토: 난이도는 주제마다 따로(곱셈구구를 잘한다고 낯선 사회 문제까지 어려워지지 않게)
+    this.dByT = {}; this.runs = {};
     this.log = [];            // 맞힘(1)·틀림(0) 순서(기록 카드의 ■□ 줄)
     this.shownGold = battle.sides[this.side].gold; this.wasReady = {};
     this.$(".chip").textContent = TOPICS[this.topic].name;
@@ -174,13 +176,22 @@ export class Seat {
 
   setDiff(d, msg) {
     this.diff = d; this.runRight = 0; this.runWrong = 0;
-    this.el.querySelectorAll(".seg button").forEach((b) => { const on = +b.dataset.d === d; b.classList.toggle("on", on); b.classList.toggle("below", +b.dataset.d < d); b.setAttribute("aria-checked", on); });
-    if (msg) this.say(msg);
+    this.dByT[this.topic] = d;
+    this.paintDiff();
+    if (msg) this.say(this.topics.length > 1 ? `${TOPICS[this.topic].name}: ${msg}` : msg);
     this.next();
+  }
+  paintDiff() {
+    const d = this.diff;
+    this.el.querySelectorAll(".seg button").forEach((b) => { const on = +b.dataset.d === d; b.classList.toggle("on", on); b.classList.toggle("below", +b.dataset.d < d); b.setAttribute("aria-checked", on); });
   }
 
   next() {
+    if (this.topic) this.runs[this.topic] = [this.runRight, this.runWrong]; // 주제마다 연속 기록을 따로 둠
     this.topic = this.nextTopic();
+    this.diff = this.dByT[this.topic] ?? 0;
+    [this.runRight, this.runWrong] = this.runs[this.topic] || [0, 0];
+    this.paintDiff();
     this.q = makeQuestion(this.topic, this.diff, this.format);
     const chip = this.$(".chip"); chip.textContent = TOPICS[this.topic].name;
     chip.classList.toggle("multi", this.topics.length > 1); chip.dataset.n = this.topics.length > 1 ? this.topics.length : "";
@@ -317,6 +328,8 @@ export class Seat {
   skip() {
     if (!this.active() || this.lock) return;
     this.b.answer(this.side, "skip");
+    this.runRight = 0; // 자동 난이도: 넘긴 문제는 "연속으로 잘 푼 것"에 넣지 않음
+    this.log.push(2);  // 기록 카드에서 ▫(넘김)
     Sound.play("skip");
     this.wrongs.push({ q: this.q, given: "", kind: "skip" });
     this.lockFor(GOLD.skipLock, "skip", "넘겼어요. 정답은 " + answerText(this.q), () => this.next());

@@ -61,7 +61,8 @@ export class Battle {
   answer(side, kind, qtype = "number", diff = 0) {
     const S = this.sides[side];
     if (this.state !== "play") return 0;
-    if (kind === "skip") { S.stats.skip++; return 0; }
+    // 넘기기: 벌은 없지만 "연속 정답"은 끊김(대포 충전·연속 보너스도). 11-07 검토: 어려운 문제를 넘기며 연속을 이어 가던 것
+    if (kind === "skip") { S.stats.skip++; S.streak = 0; if (S.cannon < CANNON.charge) S.cannon = 0; return 0; }
     if (kind === "wrong") {
       S.stats.wrong++; S.streak = 0;
       if (S.cannon < CANNON.charge) S.cannon = 0;
@@ -338,6 +339,7 @@ export class Battle {
       if (this.timeLeft <= 0) {
         if (this.objective.type === "survive") this.finish(-1, "survive");
         else if (this.objective.type === "kills") this.finish(1, "killsTime");
+        else if (this.objective.type === "towers") this.finish(1, "towersTime"); // 시간 안에 목표 탑 수를 못 채우면 실패(11-07 검토)
         else {
           const a = this.score(-1), b = this.score(1);
           this.finish(Math.abs(a - b) < 0.01 ? 0 : (a > b ? -1 : 1), "time");
@@ -368,7 +370,9 @@ export class Battle {
           const tx = tg.kind === "unit" ? tg.unit.x : tg.struct.x, ty = tg.kind === "unit" ? tg.unit.y : tg.struct.y;
           const l = Math.hypot(tx - u.x, ty - u.y) || 1; u.fx = (tx - u.x) / l; u.fy = (ty - u.y) / l;
         }
-        if (!u.hitDone && u.animT >= D.attack * R.hitAt) {
+        // 공격 주기는 규칙(R.atk)으로 정함: 진영마다 모형 동작 길이가 달라 같은 병사인데 공격 빠르기가 달랐음(11-07 검토)
+        const atk = R.atk || D.attack;
+        if (!u.hitDone && u.animT >= atk * R.hitAt) {
           u.hitDone = true;
           const t = this.findTarget(u);
           if (t && t.d <= R.range + 0.3) {
@@ -378,7 +382,7 @@ export class Battle {
             else this.damageStruct(t.struct, dmg);
           }
         }
-        if (u.animT >= D.attack) { u.animT -= D.attack; u.hitDone = false; if (!inRange) { this.setState(u, "walk"); this.place(u); } }
+        if (u.animT >= atk) { u.animT -= atk; u.hitDone = false; if (!inRange) { this.setState(u, "walk"); this.place(u); } }
       }
     }
 
@@ -403,7 +407,9 @@ export class Battle {
       for (const e of this.units) {
         if (e.side === p.side || e.state === "death") continue;
         const d = Math.hypot(e.x - p.x, (e.y - p.y));
-        if (d <= p.splash) this.damageUnit(e, e === p.target ? p.dmg : Math.round(p.dmg * 0.6), p.from || { side: p.side });
+        // 직격: 노린 병사, 대포는 떨어진 곳 가운데(반경 절반 안)도 온전한 피해. 그 밖은 60%(11-07 검토: 대포가 늘 60%만 주던 것)
+        const direct = e === p.target || (p.kind === "ball" && d <= p.splash * 0.5);
+        if (d <= p.splash) this.damageUnit(e, direct ? p.dmg : Math.round(p.dmg * 0.6), p.from || { side: p.side });
       }
     } else if (p.target) this.damageUnit(p.target, p.dmg, p.from);
   }

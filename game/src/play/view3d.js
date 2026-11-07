@@ -95,6 +95,8 @@ export class View3D {
     this.views = new Map();
     this.projViews = new Map();
     this.shake = 0;
+    // 기기에서 "동작 줄이기"를 켠 학생은 화면 흔들림 없이(11-07 검토)
+    this.calm = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
     this.view = { x: 0, y: 0, w: 1, h: 1 };
     this.applyQuality();
   }
@@ -347,7 +349,7 @@ export class View3D {
   }
   removeUnit(id) {
     const v = this.views.get(id); if (!v) return;
-    this.scene.remove(v.obj, v.blob, v.team); v.blob.material.dispose(); v.bar.remove(); this.views.delete(id);
+    this.scene.remove(v.obj, v.blob, v.team); v.blob.material.dispose(); for (const m of v.mats) m.dispose(); v.bar.remove(); this.views.delete(id);
   }
   clear() {
     for (const id of [...this.views.keys()]) this.removeUnit(id);
@@ -362,27 +364,40 @@ export class View3D {
     this.overlay.querySelectorAll(".float").forEach((d) => d.remove());
   }
 
+  // 투사체 모양·재질은 한 번만 만들어 함께 씀(11-07 검토: 발사마다 새로 만들고 버리지 않아 GPU 자원이 쌓이던 것)
+  projRes() {
+    if (this.pr) return this.pr;
+    const std = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, ...o });
+    const glow = (c) => new THREE.SpriteMaterial({ map: this.T_GLOW, color: c, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
+    this.pr = {
+      shaftG: new THREE.CylinderGeometry(0.03, 0.03, 0.8, 5), shaftM: std(0x7a5230),
+      tipG: new THREE.ConeGeometry(0.07, 0.18, 6), tipM: std(0xcfd6dc),
+      flagG: new THREE.BoxGeometry(0.16, 0.12, 0.02), flagM: { [-1]: std(0x4fb3ff), [1]: std(0xff6253) },
+      glowM: { [-1]: glow(SIDES[-1].color), [1]: glow(SIDES[1].color), big: glow(0x46e0cf) }, coreM: glow(0xffffff),
+      ballG: new THREE.SphereGeometry(0.45, 12, 10), ballM: std(0x2b2b30, { roughness: 0.4, metalness: 0.5 }),
+    };
+    return this.pr;
+  }
   makeProjectile(p) {
-    const g = new THREE.Group();
-    const col = SIDES[p.side].color;
+    const g = new THREE.Group(), R = this.projRes();
     if (p.kind === "arrow") {
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8, 5), new THREE.MeshStandardMaterial({ color: 0x7a5230 }));
+      const shaft = new THREE.Mesh(R.shaftG, R.shaftM);
       shaft.rotation.z = Math.PI / 2;
-      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.18, 6), new THREE.MeshStandardMaterial({ color: 0xcfd6dc }));
+      const tip = new THREE.Mesh(R.tipG, R.tipM);
       tip.rotation.z = -Math.PI / 2; tip.position.x = 0.45;
-      const fl = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.02), new THREE.MeshStandardMaterial({ color: p.side < 0 ? 0x4fb3ff : 0xff6253 }));
+      const fl = new THREE.Mesh(R.flagG, R.flagM[p.side < 0 ? -1 : 1]);
       fl.position.x = -0.36;
       const inner = new THREE.Group(); inner.add(shaft, tip, fl);
       g.add(inner); g.userData.inner = inner;
     } else if (p.kind === "orb") {
-      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.T_GLOW, color: col, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+      const glow = new THREE.Sprite(p.big ? R.glowM.big : R.glowM[p.side < 0 ? -1 : 1]);
       glow.scale.setScalar(1.3);
-      if (p.big) { glow.material.color.set(0x46e0cf); g.scale.setScalar(2.4); }
-      const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.T_GLOW, color: 0xffffff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+      if (p.big) g.scale.setScalar(2.4);
+      const core = new THREE.Sprite(R.coreM);
       core.scale.setScalar(0.5);
       g.add(glow, core); g.userData.glow = glow;
     } else {
-      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 10), new THREE.MeshStandardMaterial({ color: 0x2b2b30, roughness: 0.4, metalness: 0.5 }));
+      const ball = new THREE.Mesh(R.ballG, R.ballM);
       ball.castShadow = true; g.add(ball);
     }
     g.renderOrder = 6;
@@ -514,6 +529,7 @@ export class View3D {
       let d = want - v.obj.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
       v.obj.rotation.y += d * Math.min(1, dt * 10);
       if (u.anim === "walk" && v.actions.walk) v.actions.walk.timeScale = Math.min(1.6, (ROLE_INFO[u.role] || SPECIAL[u.role]).speed / 1.3);
+      else if (u.anim === "attack" && v.actions.attack) { const R = ROLE_INFO[u.role]; if (R && R.atk) v.actions.attack.timeScale = v.actions.attack.getClip().duration / R.atk; } // 규칙의 공격 주기에 동작을 맞춤
       v.blob.position.copy(V(u.x, u.y, 0.03));
       v.team.position.copy(V(u.x, u.y, 0.05)); v.team.visible = u.state !== "death";
       let a = 1;
@@ -608,7 +624,8 @@ export class View3D {
       base.addScaledVector(new THREE.Vector3(1, 0, 0), f.x * k).addScaledVector(this.cam.up, u * k);
       this.cam.zoom = 1 + k * 0.7; this.cam.updateProjectionMatrix();
     }
-    this.cam.position.copy(base).add(new THREE.Vector3((Math.random() - 0.5) * this.shake * 2, (Math.random() - 0.5) * this.shake * 2, 0));
+    const sh = this.calm ? 0 : this.shake;
+    this.cam.position.copy(base).add(new THREE.Vector3((Math.random() - 0.5) * sh * 2, (Math.random() - 0.5) * sh * 2, 0));
   }
 
   render() {

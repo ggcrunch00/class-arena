@@ -33,10 +33,10 @@ export const CANNON = { charge: 5, damage: 150, radius: 3.4 };
 // 병사 4종. 순환 상성: 방패병 → 돌격병 → 궁수 → 마법사 → 방패병 (화살표 쪽에게 강함)
 export const ROLES = ["shield", "rusher", "archer", "mage"];
 export const ROLE_INFO = {
-  shield: { name: "방패병", cost: 60, cooldown: 2.5, hp: 260, dmg: 14, range: 1.4, speed: 1.45, hitAt: 0.42, beats: "rusher" },
-  rusher: { name: "돌격병", cost: 70, cooldown: 3.5, hp: 150, dmg: 30, range: 1.5, speed: 2.5, hitAt: 0.45, beats: "archer" },
-  archer: { name: "궁수", cost: 60, cooldown: 3.0, hp: 90, dmg: 16, range: 6.5, speed: 1.55, hitAt: 0.5, beats: "mage", shot: "arrow" },
-  mage: { name: "마법사", cost: 90, cooldown: 5.0, hp: 100, dmg: 18, range: 5.5, speed: 1.45, hitAt: 0.45, beats: "shield", shot: "orb", splash: 1.8 },
+  shield: { name: "방패병", cost: 60, cooldown: 2.5, hp: 260, dmg: 14, range: 1.4, speed: 1.45, atk: 1.04, hitAt: 0.42, beats: "rusher" },
+  rusher: { name: "돌격병", cost: 70, cooldown: 3.5, hp: 150, dmg: 30, range: 1.5, speed: 2.5, atk: 1.04, hitAt: 0.45, beats: "archer" },
+  archer: { name: "궁수", cost: 60, cooldown: 3.0, hp: 90, dmg: 16, range: 6.5, speed: 1.55, atk: 1.04, hitAt: 0.5, beats: "mage", shot: "arrow" },
+  mage: { name: "마법사", cost: 90, cooldown: 5.0, hp: 100, dmg: 18, range: 5.5, speed: 1.45, atk: 0.92, hitAt: 0.45, beats: "shield", shot: "orb", splash: 1.8 },
 };
 export const COUNTER_MULT = 1.6;
 // 캠페인 보스 병사(골드로 뽑지 않고 이야기 장면에서 나옴): 해골 전사 모형을 크게, 잿빛으로

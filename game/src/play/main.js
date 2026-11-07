@@ -189,7 +189,10 @@ function layout() {
   const top = $("#top").getBoundingClientRect();
   // 전장은 화면 전체에 그리고, 지도는 조작판 위 칸에 맞춤(조작판은 반투명이라 밑으로 숲·바다가 이어져 보임)
   view.setViewport({ x: 0, y: 0, w: window.innerWidth, h: window.innerHeight }, top.height ? top.bottom + 4 : 0, ph);
-  $("#rotate").hidden = !(window.innerHeight > window.innerWidth * 1.05);
+  const portrait = window.innerHeight > window.innerWidth * 1.05;
+  $("#rotate").hidden = !portrait;
+  if (portrait && mode === "play") pause(); // 화면을 세로로 돌리면 안내가 가리는 동안 전투를 멈춤
+
 }
 
 // ---------- 한 판 ----------
@@ -304,10 +307,20 @@ function buildKeys() {
   window.addEventListener("keydown", (e) => {
     if (story && (e.key === "Enter" || e.key === " " || e.key === "ArrowRight")) { e.preventDefault(); storyNext(); return; }
     if (story && e.key === "Escape") { storyEnd(); return; }
-    if (e.key === "Escape") { if (mode === "play") pause(); else if (mode === "pause") resume(); return; }
+    // Escape: 맨 위에 열린 창부터 닫음(설정을 연 채 전투가 다시 흐르던 문제, 11-07 검토)
+    if (e.key === "Escape") {
+      if (!$("#fmtScreen").hidden) { $("#fmtScreen").hidden = true; return; }
+      if (!$("#setScreen").hidden) { $("#setClose").click(); return; }
+      if (mode === "play") pause(); else if (mode === "pause") resume();
+      return;
+    }
     // 전투 중 Enter·스페이스가 마지막에 누른 단추(병사 카드 등)를 다시 누르지 않게 막음
     // (크롬북: 카드를 누른 뒤 키보드로 답을 쓰고 Enter → 그 카드가 또 출전하던 문제)
-    if (mode === "play" && (e.key === "Enter" || e.key === " ") && e.target.tagName === "BUTTON") e.preventDefault();
+    // 단, Tab으로 옮겨 온 단추(초점 테두리가 보이는 단추)는 키보드로 누를 수 있게 둠(11-07 검토)
+    if (mode === "play" && (e.key === "Enter" || e.key === " ") && e.target.tagName === "BUTTON") {
+      if (e.target.matches(":focus-visible")) return;
+      e.preventDefault();
+    }
     if (mode !== "play" || e.target.tagName === "INPUT" || isDuo()) return; // 둘이서는 키보드를 나눠 쓸 수 없어 끔
     const s = seats[0];
     if (e.key === "ArrowUp" || e.key === "ArrowDown") { s.moveLane(e.key === "ArrowUp" ? -1 : 1); e.preventDefault(); return; }
@@ -407,6 +420,21 @@ function reviewList(seat, box, scoreEl) {
       row.innerHTML = `<span></span><input id="rev${seat.side}_${i}" inputmode="numeric" autocomplete="off"><span class="mine-ans"></span>`;
       const inp = row.querySelector("input");
       inp.addEventListener("input", () => { if (!row.classList.contains("done") && checkAnswer(x.q, inp.value)) { inp.disabled = true; done(); } });
+    } else if (x.q.type === "tiles") {
+      // 글자 타일 문제는 복습에서도 타일을 차례로 눌러 조립(11-07 검토: 정답 단추 하나만 나오던 것)
+      row.innerHTML = `<span></span><span class="mini rtiles"><b class="rbuilt"></b></span><span class="mine-ans"></span>`;
+      const box = row.querySelector(".rtiles"), built = row.querySelector(".rbuilt"), picked = [];
+      const btns = x.q.tiles.map((c, i) => {
+        const b = document.createElement("button"); b.type = "button"; b.textContent = c;
+        b.addEventListener("click", () => {
+          if (row.classList.contains("done") || b.disabled) return;
+          picked.push(i); b.disabled = true; built.textContent = picked.map((j) => x.q.tiles[j]).join("");
+          if (built.textContent.length < String(x.q.answer).replace(/\s/g, "").length) return;
+          if (checkAnswer(x.q, built.textContent)) { built.classList.add("good"); done(); }
+          else { Sound.play("wrong"); built.classList.add("bad"); setTimeout(() => { built.classList.remove("bad"); built.textContent = ""; picked.length = 0; btns.forEach((q) => { q.disabled = false; }); }, 600); }
+        });
+        box.appendChild(b); return b;
+      });
     } else {
       row.innerHTML = `<span></span><span class="mini"></span><span class="mine-ans"></span>`;
       for (const o of x.q.type === "ox" ? ["O", "X"] : x.q.options) {
@@ -439,14 +467,16 @@ function showResult() {
       : b.endWhy === "survive" ? "끝까지 본성을 지켜 냈어요!"
       : b.endWhy === "kills" ? "목표만큼 해골 병사를 무찔렀어요!"
       : b.endWhy === "killsTime" ? "시간 안에 목표만큼 무찌르지 못했어요. 상성을 노려 더 빨리 무찔러 봐요!"
+      : b.endWhy === "towersTime" ? "시간 안에 목표한 탑을 모두 무너뜨리지 못했어요. 한 길에 병사를 모아 밀어 봐요!"
         : b.endWhy === "base"
           ? (w === PLAYER ? "해골 군단의 본성을 무너뜨렸어요!" : "우리 본성이 무너졌어요. 약한 길을 막고 상성을 노려 다시 도전해요!")
           : (w ? "시간이 끝나서 본성과 탑이 더 튼튼한 쪽이 이겼어요." : "시간이 끝났고 양쪽이 비슷했어요.");
   }
   const stat = (k, v) => `<div class="stat"><small>${k}</small><b>${v}</b></div>`;
   const statsOf = (side) => {
-    const S = b.sides[side], tried = S.stats.right + S.stats.wrong;
-    return stat("맞힌 문제", S.stats.right) + stat("정답률", tried ? Math.round(S.stats.right / tried * 100) + "%" : "-") +
+    // 11-07 검토: 넘긴 문제도 따로 보여 주고 정답률에 넣음(어려운 문제만 넘겨 100%가 되던 것)
+    const S = b.sides[side], tried = S.stats.right + S.stats.wrong + S.stats.skip;
+    return stat("정답·오답·넘김", `${S.stats.right}·${S.stats.wrong}·${S.stats.skip}`) + stat("정답률", tried ? Math.round(S.stats.right / tried * 100) + "%" : "-") +
       stat("최고 연속", S.bestStreak) + stat("번 골드", S.stats.goldEarned) + stat("출전한 병사", S.stats.deployed);
   };
   const res = $("#resBody"); res.innerHTML = "";
@@ -459,7 +489,7 @@ function showResult() {
   }
   res.classList.toggle("two", G.duo);
   // 별 3개(혼자 하기): 이기기 / 정답률 80% 이상 / 본성 체력 절반 이상
-  const S0 = b.sides[PLAYER], tried0 = S0.stats.right + S0.stats.wrong, acc0 = tried0 ? S0.stats.right / tried0 : 0;
+  const S0 = b.sides[PLAYER], tried0 = S0.stats.right + S0.stats.wrong + S0.stats.skip, acc0 = tried0 ? S0.stats.right / tried0 : 0;
   const stars = G.duo ? 0 : (w === PLAYER ? 1 : 0) + (acc0 >= 0.8 && tried0 >= 5 ? 1 : 0) + (S0.base.hp / S0.base.max >= 0.5 ? 1 : 0);
   const starBox = $("#stars"); starBox.hidden = G.duo;
   [...starBox.children].forEach((st, i) => { st.className = ""; if (i < stars) setTimeout(() => { st.className = "on"; Sound.play("coin"); }, 500 + i * 350); });
@@ -504,8 +534,8 @@ function shareText() {
   const b = G.battle, t = Math.round(b.time), tm = Math.floor(t / 60) + "분 " + (t % 60) + "초";
   const line = (seat) => {
     const S = b.sides[seat.side];
-    const sq = seat.log.slice(-30).map((v) => (v ? "■" : "□")).join("");
-    return `${topicsLabel(seat.topics)} · 정답 ${S.stats.right}/${S.stats.right + S.stats.wrong} · 최고 ${S.bestStreak}연속\n${sq}`;
+    const sq = seat.log.slice(-30).map((v) => (v === 1 ? "■" : v === 2 ? "▫" : "□")).join("");
+    return `${topicsLabel(seat.topics)} · 정답 ${S.stats.right}/${S.stats.right + S.stats.wrong + S.stats.skip}${S.stats.skip ? ` (넘김 ${S.stats.skip})` : ""} · 최고 ${S.bestStreak}연속\n${sq}`;
   };
   if (G.duo) {
     const w = b.winner;
@@ -1065,7 +1095,7 @@ function pause() {
   mode = "pause"; $("#pauseScreen").hidden = false; Music.duck(true);
   $("#quitBtn").textContent = G && G.stage ? "그만하고 원정 지도로" : "그만하고 처음으로";
 }
-function resume() { mode = "play"; $("#pauseScreen").hidden = true; Music.duck(false); }
+function resume() { if (!$("#rotate").hidden) return; mode = "play"; $("#pauseScreen").hidden = true; Music.duck(false); }
 
 let setBack = null;
 function buildSettings() {
@@ -1095,37 +1125,47 @@ function drawQualOpts() {
 function openSettings(from) { setBack = from; $(from).hidden = true; $("#setScreen").hidden = false; drawQualOpts(); }
 
 // ---------- 매 프레임 ----------
-let last = performance.now(), renderAcc = 0, fpsShown = 0;
+// 11-07(검토 반영): 전투는 실제 시간으로 고정 간격(1/30초)씩 진행 → 느린 기기에서도 6분 대전은 6분.
+// 예전에는 한 프레임을 0.05초로 잘라 10fps 기기에서 게임이 절반 속도로 흘렀음. 화질 측정도 실제 간격으로.
+const STEP = 1 / 30;
+let last = performance.now(), renderAcc = 0, fpsShown = 0, simAcc = 0;
 function frame(now) {
   requestAnimationFrame(frame);
-  const dt = Math.min((now - last) / 1000, 0.05); last = now;
-  quality.tick(dt, mode === "play");
+  const raw = Math.min((now - last) / 1000, 1); last = now; // 탭을 다녀오면 큰 값 → 1초까지만
+  const dt = Math.min(raw, 0.05);                              // 화면 효과(흔들림·말풍선 등)용
+  quality.tick(raw, mode === "play");
   const playing = mode === "play" || mode === "result";
-  let simDt = dt;
-  if (hitstop > 0) { hitstop -= dt; simDt = 0; }
-  if (dangerT > 0) dangerT -= dt;
+  let simDt = 0;
+  if (hitstop > 0) hitstop -= raw; else simAcc = Math.min(simAcc + raw, 1);
+  if (dangerT > 0) dangerT -= raw;
   $("#vignette").classList.toggle("danger", dangerT > 0 && mode === "play");
   if (G && mode === "count") tickCount();
   if (G && playing) {
-    G.battle.update(simDt);
-    if (mode === "play") { if (G.ai) G.ai.update(simDt); for (const st of seats) st.tick(dt); }
-    const evts = G.battle.events; G.battle.events = [];
-    if (G.runner && mode === "play") G.runner.update(simDt, evts);
+    const evts = [];
+    for (let n = 0; simAcc >= STEP && n < 30; n++) {
+      simAcc -= STEP; simDt += STEP;
+      G.battle.update(STEP);
+      if (mode === "play" && G.ai) G.ai.update(STEP);
+      const ev = G.battle.events; G.battle.events = [];
+      if (G.runner && mode === "play") G.runner.update(STEP, ev);
+      for (const e of ev) evts.push(e);
+    }
+    if (mode === "play") for (const st of seats) st.tick(raw);
     view.handle(evts, G.battle);
     onEvents(evts);
     updateHud(false);
-    if (G.endT >= 0 && mode === "play") { G.endT += dt; if (G.endT > 2.8) showResult(); }
-  }
+    if (G.endT >= 0 && mode === "play") { G.endT += raw; if (G.endT > 2.8) showResult(); }
+  } else simAcc = 0;
   if (mode === "menu") tickDemo(dt);
-  view.update(mode === "pause" ? 0 : simDt, G ? G.battle : demo ? demo.b : idle);
-  if (toastT > 0) { toastT -= dt; if (toastT <= 0) $("#toast").hidden = true; }
-  if (talkT > 0 && mode === "play") { talkT -= dt; if (talkT <= 0) nextTalk(); }
+  view.update(mode === "pause" ? 0 : G ? Math.min(simDt, 0.25) : dt, G ? G.battle : demo ? demo.b : idle);
+  if (toastT > 0) { toastT -= raw; if (toastT <= 0) $("#toast").hidden = true; }
+  if (talkT > 0 && mode === "play") { talkT -= raw; if (talkT <= 0) nextTalk(); }
   if (mode !== "play") for (const st of seats) if (st.toastT > 0) st.tick(0);
   if (quality.showFps && now - fpsShown > 500) { fpsShown = now; $("#fps").textContent = Math.round(quality.fps) + " fps · " + QUALITY[quality.level].name; }
   // 이야기·원정 지도·도감이 화면을 덮고 있으면 3D를 그리지 않음(밑에서 계속 그리면 느린 기기가 버벅임)
   if (!$("#storyScreen").hidden || !$("#campScreen").hidden || !$("#dexScreen").hidden) return;
   const cap = quality.preset.cap;
-  if (cap) { renderAcc += dt; if (renderAcc < 1 / cap - 0.004) return; renderAcc = 0; }
+  if (cap) { renderAcc += raw; if (renderAcc < 1 / cap - 0.004) return; renderAcc = 0; }
   view.render();
 }
 
