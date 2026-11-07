@@ -48,15 +48,12 @@ function seaMaterial(mask) {
         vec2 wd = vP * vec2(0.55, 0.9) + vec2(n * 3.0, uTime * 0.18);
         float crest = 1.0 - smoothstep(0.0, 0.07, abs(fract(wd.y * 0.5 + sin(wd.x * 0.35) * 0.35) - 0.5));
         crest *= smoothstep(0.7, 0.86, noise(vP * 0.22 + vec2(uTime * 0.05, 0.0))) * (1.0 - smoothstep(0.2, 0.6, m.r));
-        col = mix(col, uFoam, crest * 0.22);
+        col *= 1.0 + crest * 0.06; // 물마루는 하얀 줄 대신 아주 옅은 밝기 차이로(눈송이처럼 산만하던 것)
         // 해안 거품: 땅 바로 둘레 + 섬 쪽으로 밀려오는 물결 띠 두어 줄
         float shore = smoothstep(0.5, 0.72, m.r);
         float band = smoothstep(0.75, 1.0, sin(m.r * 20.0 - uTime * 1.5 + n * 3.0)) * smoothstep(0.18, 0.4, m.r) * (1.0 - shore);
         float foam = clamp(shore + band * 0.6, 0.0, 1.0) * mix(0.55, 1.0, smoothstep(0.3, 0.6, n2));
         col = mix(col, uFoam, foam);
-        // 햇빛 반짝임(드물게)
-        float sp = noise(vP * 1.4 + vec2(uTime * 0.45, -uTime * 0.3));
-        col += vec3(1.0, 0.95, 0.85) * pow(max(sp - 0.86, 0.0) * 7.0, 3.0) * (1.0 - m.g * 0.7);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

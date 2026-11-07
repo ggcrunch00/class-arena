@@ -139,7 +139,7 @@ elif LAYOUT == "frost":
     LOW_JUNGLE = True
     JUNGLE, THEME, MOUNTAINS = "low", "snow", True
     TREE_P = 0.24
-    MOOD = {"sun": [0.95, 0.97, 1.0], "sunI": 2.5, "hemiSky": [0.8, 0.88, 1.0], "hemiI": 1.1, "bg": "#1c2633"}
+    MOOD = {"sun": [1.0, 0.95, 0.88], "sunI": 2.3, "hemiSky": [0.7, 0.8, 1.0], "hemiI": 0.95, "bg": "#1c2633"}
     SEA = {"deep": "#20364d", "shallow": "#6f98b5", "foam": "#f2f8ff"}
 elif LAYOUT == "isle":
     # 8장 잊힌 등대섬(11-07): 대각선과 같은 길. 섬 둘레가 모래톱, 뒤쪽 바위섬에 등대
@@ -183,7 +183,7 @@ def theme_atlas(theme):
     green = (g > r * 1.08) & (g > b * 0.95)
     lum = (0.3 * r + 0.59 * g + 0.11 * b)[..., None]
     if theme == "snow":
-        tgt = np.concatenate([0.70 + lum * 0.3, 0.77 + lum * 0.27, 0.88 + lum * 0.12], -1).clip(0, 1)
+        tgt = np.concatenate([0.56 + lum * 0.3, 0.63 + lum * 0.28, 0.76 + lum * 0.14], -1).clip(0, 1)
     else:   # swamp: 누런 이끼·검푸른 물풀빛
         tgt = np.concatenate([lum * 0.95 + 0.06, lum * 1.05 + 0.08, lum * 0.55 + 0.04], -1).clip(0, 1)
     px[..., :3] = np.where(green[..., None], tgt, px[..., :3])
@@ -548,6 +548,74 @@ def build_jungle():
     build_extras(rnd)
 
 
+_proto = {}
+
+
+def proto(name, kind, col):
+    """풀포기·들꽃 원형 메쉬(한 번만 만들고 여러 번 놓음 → 게임에서 한 번에 그림)"""
+    if name in _proto:
+        return _proto[name]
+    bm = bmesh.new()
+    if kind == "tuft":   # 가는 잎 다섯 장이 둥글게 퍼진 풀포기
+        for k in range(7):
+            a = k / 7 * 6.2832 + 0.3; h = 0.36 + 0.14 * (k % 3) / 2
+            dx, dy = math.cos(a), math.sin(a)
+            v = [bm.verts.new((-dy * 0.09, dx * 0.09, 0)), bm.verts.new((dy * 0.09, -dx * 0.09, 0)), bm.verts.new((dx * 0.26, dy * 0.26, h))]
+            bm.faces.new(v)
+    elif kind == "reed":  # 키 큰 갈대(늪)
+        for k in range(4):
+            a = k / 4 * 6.2832; h = 0.9 + 0.2 * (k % 2)
+            dx, dy = math.cos(a), math.sin(a)
+            v = [bm.verts.new((-dy * 0.04, dx * 0.04, 0)), bm.verts.new((dy * 0.04, -dx * 0.04, 0)), bm.verts.new((dx * 0.12, dy * 0.12, h))]
+            bm.faces.new(v)
+    else:                # 들꽃: 줄기 + 꽃잎 네 장(납작한 마름모)
+        v = [bm.verts.new((-0.015, 0, 0)), bm.verts.new((0.015, 0, 0)), bm.verts.new((0, 0.01, 0.3))]; bm.faces.new(v)
+        for k in range(4):
+            a = k / 4 * 6.2832; dx, dy = math.cos(a) * 0.09, math.sin(a) * 0.09
+            v = [bm.verts.new((0, 0, 0.3)), bm.verts.new((dx * 0.6 - dy * 0.4, dy * 0.6 + dx * 0.4, 0.31)), bm.verts.new((dx, dy, 0.32)), bm.verts.new((dx * 0.6 + dy * 0.4, dy * 0.6 - dx * 0.4, 0.31))]
+            bm.faces.new(v)
+    for f in bm.faces:
+        f.normal_update()
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    me.materials.append(mat(name, col, 0.95))
+    _proto[name] = me
+    return me
+
+
+def build_tufts(rnd):
+    """섬 풀밭에 풀포기·들꽃(11-07: 넓은 단색 풀밭이 밋밋하던 것). 길·물·본성·탑 둘레는 비움. 게임에서 바람에 흔들림"""
+    # 색은 선형값(화면에선 더 밝게 보임): 바닥 풀빛보다 조금 짙게
+    kinds = {"grass": [("Tuft_A", "tuft", (0.07, 0.2, 0.025), 420), ("Tuft_B", "tuft", (0.13, 0.27, 0.035), 300), ("Flower_W", "flower", (0.85, 0.82, 0.72), 70),
+                       ("Flower_Y", "flower", (0.95, 0.55, 0.04), 70), ("Flower_P", "flower", (0.8, 0.2, 0.35), 50)],
+             "swamp": [("Tuft_S", "tuft", (0.09, 0.14, 0.035), 380), ("Reed", "reed", (0.2, 0.2, 0.06), 260), ("Flower_W", "flower", (0.8, 0.8, 0.7), 30)],
+             "snow": [("Tuft_F", "tuft", (0.35, 0.42, 0.45), 160)],
+             "beach": [("Tuft_A", "tuft", (0.08, 0.21, 0.03), 360), ("Tuft_B", "tuft", (0.15, 0.28, 0.04), 260), ("Flower_Y", "flower", (0.95, 0.55, 0.04), 60),
+                       ("Flower_P", "flower", (0.8, 0.2, 0.35), 60)]}[THEME]
+    towers_xy = [p for v in towers().values() for p in v.values()]
+    keys = sorted(ISLAND)
+    for name, kind, col, n in kinds:
+        me = proto(name, kind, col)
+        placed = tries = 0
+        while placed < n and tries < n * 8:
+            tries += 1
+            cx, cy = GRID[rnd.choice(keys)]
+            p = (cx + rnd.uniform(-3, 3), cy + rnd.uniform(-3, 3))
+            if not on_island(p) or abs(p[0]) > BX + 1.5 or abs(p[1]) > BY + 2.5:
+                continue
+            if min(poly_dist(p, pts) for pts in LANES.values()) < ROAD_W + 0.35:
+                continue
+            if any(poly_dist(p, pts) < h + 0.3 for pts, h in RIVERS) or any(math.dist(p, (x, y)) < r0 + 0.3 for x, y, r0 in LAKES):
+                if kind != "reed":
+                    continue
+            elif kind == "reed" and rnd.random() < 0.6:
+                continue   # 갈대는 물가에 많이
+            if min(math.dist(p, b) for b in BASE.values()) < 3.2 or min(math.dist(p, t) for t in towers_xy) < 1.4:
+                continue
+            ob = bpy.data.objects.new(name, me); bpy.context.scene.collection.objects.link(ob)
+            sc = rnd.uniform(0.8, 1.35); ob.location = (*p, 0.0); ob.rotation_euler = (0, 0, rnd.uniform(0, 6.28)); ob.scale = (sc, sc, sc * rnd.uniform(0.85, 1.2))
+            placed += 1
+
+
 def build_camps(rnd):
     """양쪽 본성 둘레 야영지(11-07): 기사단은 천막·파란 깃발·무기대·과녁, 해골 군단은 부서진 공사장·빨간 깃발·투석기 탄·잘린 나무"""
     P = "decoration/props/"
@@ -579,6 +647,7 @@ def build_extras(rnd):
     """지도마다 다른 꾸밈: 마을, 산, 다리, 언덕, 성벽"""
     N = "decoration/nature/"
     build_camps(rnd)
+    build_tufts(rnd)
     if VILLAGE:   # 파란 본성 뒤 초소 마을
         bx, by = BASE[-1]
         for (dx, dy, m, rot, sc) in [(-0.5, 4.2, "buildings/blue/building_windmill_blue.gltf", 0.3, 2.0), (2.2, 3.6, "buildings/blue/building_home_A_blue.gltf", 0.2, 2.0),

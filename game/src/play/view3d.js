@@ -6,6 +6,58 @@ import { LANES, LANE_NAMES, BOUNDS, BASES, RIVER, MOOD, SCENE } from "./lanes.js
 import { World } from "./world3d.js";
 import { Sound } from "./sound.js";
 
+// 11-07 질감: 단색 풀밭·흙길에 넓은 얼룩과 잔 무늬(월드 좌표 잡음)로 손그림 같은 결을 줌. 길은 더 진하게
+const GRAIN = `
+  float gHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float gNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(gHash(i), gHash(i + vec2(1, 0)), f.x), mix(gHash(i + vec2(0, 1)), gHash(i + vec2(1, 1)), f.x), f.y); }`;
+function addGrain(m, amt) {
+  if (m.userData.grain) return; m.userData.grain = true;
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vGW;")
+      .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nvGW = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vGW;" + GRAIN)
+      .replace("#include <color_fragment>", `#include <color_fragment>
+        float gBig = gNoise(vGW.xz * 0.09), gMid = gNoise(vGW.xz * 0.5 + 7.0), gFine = gHash(floor(vGW.xz * 6.0));
+        diffuseColor.rgb *= 1.0 + ${amt.toFixed(3)} * ((gBig - 0.5) * 1.6 + (gMid - 0.5) * 0.7 + (gFine - 0.5) * 0.35);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.08, 1.04, 0.86), smoothstep(0.62, 0.8, gBig) * ${amt.toFixed(3)} * 2.5);`);
+  };
+  m.customProgramCacheKey = () => "grain" + amt;
+  m.needsUpdate = true;
+}
+// 풀포기·들꽃·갈대가 바람에 흔들림(높이에 비례, 자리마다 다른 박자)
+const WIND = { value: 0 };
+function addSway(m) {
+  if (m.userData.sway) return; m.userData.sway = true;
+  m.side = THREE.DoubleSide;
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uWind = WIND;
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uWind;")
+      .replace("#include <begin_vertex>", `#include <begin_vertex>
+        float ph = 0.0;
+        #ifdef USE_INSTANCING
+          ph = instanceMatrix[3].x * 0.6 + instanceMatrix[3].z * 0.45;
+        #endif
+        float hh = max(transformed.y, 0.0);
+        transformed.x += sin(uWind * 1.6 + ph) * hh * 0.22;
+        transformed.z += cos(uWind * 1.1 + ph * 1.3) * hh * 0.12;`);
+  };
+  m.customProgramCacheKey = () => "sway";
+  m.needsUpdate = true;
+}
+// 병사 테두리 빛: 진영 색 가장자리 빛(프레넬)으로 배경에서 또렷하게
+function addRim(m, color) {
+  m.userData.rim = { value: new THREE.Color(color) };
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uRim = m.userData.rim;
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform vec3 uRim;")
+      .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>
+        vec3 rimV = isOrthographic ? vec3(0.0, 0.0, 1.0) : normalize(vViewPosition);
+        totalEmissiveRadiance += uRim * pow(1.0 - clamp(dot(normal, rimV), 0.0, 1.0), 3.4) * 0.5;`);
+  };
+  m.customProgramCacheKey = () => "rim";
+}
+
 // 블렌더 좌표(x 오른쪽, y 뒤쪽, z 위) → three 좌표
 const V = (x, y, z) => new THREE.Vector3(x, z, -y);
 const backOut = (k) => { const c = 1.70158; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
@@ -81,6 +133,8 @@ export class View3D {
 
     this.parts = [];
     this.rings = [];
+    this.wisps = [];   // 해골이 남기는 기억의 빛
+    this.T_WISP = radialTex([[0, "rgba(255,255,255,1)"], [0.2, "rgba(190,255,248,0.9)"], [0.5, "rgba(70,224,207,0.35)"], [1, "rgba(70,224,207,0)"]]);
     this.ringTex = (() => {  // 출전 마법진(빛나는 고리 + 안쪽 무늬)
       const c = document.createElement("canvas"); c.width = c.height = 128;
       const g = c.getContext("2d");
@@ -114,7 +168,12 @@ export class View3D {
       field.traverse((o) => {
         if (!o.isMesh) return;
         o.castShadow = true; o.receiveShadow = true;
-        for (const m of [].concat(o.material)) if (m.name === "Dirt") m.color.setRGB(0.5, 0.33, 0.19);
+        for (const m of [].concat(o.material)) {
+          if (m.name === "Dirt") m.color.setRGB(0.5, 0.33, 0.19);
+          if (/^(River|Ice|Sea)/.test(m.name) || /^cloud/.test(o.name)) continue;
+          if (/^(Tuft|Flower|Reed)/.test(m.name)) { addSway(m); o.castShadow = false; continue; }
+          addGrain(m, /^(Dirt|Road)/.test(m.name) ? 0.16 : /^Sand/.test(m.name) ? 0.08 : 0.07);
+        }
       });
     }
     scene.add(field);
@@ -203,28 +262,30 @@ export class View3D {
     const marks = { [-1]: {}, [1]: {} };
     this.laneMats = [];
     if (!this.T_CHEV) {
-      const c = document.createElement("canvas"); c.width = 64; c.height = 64;
+      // 11-07: 크고 굵은 노란 화살표 → 가는 빛줄기 위로 작은 빛 화살촉이 흐르는 모양(덜 요란하고 또렷하게)
+      const c = document.createElement("canvas"); c.width = 128; c.height = 64;
       const g = c.getContext("2d");
-      // 11-05: 흙길 위에서도 또렷하게 — 옅은 띠 + 짙은 테두리 + 밝은 화살촉
-      g.fillStyle = "rgba(255,255,255,0.28)"; g.fillRect(0, 18, 64, 28);
-      const chev = () => { g.beginPath(); g.moveTo(12, 6); g.lineTo(40, 32); g.lineTo(12, 58); g.lineTo(26, 58); g.lineTo(54, 32); g.lineTo(26, 6); g.closePath(); };
-      g.lineJoin = "round"; g.lineWidth = 7; g.strokeStyle = "rgba(30,18,6,0.85)"; chev(); g.stroke();
-      g.fillStyle = "#fff"; chev(); g.fill();
+      const band = g.createLinearGradient(0, 0, 0, 64);
+      band.addColorStop(0, "rgba(255,255,255,0)"); band.addColorStop(0.38, "rgba(255,255,255,0.3)"); band.addColorStop(0.5, "rgba(255,255,255,0.75)");
+      band.addColorStop(0.62, "rgba(255,255,255,0.3)"); band.addColorStop(1, "rgba(255,255,255,0)");
+      g.fillStyle = band; g.fillRect(0, 0, 128, 64);
+      g.shadowColor = "rgba(255,255,255,0.9)"; g.shadowBlur = 6; g.fillStyle = "#fff";
+      g.beginPath(); g.moveTo(40, 18); g.lineTo(62, 32); g.lineTo(40, 46); g.lineTo(46, 32); g.closePath(); g.fill();
       const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
       this.T_CHEV = t;
     }
     for (const side of [-1, 1]) {
-      const mat = new THREE.MeshBasicMaterial({ map: this.T_CHEV, color: side < 0 ? 0xffd36b : 0xd9cffc, transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide });
+      const mat = new THREE.MeshBasicMaterial({ map: this.T_CHEV, color: side < 0 ? 0xffd88a : 0xd9cffc, transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
       this.laneMats.push(mat);
       for (const n of LANE_NAMES) {
         const L = LANES[n], pos = [], uv = [], idx = [];
-        const step = 0.5, w = 1.15, steps = Math.max(2, Math.ceil(L.length / step));
+        const step = 0.5, w = 0.8, steps = Math.max(2, Math.ceil(L.length / step));
         for (let i = 0; i <= steps; i++) {
           const d = (L.length * i) / steps, sAt = side < 0 ? d : L.length - d;
           const p = L.at(sAt);
           const a = V(p.x - p.dy * w, p.y + p.dx * w, 0.22), b = V(p.x + p.dy * w, p.y - p.dx * w, 0.22);
           pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
-          const u = d / 2.4; uv.push(u, 0, u, 1);
+          const u = d / 3.2; uv.push(u, 0, u, 1);
           if (i) { const j = i * 2; idx.push(j - 2, j - 1, j, j - 1, j + 1, j); }
         }
         const g = new THREE.BufferGeometry();
@@ -273,13 +334,16 @@ export class View3D {
     }
   }
   text(p, str, cls, color) {
+    // 11-07: 숫자가 겹겹이 쌓여 지저분하던 것 — 화면에 많으면 보통 피해는 생략(상성·건물 피해는 늘 보임)
+    this.floatN = this.floatN || 0;
+    if (!cls && this.floatN > 10 && Math.random() < 0.75) return;
     const s = this.toPx(p), d = document.createElement("div");
     d.className = "float " + (cls || ""); d.textContent = str;
     if (color) d.style.color = color;
     d.style.left = s.x + (Math.random() - 0.5) * 12 + "px"; d.style.top = s.y + "px";
     d.style.fontSize = Math.max(12, 0.62 / (this.mPerPx || 0.03) * (cls === "counter" ? 1.15 : 1)) + "px";
     this.overlay.appendChild(d);
-    setTimeout(() => d.remove(), 950);
+    this.floatN++; setTimeout(() => { d.remove(); this.floatN--; }, cls === "counter" ? 1150 : 950);
   }
 
   // ---------- 유닛 ----------
@@ -293,7 +357,10 @@ export class View3D {
     obj.rotation.y = Math.atan2(u.fx, -u.fy);
     const mats = [];
     obj.traverse((o) => {
-      if (o.isMesh) { o.castShadow = true; o.material = o.material.clone(); o.material.transparent = true; if (u.tint) o.material.color.multiply(new THREE.Color(u.tint)); mats.push(o.material); }
+      if (o.isMesh) {
+        o.castShadow = true; o.material = o.material.clone(); o.material.transparent = true; if (u.tint) o.material.color.multiply(new THREE.Color(u.tint));
+        addRim(o.material, u.side < 0 ? 0x4fb8ff : 0xd07bff); mats.push(o.material);
+      }
     });
     this.scene.add(obj);
     const mixer = new THREE.AnimationMixer(obj);
@@ -360,6 +427,8 @@ export class View3D {
     for (const n of Object.values(this.nodes)) { n.body.visible = true; n.ruin.visible = false; n.flash = 0; n.body.scale.copy(n.scale); }
     for (const r of this.rings) { this.scene.remove(r.m); r.m.material.dispose(); }
     this.rings = [];
+    for (const w of this.wisps) { this.scene.remove(w.s); w.s.material.dispose(); }
+    this.wisps = [];
     this.focus = null; this.cam.zoom = 1; this.cam.updateProjectionMatrix();
     this.overlay.querySelectorAll(".float").forEach((d) => d.remove());
   }
@@ -426,6 +495,9 @@ export class View3D {
         Sound.play(e.counter ? "counter" : "hit");
       } else if (e.type === "death") {
         this.burst(V(e.unit.x, e.unit.y, 0.6), 10, { tex: this.T_SMOKE, tint: 0xd9d2c5, speed: 1.5, up: 0.3, life: 1.0, s0: 0.8, s1: 1.7, a0: 0.45 });
+        // 이야기: 해골은 무너지면 잃었던 기억이 빛이 되어 날아오르고 편히 쉼 → 청록 빛 덩이가 천천히 솟음
+        if (/^skel/.test(e.unit.model)) this.wisps.push({ x: e.unit.x, y: e.unit.y, t: 0, ph: Math.random() * 6.28, s: this.addWisp() });
+        else this.burst(V(e.unit.x, e.unit.y, 1.4), 6, { tint: 0xfff1b8, add: true, speed: 1.2, up: 1.5, life: 0.8, s0: 0.35, s1: 0.05 });
       } else if (e.type === "structHit") {
         const c = this.structNode(e.struct); if (c) { c.shake = 0.18; c.flash = Math.min(1, c.flash + 0.5); }
         const p = V(e.x, e.y, e.z);
@@ -487,6 +559,10 @@ export class View3D {
     }
   }
 
+  addWisp() {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.T_WISP, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    s.renderOrder = 7; this.scene.add(s); return s;
+  }
   ring(x, y, color) {
     const m = new THREE.Mesh(this.ringGeo, new THREE.MeshBasicMaterial({ map: this.ringTex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     m.position.copy(V(x, y, 0.3)); m.renderOrder = 4;
@@ -494,11 +570,34 @@ export class View3D {
   }
   // 끝날 때 무너진 본성 쪽으로 천천히 다가가기
   focusOn(x, y, z) { this.focus = { x, y, z, t: 0 }; }
+  intro() { this.introAt = performance.now(); this.introT = 2.8; }
 
   // ---------- 매 프레임 ----------
   update(dt, b) {
     if (this.world) this.world.update(dt);
+    WIND.value += dt;
     if (this.T_CHEV) this.T_CHEV.offset.x -= dt * 0.9; // 고른 길 화살표가 적 쪽으로 흐름
+    for (let i = this.wisps.length - 1; i >= 0; i--) {
+      const w = this.wisps[i]; w.t += dt;
+      const k = w.t / 2.2;
+      if (k >= 1) { this.scene.remove(w.s); w.s.material.dispose(); this.wisps.splice(i, 1); continue; }
+      w.s.position.copy(V(w.x + Math.sin(w.ph + w.t * 3) * 0.35 * k, w.y + Math.cos(w.ph + w.t * 3) * 0.25 * k, 1.2 + k * 5.5));
+      w.s.scale.setScalar(0.9 + Math.sin(w.t * 9) * 0.12 + (k < 0.15 ? k * 6 : 0));
+      w.s.material.opacity = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85;
+    }
+    // 무너져 가는 건물: 체력 60% 아래 연기, 30% 아래 불길(본성·탑이 위험한 게 멀리서도 보이게)
+    this.burnT = (this.burnT || 0) - dt;
+    if (b && b.structs && this.burnT <= 0 && this.fxScale > 0.2) {
+      this.burnT = 0.16 / this.fxScale;
+      for (const st of b.structs) {
+        if (!st.alive) continue;
+        const r = st.hp / st.max; if (r > 0.6) continue;
+        const h = (st.kind === "base" ? BASE.height : TOWER.height) * 0.85;
+        const p = V(st.x + (Math.random() - 0.5) * 1.2, st.y + (Math.random() - 0.5) * 0.8, h);
+        this.puff({ p, tex: this.T_SMOKE, tint: r < 0.3 ? 0x4a4440 : 0x8d8780, life: 1.8, s0: 0.8, s1: 2.6, a0: 0.55, v: new THREE.Vector3(0.25, 1.6, 0) });
+        if (r < 0.3) this.puff({ p: p.clone().add(new THREE.Vector3(0, -0.6, 0)), tint: Math.random() < 0.5 ? 0xff8a2a : 0xffc24a, add: true, life: 0.5, s0: 0.9, s1: 0.2, a0: 0.9, v: new THREE.Vector3(0, 1.8, 0) });
+      }
+    }
     for (let i = this.rings.length - 1; i >= 0; i--) {
       const r = this.rings[i]; r.t += dt;
       const k = r.t / 0.7;
@@ -617,6 +716,15 @@ export class View3D {
     }
     this.shake = Math.max(0, this.shake - dt * 0.5);
     const base = this.camBase.clone();
+    if (this.introAt && !this.calm) {
+      this.introT = Math.max(0, 2.8 - (performance.now() - this.introAt) / 1000); // 카운트다운(게임이 멈춘 동안)에도 실제 시간으로
+      if (this.introT === 0) this.introAt = 0;
+      const k = 1 - smooth(1 - this.introT / 2.8), [ex, ey] = BASES[1];   // k: 1 → 0
+      const u = ey * Math.sin(ELEV) + 2 * Math.cos(ELEV);
+      base.addScaledVector(new THREE.Vector3(1, 0, 0), ex * 0.45 * k).addScaledVector(this.cam.up, u * 0.45 * k);
+      this.cam.zoom = 1 + 0.45 * k; this.cam.updateProjectionMatrix();
+      if (this.introT === 0) { this.cam.zoom = 1; this.cam.updateProjectionMatrix(); }
+    }
     if (this.focus) {
       const f = this.focus; f.t += dt;
       const k = smooth(Math.min(1, f.t / 2.2)) * 0.55;

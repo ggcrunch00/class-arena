@@ -239,7 +239,7 @@ async function newGame(stage = null) {
     if (duo) bopts.fac = { [-1]: settings.duoFac[0], [1]: settings.duoFac[1] };
     const battle = new Battle(durations, bopts);
     const level = stage ? stageAI(stage, losses, hard) : daily ? "knight" : settings.ai;
-    G = { battle, duo, daily, stage, ai: duo ? null : new ComputerPlayer(battle, CPU, level), endT: -1 };
+    G = { battle, duo, daily, stage, ai: duo ? null : new ComputerPlayer(battle, CPU, level), endT: -1, kills: { [-1]: [], [1]: [] }, firstKill: false };
     view.setHero(battle.sides[-1].hero); // 원정: 영웅이 우리 본성 곁에 서서 기술 쓸 때 움직임
     if (stage) G.runner = new StageRunner(battle, stage, G.ai, { talk: (w, t) => talk(w, t), boss: (w, t) => talk(w, t, true) }, hard ? 0 : assistLevel(losses));
     G.hard = hard;
@@ -260,6 +260,7 @@ async function newGame(stage = null) {
     quality.reset();
     // 준비 → 3 → 2 → 1 → 시작! (실제 시간 기준, 그동안 전투·문제는 멈춤)
     mode = "count"; G.countAt = performance.now(); G.countStep = -1; document.body.classList.add("counting");
+    view.intro(); // 카운트다운 동안 적 본성 쪽에서 전장 전체로 카메라가 미끄러짐
     updateHud(true);
   } catch (e) { toast("전장을 열지 못했어요: " + ((e && e.message) || e)); showStart(); }
   finally { busy = false; }
@@ -330,8 +331,20 @@ function buildKeys() {
 
 // ---------- 화면 위 정보 ----------
 let lastHp = { [-1]: -1, [1]: -1 };
+// 전세(11-07): 전장에 남은 병사 힘(체력 비율 × 값)과 탑 수로 어느 쪽이 밀고 있는지 시계 아래 막대로
+function updateTug(b) {
+  const pow = { [-1]: 0, [1]: 0 };
+  for (const u of b.units) if (u.state !== "death") pow[u.side] += (u.hp / u.maxHp) * ((ROLE_INFO[u.role] && ROLE_INFO[u.role].cost) || 120);
+  for (const s of [-1, 1]) pow[s] += Object.values(b.sides[s].towers).filter((t) => t.alive).length * 90 + 60;
+  const k = pow[-1] / (pow[-1] + pow[1]);
+  G.tug = G.tug == null ? k : G.tug + (k - G.tug) * 0.06;
+  $("#tug").style.setProperty("--k", (G.tug * 100).toFixed(1) + "%");
+  // 위기 음악: 혼자 할 때 우리 본성이 40% 아래면 빨라짐(총력전이 아니어도)
+  if (!G.duo && !b.overtime) { const low = b.sides[PLAYER].base.hp / b.sides[PLAYER].base.max < 0.4; if (low !== !!G.crisis) { G.crisis = low; Music.intense(low); } }
+}
 function updateHud(force) {
   const b = G.battle;
+  updateTug(b);
   for (const s of seats) s.update();
   for (const s of [-1, 1]) {
     const hp = b.sides[s].base.hp;
@@ -358,6 +371,13 @@ function updateHud(force) {
 }
 let toastT = 0;
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; t.style.animation = "none"; void t.offsetWidth; t.style.animation = ""; toastT = 2.6; }
+// 작은 알림(시계 아래): 첫 처치·연속 처치처럼 자주 나오는 전투 소식. tone: good(우리) / bad(상대) / gold
+let calloutT = 0;
+function callout(msg, tone = "good", icon = "⚔") {
+  const c = $("#callout"); c.querySelector("b").textContent = msg; c.querySelector("i").textContent = icon;
+  c.className = tone; c.hidden = false; c.style.animation = "none"; void c.offsetWidth; c.style.animation = "";
+  clearTimeout(calloutT); calloutT = setTimeout(() => { c.hidden = true; }, 1700);
+}
 function banner(msg, sec = 1.8) { const b = $("#banner"); b.textContent = msg; b.hidden = false; b.style.animation = "none"; void b.offsetWidth; b.style.animation = ""; setTimeout(() => { b.hidden = true; }, sec * 1000); }
 // 둘이서는 같은 진영끼리도 겨루니 "왼쪽 기사단"처럼 자리까지 붙여 부름
 const sideName = (s) => (G && G.duo ? `${s < 0 ? "왼쪽" : "오른쪽"} ${FACTIONS[G.battle.fac[s]].name}` : s < 0 ? "기사단" : "해골 군단");
@@ -385,6 +405,14 @@ function onEvents(evts) {
     if (e.type === "structHit" && e.struct.kind === "base" && seatOf(e.struct.side)) {
       if (!isDuo()) dangerT = 2.5;
       if (G.battle.time - dangerSaid > 8) { dangerSaid = G.battle.time; seatOf(e.struct.side).say("본성이 공격받고 있어요! 막아야 해요"); }
+    }
+    // 처치 소식(11-07): 판의 첫 처치, 3초 안에 3명 넘게 무찌르면 연속 처치
+    if (e.type === "death" && !e.free) {
+      const k = -e.unit.side, now = G.battle.time, list = G.kills[k];
+      list.push(now); while (list.length && now - list[0] > 3) list.shift();
+      const who = isDuo() ? sideName(k) + " " : "", mine = isDuo() || k === PLAYER;
+      if (!G.firstKill) { G.firstKill = true; callout(isDuo() ? `${who}첫 처치!` : mine ? "첫 처치!" : "상대가 먼저 무찔렀어요", mine ? "good" : "bad"); Sound.play("coin"); }
+      else if (list.length >= 3) { callout(`${who}연속 처치 ×${list.length}!`, mine ? "gold" : "bad", "🔥"); if (list.length === 3) Sound.play("horn"); }
     }
     if (e.type === "overtime") { banner("총력전! 골드 2배"); Sound.play("horn"); Music.intense(true); }
     else if (e.type === "mine" && !seatOf(e.side)) toast("상대가 금광을 강화했어요");

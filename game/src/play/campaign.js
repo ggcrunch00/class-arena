@@ -561,7 +561,7 @@ export const CHAPTERS = [
   {
     id: 6, name: "서리 고개", art: "frost", map: "frost", pos: [88, 14],
     // 눈 덮인 고개: 차고 밝은 빛 + 흰 눈안개
-    mood: { sun: [0.92, 0.96, 1.05], sunI: 3.0, hemiSky: [0.86, 0.9, 1.0], hemiI: 1.45, bg: "#1c2733", fog: "#cdd8e4", fogNear: 105, fogFar: 190 },
+    mood: { sun: [1.0, 0.95, 0.9], sunI: 2.4, hemiSky: [0.72, 0.8, 1.0], hemiI: 1.0, bg: "#1c2733", fog: "#b4c3d4", fogNear: 115, fogFar: 190 },
     prologue: [
       { who: "narr", text: "요새를 넘으면 안개 성채로 가는 마지막 고개가 나와요. 한여름에도 서리가 내리는 곳이에요." },
       { who: "narr", text: "고개 꼭대기에는 옛 파수꾼의 망루가 있어요. 지금은 해골 파수꾼이 아무도 지나가지 못하게 지켜요." },

@@ -404,6 +404,20 @@ export class Seat {
       this.wasReady[role] = ready;
       c.querySelector(".cd").style.setProperty("--p", (S.cooldown[role] / R.cooldown * 100).toFixed(1) + "%");
     }
+    // 길마다 위험(11-07): 우리 쪽 절반에 들어온 적 병사 수, 우리 탑·본성 가까이면 빨갛게 깜빡
+    this.threatT = (this.threatT || 0) + 1;
+    if (this.threatT % 6 === 0) for (const n of LANE_NAMES) {
+      const L = LANES[n]; let cnt = 0, near = false;
+      for (const u of b.units) {
+        if (u.side === this.side || u.lane !== n || u.state === "death") continue;
+        const d = this.side < 0 ? u.s / L.length : 1 - u.s / L.length; // 우리 본성에서 떨어진 정도(0 = 우리 본성)
+        if (d < 0.55) cnt++; if (d < 0.38) near = true;
+      }
+      const bt = this.el.querySelector(`.lanes button[data-lane="${n}"]`); if (!bt) continue;
+      let tg = bt.querySelector(".threat"); if (!tg) { tg = document.createElement("em"); tg.className = "threat"; bt.appendChild(tg); }
+      const key = cnt + (near ? "!" : "");
+      if (tg.dataset.k !== key) { tg.dataset.k = key; tg.textContent = cnt ? `⚠${cnt}` : ""; tg.hidden = !cnt; bt.classList.toggle("danger", near); }
+    }
     const mc = b.mineCost(this.side);
     this.$(".mineLv").textContent = "Lv" + S.mine;
     this.$(".mineCost").textContent = mc ? `${mc}골드로 강화` : "최고 단계";

@@ -279,7 +279,7 @@ export class Battle {
     this.state = "end"; this.winner = winner; this.endWhy = why;
     for (const u of this.units) {
       if (u.state === "death") continue;
-      if (winner && u.side === -winner) { this.setState(u, "death"); this.events.push({ type: "death", unit: u }); }
+      if (winner && u.side === -winner) { this.setState(u, "death"); this.events.push({ type: "death", unit: u, free: true }); }
       else if (winner) this.setState(u, "cheer");
     }
     this.events.push({ type: "end", winner, why });
